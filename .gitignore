@@ -1,0 +1,11 @@
+.idea/
+.claude/
+_build/
+out/
+
+fresh
+
+*.exe
+.env
+.DS_Store
+claude.md
