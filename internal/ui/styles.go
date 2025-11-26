@@ -1,4 +1,4 @@
-package main
+package ui
 
 import (
 	"github.com/charmbracelet/lipgloss"
@@ -20,6 +20,11 @@ const (
 	TagBg        = lipgloss.Color("#3b4261")
 	TagFg        = lipgloss.Color("#cfc9c2")
 )
+
+var SpinnerStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("#9ece6a"))
+
+//Foreground(Green)
 
 var TableHeaderStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).
@@ -83,7 +88,7 @@ var RemoteStatusYellow = lipgloss.NewStyle().
 	Width(14)
 
 var LinksStyles = lipgloss.NewStyle().
-	Foreground(TextSecondary).MarginRight(1).Bold(true)
+	Foreground(TextSecondary).MarginRight(2).Bold(true)
 
 var RemoteStatusRed = lipgloss.NewStyle().
 	Foreground(Red).
@@ -96,9 +101,9 @@ var RemoteStatusBlue = lipgloss.NewStyle().
 	Width(12)
 
 var BadgeStyle = lipgloss.NewStyle().
-	//Foreground(Blue).
-	//Bold(true).
-	Width(25)
+	Width(10).
+	Inline(true).
+	MarginLeft(2)
 
 var IconStyle = lipgloss.NewStyle().
 	Foreground(TextPrimary)
@@ -106,13 +111,14 @@ var IconStyle = lipgloss.NewStyle().
 // ---------- Badge Styles ----------
 
 var BadgeReadyStyle = lipgloss.NewStyle().
-	Foreground(Green).
-	Background(lipgloss.Color("#1a3a2e")).
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(Green)
-
-//Padding(0, 1).
-//Bold(true)
+	Foreground(lipgloss.Color("#000000")).
+	Background(Green).
+	Padding(0, 1).
+	Bold(true).
+	Inline(true).
+	Height(1).
+	MaxHeight(1).
+	MarginLeft(2)
 
 // ---------- "MANUAL" Tag ----------
 
@@ -121,7 +127,10 @@ var TagStyle = lipgloss.NewStyle().
 	Background(TagBg).
 	Padding(0, 1).
 	Bold(true).
-	MarginLeft(1)
+	Inline(true).
+	Height(1).
+	MaxHeight(1).
+	MarginLeft(2)
 
 // ---------- Time Ago ----------
 

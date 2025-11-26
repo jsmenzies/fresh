@@ -1,4 +1,4 @@
-package main
+package git
 
 import (
 	"bufio"
@@ -9,21 +9,15 @@ import (
 	"time"
 )
 
-func isGitRepository(path string) bool {
+func IsRepository(path string) bool {
 	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
 	cmd.Dir = path
 	err := cmd.Run()
 	return err == nil
 }
 
-func makeClickableURL(url string, displayText string) string {
-	if url == "" {
-		return displayText
-	}
-	return fmt.Sprintf("\033]8;;%s\033\\%s\033]8;;\033\\", url, displayText)
-}
-
-func getRemoteURL(repoPath string) string {
+// GetRemoteURL returns the remote URL for the origin remote
+func GetRemoteURL(repoPath string) string {
 	cmd := exec.Command("git", "remote", "get-url", "origin")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
@@ -34,7 +28,8 @@ func getRemoteURL(repoPath string) string {
 	return strings.TrimSpace(string(output))
 }
 
-func getGitStatus(repoPath string) (aheadCount int, behindCount int) {
+// GetStatus returns the ahead and behind counts compared to upstream
+func GetStatus(repoPath string) (aheadCount int, behindCount int) {
 	cmd := exec.Command("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
@@ -55,7 +50,8 @@ func getGitStatus(repoPath string) (aheadCount int, behindCount int) {
 	return ahead, behind
 }
 
-func hasModifiedFiles(repoPath string) bool {
+// HasModifiedFiles checks if the repository has modified files
+func HasModifiedFiles(repoPath string) bool {
 	cmd := exec.Command("git", "status", "--porcelain")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
@@ -66,7 +62,8 @@ func hasModifiedFiles(repoPath string) bool {
 	return strings.TrimSpace(string(output)) != ""
 }
 
-func getLastCommitTime(repoPath string) time.Time {
+// GetLastCommitTime returns the timestamp of the last commit
+func GetLastCommitTime(repoPath string) time.Time {
 	cmd := exec.Command("git", "log", "-1", "--format=%ct")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
@@ -87,7 +84,8 @@ func getLastCommitTime(repoPath string) time.Time {
 	return time.Unix(timestamp, 0)
 }
 
-func getCurrentBranch(repoPath string) string {
+// GetCurrentBranch returns the name of the current branch
+func GetCurrentBranch(repoPath string) string {
 	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
@@ -98,7 +96,8 @@ func getCurrentBranch(repoPath string) string {
 	return strings.TrimSpace(string(output))
 }
 
-func refreshRemoteStatus(repoPath string) (aheadCount, behindCount int, err error) {
+// RefreshRemoteStatus fetches from remote and returns updated ahead/behind counts
+func RefreshRemoteStatus(repoPath string) (aheadCount, behindCount int, err error) {
 	cmd := exec.Command("git", "fetch", "--quiet")
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
@@ -139,7 +138,8 @@ func refreshRemoteStatus(repoPath string) (aheadCount, behindCount int, err erro
 	return ahead, behind, nil
 }
 
-func gitPull(repoPath string, lineCallback func(string)) int {
+// Pull performs a git pull with rebase and calls lineCallback for each output line
+func Pull(repoPath string, lineCallback func(string)) int {
 	cmd := exec.Command("git", "pull", "--rebase", "--progress")
 	cmd.Dir = repoPath
 

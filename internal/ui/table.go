@@ -1,14 +1,18 @@
-package main
+package ui
 
 import (
 	"fmt"
 	"strings"
 
+	"fresh/internal/domain"
+	"fresh/internal/formatting"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 )
 
-func generateTable(repositories []repository, cursor int) string {
+// GenerateTable creates a table view of repositories
+func GenerateTable(repositories []domain.Repository, cursor int) string {
 	headers := []string{"PROJECT", "BRANCH", "LOCAL", "REMOTE", "LINKS", "", "STATUS / UPDATE"}
 
 	rows := make([][]string, len(repositories))
@@ -28,15 +32,14 @@ func generateTable(repositories []repository, cursor int) string {
 				return TableHeaderStyle
 			}
 			return lipgloss.NewStyle()
-			//.MarginBottom(1)
 		})
 
 	return t.Render()
 }
 
-func repositoryToRow(repo repository) []string {
-	projectName := buildProjectName(repo.name)
-	branchName := buildBranchName(repo.currentBranch)
+func repositoryToRow(repo domain.Repository) []string {
+	projectName := buildProjectName(repo.Name)
+	branchName := buildBranchName(repo.CurrentBranch)
 	localCol := buildLocalStatus(repo)
 	remoteCol := buildRemoteStatus(repo)
 	linksCol := buildLinks(repo)
@@ -82,55 +85,62 @@ func stylePullOutput(lastLine string, exitCode int) string {
 	return PullOutputWarn.Render(truncated)
 }
 
-func buildLastUpdate(repo repository) string {
-	timeAgo := formatTimeAgo(repo.lastCommitTime)
+func buildLastUpdate(repo domain.Repository) string {
+	timeAgo := formatting.FormatTimeAgo(repo.LastCommitTime)
 
 	// If we have pull state data, display it
-	if repo.pullState != nil {
-		if repo.pullState.InProgress {
-			lastLine := repo.pullState.GetLastLine()
+	if repo.PullState != nil {
+		if repo.PullState.InProgress {
+			lastLine := repo.PullState.GetLastLine()
 			truncated := truncateWithEllipsis(lastLine, 55)
-			return repo.pullSpinner.View() + " " + truncated
-		} else if repo.pullState.Completed {
-			lastLine := repo.pullState.GetLastLine()
-			styledLine := stylePullOutput(lastLine, repo.pullState.ExitCode)
+			return repo.PullSpinner.View() + " " + truncated
+		} else if repo.PullState.Completed {
+			lastLine := repo.PullState.GetLastLine()
+			styledLine := stylePullOutput(lastLine, repo.PullState.ExitCode)
 			return styledLine
 		}
 	}
 
 	// No pull state - show refresh status or time
-	if repo.refreshing {
-		return repo.refreshSpinner.View()
+	if repo.Refreshing {
+		return repo.RefreshSpinner.View()
 	}
 
 	return TimeAgoStyle.Render(IconClock + " " + timeAgo)
 }
 
-func buildBadge(repo repository) string {
-	//if repo.behindCount > 0 {
-	//	return BadgeReadyStyle.Render(BadgeReady)
-	//}
-	return BadgeStyle.Render("")
+func buildBadge(repo domain.Repository) string {
+	// MANUAL badge: repo has conflicts, is dirty, or is diverged
+	if repo.HasError || repo.HasModified || (repo.BehindCount > 0 && repo.AheadCount > 0) {
+		return TagStyle.Render(BadgeManual)
+	}
 
+	// READY badge: repo is clean and behind (can be auto-updated)
+	if repo.BehindCount > 0 && !repo.HasModified && !repo.HasError {
+		return BadgeReadyStyle.Render(BadgeReady)
+	}
+
+	// No badge for synced repos or repos ahead only
+	return BadgeStyle.Render("")
 }
 
-func buildLinks(repo repository) string {
-	if repo.remoteURL != "" {
-		if isGitHubRepository(repo.remoteURL) {
-			githubURLs := buildGitHubURLs(repo.remoteURL, repo.currentBranch)
+func buildLinks(repo domain.Repository) string {
+	if repo.RemoteURL != "" {
+		if formatting.IsGitHubRepository(repo.RemoteURL) {
+			githubURLs := formatting.BuildGitHubURLs(repo.RemoteURL, repo.CurrentBranch)
 			if githubURLs != nil {
 				var shortcuts []string
 
 				// Code link (to current branch)
-				codeLink := makeClickableURL(githubURLs["code"], IconCode)
+				codeLink := MakeClickableURL(githubURLs["code"], IconCode)
 				shortcuts = append(shortcuts, LinksStyles.Render(codeLink))
 
 				// PRs link
-				prsLink := makeClickableURL(githubURLs["prs"], IconPullRequests)
+				prsLink := MakeClickableURL(githubURLs["prs"], IconPullRequests)
 				shortcuts = append(shortcuts, LinksStyles.Render(prsLink))
 
 				// Open PR link
-				openPRLink := makeClickableURL(githubURLs["openpr"], IconOpenPR)
+				openPRLink := MakeClickableURL(githubURLs["openpr"], IconOpenPR)
 				shortcuts = append(shortcuts, LinksStyles.Render(openPRLink))
 
 				shortcutsDisplay := fmt.Sprintf("%s", strings.Join(shortcuts, " "))
@@ -141,13 +151,13 @@ func buildLinks(repo repository) string {
 	return ""
 }
 
-func buildRemoteStatus(repo repository) string {
+func buildRemoteStatus(repo domain.Repository) string {
 	var remoteCol string
-	if repo.behindCount > 0 && repo.aheadCount > 0 {
+	if repo.BehindCount > 0 && repo.AheadCount > 0 {
 		remoteCol = RemoteStatusRed.Render(IconDiverged + " " + StatusDiverged)
 		return remoteCol
 	}
-	if repo.behindCount > 0 {
+	if repo.BehindCount > 0 {
 		remoteCol = RemoteStatusBlue.Render(IconBehind + " " + StatusBehind)
 		return remoteCol
 	}
@@ -155,10 +165,10 @@ func buildRemoteStatus(repo repository) string {
 	return remoteCol
 }
 
-func buildLocalStatus(repo repository) string {
-	if repo.hasError {
+func buildLocalStatus(repo domain.Repository) string {
+	if repo.HasError {
 		return LocalStatusConflict
-	} else if repo.hasModified {
+	} else if repo.HasModified {
 		return LocalStatusDirty
 	}
 	return LocalStatusClean
@@ -176,4 +186,12 @@ func buildBranchName(branch string) string {
 
 func buildProjectName(repo string) string {
 	return IconStyle.Render(IconGit) + " " + ProjectNameStyle.Render(repo)
+}
+
+// MakeClickableURL creates a terminal hyperlink
+func MakeClickableURL(url string, displayText string) string {
+	if url == "" {
+		return displayText
+	}
+	return fmt.Sprintf("\033]8;;%s\033\\%s\033]8;;\033\\", url, displayText)
 }
