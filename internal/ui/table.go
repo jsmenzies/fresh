@@ -111,14 +111,14 @@ func buildLastUpdate(repo domain.Repository) string {
 
 func buildBadge(repo domain.Repository) string {
 	// MANUAL badge: repo has conflicts, is dirty, or is diverged
-	if repo.HasError || repo.HasModified || (repo.BehindCount > 0 && repo.AheadCount > 0) {
-		return TagStyle.Render(BadgeManual)
-	}
-
-	// READY badge: repo is clean and behind (can be auto-updated)
-	if repo.BehindCount > 0 && !repo.HasModified && !repo.HasError {
-		return BadgeReadyStyle.Render(BadgeReady)
-	}
+	//if repo.HasError || repo.HasModified || (repo.BehindCount > 0 && repo.AheadCount > 0) {
+	//	return TagStyle.Render(BadgeManual)
+	//}
+	//
+	//// READY badge: repo is clean and behind (can be auto-updated)
+	//if repo.BehindCount > 0 && !repo.HasModified && !repo.HasError {
+	//	return BadgeReadyStyle.Render(BadgeReady)
+	//}
 
 	// No badge for synced repos or repos ahead only
 	return BadgeStyle.Render("")
@@ -133,18 +133,18 @@ func buildLinks(repo domain.Repository) string {
 
 				// Code link (to current branch)
 				codeLink := MakeClickableURL(githubURLs["code"], IconCode)
-				shortcuts = append(shortcuts, LinksStyles.Render(codeLink))
+				shortcuts = append(shortcuts, LinkStyle.Render(codeLink))
 
 				// PRs link
 				prsLink := MakeClickableURL(githubURLs["prs"], IconPullRequests)
-				shortcuts = append(shortcuts, LinksStyles.Render(prsLink))
+				shortcuts = append(shortcuts, LinkStyle.Render(prsLink))
 
 				// Open PR link
 				openPRLink := MakeClickableURL(githubURLs["openpr"], IconOpenPR)
-				shortcuts = append(shortcuts, LinksStyles.Render(openPRLink))
+				shortcuts = append(shortcuts, LinkStyle.Render(openPRLink))
 
 				shortcutsDisplay := fmt.Sprintf("%s", strings.Join(shortcuts, " "))
-				return shortcutsDisplay
+				return LinksStyle.Render(shortcutsDisplay)
 			}
 		}
 	}

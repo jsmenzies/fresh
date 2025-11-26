@@ -34,7 +34,7 @@ var TableHeaderStyle = lipgloss.NewStyle().
 var ProjectNameStyle = lipgloss.NewStyle().
 	Foreground(TextPrimary).
 	Align(lipgloss.Left).
-	Width(30).
+	Width(28).
 	MaxWidth(40).
 	AlignHorizontal(lipgloss.Left)
 
@@ -87,8 +87,13 @@ var RemoteStatusYellow = lipgloss.NewStyle().
 	//Bold(true).
 	Width(14)
 
-var LinksStyles = lipgloss.NewStyle().
-	Foreground(TextSecondary).MarginRight(2).Bold(true)
+var LinkStyle = lipgloss.NewStyle().
+	Foreground(TextSecondary).
+	//MarginRight(1).
+	Bold(true)
+
+var LinksStyle = lipgloss.NewStyle().
+	Width(8)
 
 var RemoteStatusRed = lipgloss.NewStyle().
 	Foreground(Red).
@@ -101,7 +106,7 @@ var RemoteStatusBlue = lipgloss.NewStyle().
 	Width(12)
 
 var BadgeStyle = lipgloss.NewStyle().
-	Width(10).
+	Width(20).
 	Inline(true).
 	MarginLeft(2)
 
