@@ -143,7 +143,7 @@ release:
 
     **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/fresh/compare/{{ .PreviousTag }}...{{.Tag}}
 
-brews:
+homebrews:
   - name: fresh
     repository:
       owner: jsmenzies
