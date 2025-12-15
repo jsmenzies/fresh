@@ -19,6 +19,12 @@ builds:
     main: ./cmd/fresh
     binary: fresh
 
+    archive:
+      format: tar.gz
+      format_overrides:
+        - goos: windows
+          format: zip
+
     # Build for multiple platforms
     goos:
       - linux
@@ -47,12 +53,6 @@ builds:
 
 archives:
   - id: fresh-archive
-    format: tar.gz
-
-    # Use zip for Windows
-    format_overrides:
-      - goos: windows
-        format: zip
 
     # Archive name template
     name_template: >-
