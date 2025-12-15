@@ -19,12 +19,6 @@ builds:
     main: ./cmd/fresh
     binary: fresh
 
-    archive:
-      format: tar.gz
-      format_overrides:
-        - goos: windows
-          format: zip
-
     # Build for multiple platforms
     goos:
       - linux
