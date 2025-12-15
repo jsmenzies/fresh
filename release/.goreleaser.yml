@@ -149,36 +149,17 @@ release:
 
     **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/fresh/compare/{{ .PreviousTag }}...{{.Tag}}
 
-# Homebrew tap (optional - uncomment if you create a homebrew tap)
-# brews:
-#   - name: fresh
-#     repository:
-#       owner: your-username
-#       name: homebrew-tap
-#     description: "Git repository management CLI tool"
-#     homepage: "https://github.com/your-username/fresh"
-#     license: "MIT"
-#     install: |
-#       bin.install "fresh"
-
-# Snapcraft (optional - for Linux Snap Store)
-# snapcrafts:
-#   - name: fresh
-#     summary: Git repository management CLI
-#     description: |
-#       Fresh is a command-line tool designed to help developers manage
-#       multiple Git repositories efficiently.
-#     grade: stable
-#     confinement: classic
-
-# Docker images (optional)
-# dockers:
-#   - image_templates:
-#       - "your-username/fresh:{{ .Version }}"
-#       - "your-username/fresh:latest"
-#     dockerfile: Dockerfile
-#     build_flag_templates:
-#       - "--pull"
-#       - "--label=org.opencontainers.image.created={{.Date}}"
-#       - "--label=org.opencontainers.image.title={{.ProjectName}}"
-#       - "--label=org.opencontainers.image.version={{.Version}}"
+brews:
+  - name: fresh
+    repository:
+      owner: jsmenzies
+      name: homebrew-fresh
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    description: "Git repository management CLI tool"
+    homepage: "https://github.com/jsmenzies/fresh"
+    license: "MIT"
+    install: |
+      bin.install "fresh"
