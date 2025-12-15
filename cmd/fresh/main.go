@@ -9,7 +9,19 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+	builtBy = "unknown"
+)
+
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		printVersion()
+		os.Exit(0)
+	}
+
 	scanDir, err := parseDir()
 	if err != nil {
 		fmt.Printf("Error reading directory: %v\n", err)
@@ -47,4 +59,11 @@ func parseDir() (string, error) {
 	}
 
 	return scanDir, nil
+}
+
+func printVersion() {
+	fmt.Printf("fresh %s\n", version)
+	fmt.Printf("  commit: %s\n", commit)
+	fmt.Printf("  built:  %s\n", date)
+	fmt.Printf("  by:     %s\n", builtBy)
 }
