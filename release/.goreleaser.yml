@@ -143,14 +143,14 @@ release:
 
     **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/fresh/compare/{{ .PreviousTag }}...{{.Tag}}
 
-homebrews:
+brews:
   - name: fresh
     repository:
       owner: jsmenzies
       name: homebrew-fresh
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     commit_author:
-      name: goreleaserbot
+      name: James Menzies
       email: bot@goreleaser.com
     description: "Git repository management CLI tool"
     homepage: "https://github.com/jsmenzies/fresh"
