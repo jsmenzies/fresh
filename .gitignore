@@ -10,3 +10,8 @@ fresh
 .env
 .DS_Store
 claude.md
+
+# Test coverage
+coverage.out
+coverage.html
+*.test
