@@ -1,99 +1,82 @@
 package scanner
 
 import (
-	"os"
-	"path/filepath"
-
 	"fresh/internal/domain"
 	"fresh/internal/git"
+	"os"
+	"path/filepath"
 )
 
 type Scanner struct {
-	foundRepositories []domain.Repository
-	directoriesToScan []string
-	currentIndex      int
+	scanDir      string
+	repositories []domain.Repository
+	ch           chan domain.Repository
+	finished     bool
 }
 
-func New() *Scanner {
+func New(scanDir string) *Scanner {
 	return &Scanner{
-		foundRepositories: make([]domain.Repository, 0),
-		directoriesToScan: make([]string, 0),
-		currentIndex:      0,
+		scanDir:      scanDir,
+		repositories: make([]domain.Repository, 0),
+		ch:           make(chan domain.Repository),
+		finished:     false,
 	}
 }
 
-func (s *Scanner) StartScanning(scanDir string) {
-	s.directoriesToScan = make([]string, 0)
-	s.foundRepositories = make([]domain.Repository, 0)
-	s.currentIndex = 0
-
-	s.scanDirectoriesWithDepth(scanDir, 0, 0)
+func (s *Scanner) IsFinished() bool {
+	return s.finished
 }
 
-func (s *Scanner) ScanStep() (domain.Repository, bool, bool) {
-	if s.currentIndex >= len(s.directoriesToScan) {
-		return domain.Repository{}, false, false
-	}
-
-	path := s.directoriesToScan[s.currentIndex]
-	s.currentIndex++
-
-	if git.IsRepository(path) {
-		repoName := filepath.Base(path)
-		lastCommitTime := git.GetLastCommitTime(path)
-		remoteURL := git.GetRemoteURL(path)
-		aheadCount, behindCount := git.GetStatus(path)
-		hasModified := git.HasModifiedFiles(path)
-		currentBranch := git.GetCurrentBranch(path)
-
-		repo := domain.Repository{
-			Name:           repoName,
-			Path:           path,
-			LastCommitTime: lastCommitTime,
-			RemoteURL:      remoteURL,
-			HasModified:    hasModified,
-			AheadCount:     aheadCount,
-			BehindCount:    behindCount,
-			CurrentBranch:  currentBranch,
-		}
-
-		s.foundRepositories = append(s.foundRepositories, repo)
-		hasMore := s.currentIndex < len(s.directoriesToScan)
-		return repo, hasMore, true
-	}
-
-	hasMore := s.currentIndex < len(s.directoriesToScan)
-	return domain.Repository{}, hasMore, false
+func (s *Scanner) GetRepositories() []domain.Repository {
+	return s.repositories
 }
 
-// GetFoundRepositories returns all repositories found so far
-func (s *Scanner) GetFoundRepositories() []domain.Repository {
-	return s.foundRepositories
-}
-
-// GetRepoCount returns the number of repositories found
 func (s *Scanner) GetRepoCount() int {
-	return len(s.foundRepositories)
+	return len(s.repositories)
 }
 
-// scanDirectoriesWithDepth recursively collects directories to scan up to maxDepth
-func (s *Scanner) scanDirectoriesWithDepth(dir string, currentDepth, maxDepth int) {
-	if currentDepth > maxDepth {
-		return
-	}
+func (s *Scanner) GetRepoChannel() chan domain.Repository {
+	return s.ch
+}
 
-	entries, err := os.ReadDir(dir)
+func (s *Scanner) Scan() {
+	entries, err := os.ReadDir(s.scanDir)
 	if err != nil {
+		s.finished = true
 		return
 	}
 
 	for _, entry := range entries {
 		if entry.IsDir() {
-			fullPath := filepath.Join(dir, entry.Name())
-			// Only add directories at the first level (depth 0)
-			if currentDepth == 0 {
-				s.directoriesToScan = append(s.directoriesToScan, fullPath)
+			fullPath := filepath.Join(s.scanDir, entry.Name())
+			if git.IsRepository(fullPath) {
+				repo := ToGitRepo(fullPath)
+				s.repositories = append(s.repositories, repo)
+				s.ch <- repo
 			}
 		}
+	}
+
+	close(s.ch)
+	s.finished = true
+}
+
+func ToGitRepo(path string) domain.Repository {
+	repoName := filepath.Base(path)
+	lastCommitTime := git.GetLastCommitTime(path)
+	remoteURL := git.GetRemoteURL(path)
+	aheadCount, behindCount := git.GetStatus(path)
+	hasModified := git.HasModifiedFiles(path)
+	currentBranch := git.GetCurrentBranch(path)
+
+	return domain.Repository{
+		Name:           repoName,
+		Path:           path,
+		LastCommitTime: lastCommitTime,
+		RemoteURL:      remoteURL,
+		HasModified:    hasModified,
+		AheadCount:     aheadCount,
+		BehindCount:    behindCount,
+		CurrentBranch:  currentBranch,
 	}
 }

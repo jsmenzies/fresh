@@ -8,7 +8,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Update handles all Bubble Tea messages
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -41,7 +40,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		// Handle custom key bindings
 		if m.State == Listing {
 			switch {
 			case key.Matches(msg, m.Keys.refresh):
@@ -53,6 +51,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
+
+	case scanTickMsg:
+		if m.State == Scanning {
+			return m, tea.Batch(tickCmd(), scanStep(m.Scanner))
+		}
+		return m, nil
 
 	case repoFoundMsg:
 		repo := domain.Repository(msg)
@@ -67,17 +71,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Repositories[i].Done = false
 			m.Repositories[i].Refreshing = false
 			m.Repositories[i].HasRemoteUpdates = false
-			m.Repositories[i].RefreshSpinner = spinner.New()
-			m.Repositories[i].RefreshSpinner.Spinner = spinner.Dot
+			m.Repositories[i].RefreshSpinner = newDotSpinner()
 		}
 
 		return m, startBackgroundRefresh(m.Repositories)
-
-	case scanTickMsg:
-		if m.State == Scanning {
-			return m, tea.Batch(tickCmd(), scanStep(m.Scanner))
-		}
-		return m, nil
 
 	case refreshStartMsg:
 		if m.State == Listing && msg.repoIndex < len(m.Repositories) {
@@ -105,10 +102,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pullStartMsg:
 		if m.State == Listing && msg.repoIndex < len(m.Repositories) {
 			m.Repositories[msg.repoIndex].PullState = domain.NewPullState()
-
-			// Initialize pull spinner
-			m.Repositories[msg.repoIndex].PullSpinner = spinner.New()
-			m.Repositories[msg.repoIndex].PullSpinner.Spinner = spinner.Dot
+			m.Repositories[msg.repoIndex].PullSpinner = newDotSpinner()
 
 			return m, m.Repositories[msg.repoIndex].PullSpinner.Tick
 		}

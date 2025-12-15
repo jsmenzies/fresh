@@ -7,16 +7,14 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// View renders the UI
 func (m Model) View() string {
 	switch m.State {
 	case Scanning:
 		pad := strings.Repeat(" ", Padding)
 		header := fmt.Sprintf("%s Scanning for Git projects... Found %d repositories", m.Spinner.View(), len(m.Repositories))
 
-		// Show only the last 7 repositories for scrolling effect
 		var repoList strings.Builder
-		startIndex := len(m.Repositories) - 7
+		startIndex := len(m.Repositories) - 6
 		if startIndex < 0 {
 			startIndex = 0
 		}
@@ -45,10 +43,7 @@ func (m Model) View() string {
 			return headerLine + "No repositories found"
 		}
 
-		// Build and render lipgloss table
 		tableView := GenerateTable(m.Repositories, m.Cursor)
-
-		// Add footer with hotkeys
 		footer := buildFooter()
 
 		return headerLine + tableView + "\n" + footer

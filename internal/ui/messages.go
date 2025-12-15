@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-// Message types for Bubble Tea
-
 type scanProgressMsg struct {
 	reposFound int
 }

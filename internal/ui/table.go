@@ -11,21 +11,19 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 )
 
-// GenerateTable creates a table view of repositories
 func GenerateTable(repositories []domain.Repository, cursor int) string {
-	headers := []string{"PROJECT", "BRANCH", "LOCAL", "REMOTE", "LINKS", "", "STATUS / UPDATE"}
+	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "LINKS", "", "STATUS / UPDATE"}
 
 	rows := make([][]string, len(repositories))
 	for i, repo := range repositories {
-		rows[i] = repositoryToRow(repo)
+		isSelected := i == cursor
+		rows[i] = repositoryToRow(repo, isSelected)
 	}
 
 	t := table.New().
 		Border(lipgloss.HiddenBorder()).
 		Headers(headers...).
-		Rows(rows...)
-
-	t = t.
+		Rows(rows...).
 		BorderStyle(lipgloss.NewStyle().Foreground(DividerColor)).
 		StyleFunc(func(row, col int) lipgloss.Style {
 			if row == table.HeaderRow {
@@ -37,7 +35,8 @@ func GenerateTable(repositories []domain.Repository, cursor int) string {
 	return t.Render()
 }
 
-func repositoryToRow(repo domain.Repository) []string {
+func repositoryToRow(repo domain.Repository, isSelected bool) []string {
+	selector := buildSelector(isSelected)
 	projectName := buildProjectName(repo.Name)
 	branchName := buildBranchName(repo.CurrentBranch)
 	localCol := buildLocalStatus(repo)
@@ -47,6 +46,7 @@ func repositoryToRow(repo domain.Repository) []string {
 	lastUpdateCol := buildLastUpdate(repo)
 
 	return []string{
+		selector,
 		projectName,
 		branchName,
 		localCol,
@@ -186,6 +186,13 @@ func buildBranchName(branch string) string {
 
 func buildProjectName(repo string) string {
 	return IconStyle.Render(IconGit) + " " + ProjectNameStyle.Render(repo)
+}
+
+func buildSelector(isSelected bool) string {
+	if isSelected {
+		return SelectorStyle.Render("▶")
+	}
+	return SelectorStyle.Render(" ")
 }
 
 // MakeClickableURL creates a terminal hyperlink

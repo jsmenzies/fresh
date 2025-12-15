@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"fresh/internal/git"
 	"fresh/internal/ui"
 	"os"
 
@@ -12,6 +13,11 @@ func main() {
 	scanDir, err := parseDir()
 	if err != nil {
 		fmt.Printf("Error reading directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	if git.IsGitInstalled() == false {
+		fmt.Println("Git is not installed or not found in PATH.")
 		os.Exit(1)
 	}
 

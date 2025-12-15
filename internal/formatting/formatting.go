@@ -6,20 +6,15 @@ import (
 	"time"
 )
 
-const (
-	TimeJustNow = "just now"
-	TimeUnknown = "unknown"
-)
-
 func FormatTimeAgo(t time.Time) string {
 	if t.IsZero() {
-		return TimeUnknown
+		return "unknown"
 	}
 
 	duration := time.Since(t)
 
 	if duration < time.Minute {
-		return TimeJustNow
+		return "just now"
 	} else if duration < time.Hour {
 		minutes := int(duration.Minutes())
 		if minutes == 1 {

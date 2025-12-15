@@ -9,6 +9,16 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type Model struct {
+	State        appState
+	Spinner      spinner.Model
+	Cursor       int
+	Keys         *listKeyMap
+	Choice       string
+	Repositories []domain.Repository
+	Scanner      *scanner.Scanner
+}
+
 type appState int
 
 const (
@@ -35,20 +45,14 @@ func newListKeyMap() *listKeyMap {
 	}
 }
 
-type Model struct {
-	State        appState
-	Spinner      spinner.Model
-	Cursor       int
-	Keys         *listKeyMap
-	Choice       string
-	Repositories []domain.Repository
-	ScanDir      string
-	Scanner      *scanner.Scanner
+func newDotSpinner() spinner.Model {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	return s
 }
 
 func NewModel(scanDir string) Model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
+	s := newDotSpinner()
 	s.Style = SpinnerStyle
 
 	return Model{
@@ -56,12 +60,11 @@ func NewModel(scanDir string) Model {
 		Spinner:      s,
 		Cursor:       0,
 		Keys:         newListKeyMap(),
-		ScanDir:      scanDir,
+		Scanner:      scanner.New(scanDir),
 		Repositories: make([]domain.Repository, 0),
-		Scanner:      scanner.New(),
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(startScanning(m.Scanner, m.ScanDir), tickCmd(), m.Spinner.Tick)
+	return tea.Batch(startScanning(m.Scanner), tickCmd(), m.Spinner.Tick)
 }

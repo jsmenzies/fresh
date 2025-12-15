@@ -10,35 +10,38 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func startScanning(scanner *scanner.Scanner, scanDir string) tea.Cmd {
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Millisecond*50, func(t time.Time) tea.Msg {
+		return scanTickMsg(t)
+	})
+}
+
+func startScanning(scanner *scanner.Scanner) tea.Cmd {
 	return func() tea.Msg {
-		scanner.StartScanning(scanDir)
-		return scanProgressMsg{reposFound: 0}
+		scanner.Scan()
+		return scanProgressMsg{reposFound: scanner.GetRepoCount()}
 	}
 }
 
 func scanStep(scanner *scanner.Scanner) tea.Cmd {
 	return func() tea.Msg {
-		repo, hasMore, found := scanner.ScanStep()
-
-		if !hasMore {
-			return scanCompleteMsg(scanner.GetFoundRepositories())
+		if scanner.IsFinished() {
+			return scanCompleteMsg(scanner.GetRepositories())
 		}
 
-		if found {
-			return repoFoundMsg(repo)
+		if scanner.GetRepoChannel() != nil {
+			select {
+			case repo := <-scanner.GetRepoChannel():
+				return repoFoundMsg(repo)
+			default:
+				// empty
+			}
 		}
 
 		return scanProgressMsg{
 			reposFound: scanner.GetRepoCount(),
 		}
 	}
-}
-
-func tickCmd() tea.Cmd {
-	return tea.Tick(time.Millisecond*50, func(t time.Time) tea.Msg {
-		return scanTickMsg(t)
-	})
 }
 
 func startBackgroundRefresh(repos []domain.Repository) tea.Cmd {

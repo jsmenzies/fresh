@@ -38,6 +38,14 @@ var ProjectNameStyle = lipgloss.NewStyle().
 	MaxWidth(40).
 	AlignHorizontal(lipgloss.Left)
 
+var SelectedProjectNameStyle = lipgloss.NewStyle().
+	Foreground(Blue).
+	Align(lipgloss.Left).
+	Width(28).
+	MaxWidth(40).
+	AlignHorizontal(lipgloss.Left).
+	Bold(true)
+
 var BranchNameStyle = lipgloss.NewStyle().
 	Foreground(TextBranch).
 	Align(lipgloss.Left).
@@ -219,3 +227,11 @@ const (
 var (
 	quitTextStyle = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 )
+
+// Selection styles
+var SelectorStyle = lipgloss.NewStyle().
+	Foreground(Blue).
+	Width(2).
+	Bold(true)
+
+var SelectedRowStyle = lipgloss.NewStyle()
