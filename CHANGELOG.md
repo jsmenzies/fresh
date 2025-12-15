@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/jsmenzies/fresh/compare/v1.1.0...v1.1.1) (2025-12-15)
+
+
+### Bug Fixes
+
+* **goreleaser:** address archives format deprecation ([5208bd0](https://github.com/jsmenzies/fresh/commit/5208bd016533928ede155708e6948b4436842854))
+* **goreleaser:** address archives format deprecation ([073a856](https://github.com/jsmenzies/fresh/commit/073a856e11f3bc2c987b0464906ea66f5b019519))
+
 ## [1.1.0](https://github.com/jsmenzies/fresh/compare/v1.0.0...v1.1.0) (2025-12-15)
 
 
