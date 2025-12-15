@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/jsmenzies/fresh/compare/v1.2.0...v1.2.1) (2025-12-15)
+
+
+### Bug Fixes
+
+* Update goreleaser to use homebrews ([f9510d0](https://github.com/jsmenzies/fresh/commit/f9510d083bb56d82a7b0672d7156de9f69674cec))
+* Update goreleaser to use homebrews instead of brews ([05bacdd](https://github.com/jsmenzies/fresh/commit/05bacdd629ad14a795fd95ac026d1e3b582a0f11))
+
 ## [1.2.0](https://github.com/jsmenzies/fresh/compare/v1.1.1...v1.2.0) (2025-12-15)
 
 
