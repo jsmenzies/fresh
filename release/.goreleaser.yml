@@ -1,0 +1,191 @@
+# GoReleaser configuration for Fresh
+# Documentation: https://goreleaser.com
+
+version: 2
+
+# Basic project metadata
+project_name: fresh
+
+before:
+  hooks:
+    # Run tests before building
+    - go test ./...
+    # Ensure dependencies are up to date
+    - go mod tidy
+
+builds:
+  - id: fresh
+    # Main package to build
+    main: ./cmd/fresh
+    binary: fresh
+
+    # Build for multiple platforms
+    goos:
+      - linux
+      - darwin
+      - windows
+
+    goarch:
+      - amd64
+      - arm64
+
+    # Exclude combinations that don't make sense
+    ignore:
+      # Windows on ARM64 is less common
+      - goos: windows
+        goarch: arm64
+
+    # Build flags
+    flags:
+      - -trimpath
+
+    ldflags:
+      # Inject version information at build time
+      # -s -w strips debug information to reduce binary size
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - id: fresh-archive
+    format: tar.gz
+
+    # Use zip for Windows
+    format_overrides:
+      - goos: windows
+        format: zip
+
+    # Archive name template
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+
+    # Files to include in archive
+    files:
+      - README.md
+      - LICENSE*
+      - CLAUDE.md
+
+checksum:
+  # Generate checksums file
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+changelog:
+  # Generate changelog from git commits
+  sort: asc
+  use: github
+
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - '^style:'
+      - 'typo'
+
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Performance Improvements
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Refactoring
+      regexp: '^.*?refactor(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: Others
+      order: 999
+
+release:
+  # GitHub release configuration
+  github:
+    owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
+    name: "{{ .ProjectName }}"
+
+  # Draft release (change to false to auto-publish)
+  draft: false
+
+  # Mark as prerelease if version contains - (e.g., v1.0.0-beta)
+  prerelease: auto
+
+  # Release name
+  name_template: "Release {{.Version}}"
+
+  # Header and footer for release notes
+  header: |
+    ## Fresh {{.Version}}
+
+    Download the appropriate binary for your platform below.
+
+  footer: |
+    ---
+
+    ## Installation
+
+    ### macOS / Linux
+    ```bash
+    # Download the appropriate archive for your system
+    tar -xzf fresh_{{.Version}}_<os>_<arch>.tar.gz
+
+    # Move to your PATH
+    sudo mv fresh /usr/local/bin/
+
+    # Verify installation
+    fresh --version
+    ```
+
+    ### Windows
+    ```powershell
+    # Extract the zip file and add fresh.exe to your PATH
+    ```
+
+    ## Full Changelog
+
+    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/fresh/compare/{{ .PreviousTag }}...{{.Tag}}
+
+# Homebrew tap (optional - uncomment if you create a homebrew tap)
+# brews:
+#   - name: fresh
+#     repository:
+#       owner: your-username
+#       name: homebrew-tap
+#     description: "Git repository management CLI tool"
+#     homepage: "https://github.com/your-username/fresh"
+#     license: "MIT"
+#     install: |
+#       bin.install "fresh"
+
+# Snapcraft (optional - for Linux Snap Store)
+# snapcrafts:
+#   - name: fresh
+#     summary: Git repository management CLI
+#     description: |
+#       Fresh is a command-line tool designed to help developers manage
+#       multiple Git repositories efficiently.
+#     grade: stable
+#     confinement: classic
+
+# Docker images (optional)
+# dockers:
+#   - image_templates:
+#       - "your-username/fresh:{{ .Version }}"
+#       - "your-username/fresh:latest"
+#     dockerfile: Dockerfile
+#     build_flag_templates:
+#       - "--pull"
+#       - "--label=org.opencontainers.image.created={{.Date}}"
+#       - "--label=org.opencontainers.image.title={{.ProjectName}}"
+#       - "--label=org.opencontainers.image.version={{.Version}}"

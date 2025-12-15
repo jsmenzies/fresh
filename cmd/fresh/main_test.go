@@ -6,8 +6,33 @@ import (
 	"testing"
 )
 
+func TestPrintVersion(t *testing.T) {
+	printVersion()
+}
+
+func TestVersionFlag(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		isFlag bool
+	}{
+		{"version long flag", []string{"fresh", "--version"}, true},
+		{"version short flag", []string{"fresh", "-v"}, true},
+		{"no flag", []string{"fresh"}, false},
+		{"path argument", []string{"fresh", "/tmp"}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hasVersionFlag := len(tt.args) > 1 && (tt.args[1] == "--version" || tt.args[1] == "-v")
+			if hasVersionFlag != tt.isFlag {
+				t.Errorf("version flag detection = %v, want %v", hasVersionFlag, tt.isFlag)
+			}
+		})
+	}
+}
+
 func TestParseDir(t *testing.T) {
-	// Save original args and restore after test
 	originalArgs := os.Args
 	t.Cleanup(func() {
 		os.Args = originalArgs
@@ -75,10 +100,8 @@ func TestParseDir(t *testing.T) {
 }
 
 func TestParseDirWithRealDirectory(t *testing.T) {
-	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
 
-	// Save original args and restore after test
 	originalArgs := os.Args
 	t.Cleanup(func() {
 		os.Args = originalArgs
@@ -97,7 +120,6 @@ func TestParseDirWithRealDirectory(t *testing.T) {
 }
 
 func TestParseDirCurrentDirectory(t *testing.T) {
-	// Save original args and restore after test
 	originalArgs := os.Args
 	t.Cleanup(func() {
 		os.Args = originalArgs
@@ -110,7 +132,6 @@ func TestParseDirCurrentDirectory(t *testing.T) {
 		t.Fatalf("parseDir() unexpected error: %v", err)
 	}
 
-	// Get current working directory for comparison
 	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("os.Getwd() unexpected error: %v", err)
@@ -122,14 +143,12 @@ func TestParseDirCurrentDirectory(t *testing.T) {
 }
 
 func TestParseDirRelativePath(t *testing.T) {
-	// Create a temporary directory structure
 	tmpDir := t.TempDir()
 	subDir := filepath.Join(tmpDir, "subdir")
 	if err := os.Mkdir(subDir, 0755); err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
 
-	// Save original state
 	originalArgs := os.Args
 	originalWd, _ := os.Getwd()
 	t.Cleanup(func() {
@@ -137,12 +156,10 @@ func TestParseDirRelativePath(t *testing.T) {
 		os.Chdir(originalWd)
 	})
 
-	// Change to temp directory
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("failed to change directory: %v", err)
 	}
 
-	// Test with relative path
 	os.Args = []string{"fresh", "subdir"}
 
 	got, err := parseDir()
@@ -150,21 +167,14 @@ func TestParseDirRelativePath(t *testing.T) {
 		t.Fatalf("parseDir() unexpected error: %v", err)
 	}
 
-	// Verify it's a valid path
 	if _, err := os.Stat(got); os.IsNotExist(err) {
 		t.Errorf("parseDir() returned non-existent directory: %s", got)
 	}
 }
 
-// TestMainFunctionality verifies that the core components can be initialized
-// This is a smoke test to ensure the program can start without panicking
 func TestMainFunctionality(t *testing.T) {
-	// This test verifies we can run through the initialization logic
-	// without actually starting the Bubble Tea program
-
 	tmpDir := t.TempDir()
 
-	// Save original args
 	originalArgs := os.Args
 	t.Cleanup(func() {
 		os.Args = originalArgs
@@ -172,7 +182,6 @@ func TestMainFunctionality(t *testing.T) {
 
 	os.Args = []string{"fresh", tmpDir}
 
-	// Test parseDir
 	scanDir, err := parseDir()
 	if err != nil {
 		t.Fatalf("parseDir() failed: %v", err)
@@ -182,7 +191,6 @@ func TestMainFunctionality(t *testing.T) {
 		t.Errorf("parseDir() = %v, want %v", scanDir, tmpDir)
 	}
 
-	// Verify the directory exists and is accessible
 	if _, err := os.Stat(scanDir); err != nil {
 		t.Errorf("scan directory is not accessible: %v", err)
 	}

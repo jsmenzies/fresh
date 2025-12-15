@@ -21,6 +21,12 @@ go build -o fresh ./cmd/fresh
 - List view for repositories (currently with sample data)
 - Keyboard navigation (↑/↓ arrows, Enter to select, q to quit)
 
+## Releases
+
+Fresh uses automated releases via GitHub Actions. See the [`release/`](./release/) directory for:
+- [Release Guide](./release/RELEASING.md) - How to create releases
+- [CI/CD Setup](./release/CI-CD-SETUP.md) - Pipeline overview
+
 ## Planned Features
 
 See `claude.md` for detailed project outline and roadmap.

@@ -15,3 +15,7 @@ claude.md
 coverage.out
 coverage.html
 *.test
+
+# GoReleaser
+dist/
+*.snap
