@@ -23,12 +23,6 @@ jobs:
         id: release
         uses: googleapis/release-please-action@v4
         with:
-          # Release type for Go projects
-          release-type: go
-
-          # Package name (appears in release titles)
-          package-name: fresh
-
           # Config and manifest files in release/ directory
           config-file: release/release-please-config.json
           manifest-file: release/.release-please-manifest.json

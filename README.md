@@ -8,6 +8,9 @@ A CLI tool for managing multiple Git repositories with an interactive terminal i
 # Build the project
 go build -o fresh ./cmd/fresh
 
+# Check version
+./fresh --version
+
 # Run the application
 ./fresh
 
