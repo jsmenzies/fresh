@@ -1,4 +1,4 @@
-package main
+package git
 
 import (
 	"bufio"
@@ -9,21 +9,20 @@ import (
 	"time"
 )
 
-func isGitRepository(path string) bool {
+func IsGitInstalled() bool {
+	cmd := exec.Command("git", "--version")
+	err := cmd.Run()
+	return err == nil
+}
+
+func IsRepository(path string) bool {
 	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
 	cmd.Dir = path
 	err := cmd.Run()
 	return err == nil
 }
 
-func makeClickableURL(url string, displayText string) string {
-	if url == "" {
-		return displayText
-	}
-	return fmt.Sprintf("\033]8;;%s\033\\%s\033]8;;\033\\", url, displayText)
-}
-
-func getRemoteURL(repoPath string) string {
+func GetRemoteURL(repoPath string) string {
 	cmd := exec.Command("git", "remote", "get-url", "origin")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
@@ -34,7 +33,7 @@ func getRemoteURL(repoPath string) string {
 	return strings.TrimSpace(string(output))
 }
 
-func getGitStatus(repoPath string) (aheadCount int, behindCount int) {
+func GetStatus(repoPath string) (aheadCount int, behindCount int) {
 	cmd := exec.Command("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
@@ -55,7 +54,7 @@ func getGitStatus(repoPath string) (aheadCount int, behindCount int) {
 	return ahead, behind
 }
 
-func hasModifiedFiles(repoPath string) bool {
+func HasModifiedFiles(repoPath string) bool {
 	cmd := exec.Command("git", "status", "--porcelain")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
@@ -66,7 +65,7 @@ func hasModifiedFiles(repoPath string) bool {
 	return strings.TrimSpace(string(output)) != ""
 }
 
-func getLastCommitTime(repoPath string) time.Time {
+func GetLastCommitTime(repoPath string) time.Time {
 	cmd := exec.Command("git", "log", "-1", "--format=%ct")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
@@ -87,7 +86,7 @@ func getLastCommitTime(repoPath string) time.Time {
 	return time.Unix(timestamp, 0)
 }
 
-func getCurrentBranch(repoPath string) string {
+func GetCurrentBranch(repoPath string) string {
 	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
@@ -98,7 +97,7 @@ func getCurrentBranch(repoPath string) string {
 	return strings.TrimSpace(string(output))
 }
 
-func refreshRemoteStatus(repoPath string) (aheadCount, behindCount int, err error) {
+func RefreshRemoteStatus(repoPath string) (aheadCount, behindCount int, err error) {
 	cmd := exec.Command("git", "fetch", "--quiet")
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
@@ -110,12 +109,10 @@ func refreshRemoteStatus(repoPath string) (aheadCount, behindCount int, err erro
 		return 0, 0, fmt.Errorf("fetch failed: %s", errMsg)
 	}
 
-	// Compare local vs remote to check for updates
 	cmd = exec.Command("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
 	cmd.Dir = repoPath
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		// If upstream is not configured, not an error, just no updates
 		errMsg := strings.TrimSpace(string(output))
 		if strings.Contains(errMsg, "no upstream") || strings.Contains(errMsg, "@{u}") {
 			return 0, 0, nil
@@ -139,7 +136,7 @@ func refreshRemoteStatus(repoPath string) (aheadCount, behindCount int, err erro
 	return ahead, behind, nil
 }
 
-func gitPull(repoPath string, lineCallback func(string)) int {
+func Pull(repoPath string, lineCallback func(string)) int {
 	cmd := exec.Command("git", "pull", "--rebase", "--progress")
 	cmd.Dir = repoPath
 
@@ -166,7 +163,6 @@ func gitPull(repoPath string, lineCallback func(string)) int {
 		return 1
 	}
 
-	// Read stderr in real-time and stream lines
 	stderrDone := make(chan struct{})
 	go func() {
 		defer close(stderrDone)
@@ -181,7 +177,6 @@ func gitPull(repoPath string, lineCallback func(string)) int {
 		}
 	}()
 
-	// Read stdout and stream lines
 	stdoutScanner := bufio.NewScanner(stdoutPipe)
 	for stdoutScanner.Scan() {
 		lineStr := strings.TrimSpace(stdoutScanner.Text())
@@ -190,13 +185,10 @@ func gitPull(repoPath string, lineCallback func(string)) int {
 		}
 	}
 
-	// Wait for command to complete
 	cmdErr := cmd.Wait()
 
-	// Wait for stderr goroutine to finish
 	<-stderrDone
 
-	// Return exit code
 	if cmdErr != nil {
 		if exitErr, ok := cmdErr.(*exec.ExitError); ok {
 			return exitErr.ExitCode()
@@ -207,7 +199,6 @@ func gitPull(repoPath string, lineCallback func(string)) int {
 	return 0
 }
 
-// splitOnCROrLF splits on both \r and \n for git progress output
 func splitOnCROrLF(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil

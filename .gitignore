@@ -4,6 +4,7 @@ _build/
 out/
 
 fresh
+!fresh/
 
 *.exe
 .env

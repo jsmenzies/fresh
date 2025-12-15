@@ -1,4 +1,4 @@
-package main
+package ui
 
 import (
 	"github.com/charmbracelet/lipgloss"
@@ -21,6 +21,11 @@ const (
 	TagFg        = lipgloss.Color("#cfc9c2")
 )
 
+var SpinnerStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("#9ece6a"))
+
+//Foreground(Green)
+
 var TableHeaderStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).
 	Bold(true).
@@ -29,9 +34,17 @@ var TableHeaderStyle = lipgloss.NewStyle().
 var ProjectNameStyle = lipgloss.NewStyle().
 	Foreground(TextPrimary).
 	Align(lipgloss.Left).
-	Width(30).
+	Width(28).
 	MaxWidth(40).
 	AlignHorizontal(lipgloss.Left)
+
+var SelectedProjectNameStyle = lipgloss.NewStyle().
+	Foreground(Blue).
+	Align(lipgloss.Left).
+	Width(28).
+	MaxWidth(40).
+	AlignHorizontal(lipgloss.Left).
+	Bold(true)
 
 var BranchNameStyle = lipgloss.NewStyle().
 	Foreground(TextBranch).
@@ -82,8 +95,13 @@ var RemoteStatusYellow = lipgloss.NewStyle().
 	//Bold(true).
 	Width(14)
 
-var LinksStyles = lipgloss.NewStyle().
-	Foreground(TextSecondary).MarginRight(1).Bold(true)
+var LinkStyle = lipgloss.NewStyle().
+	Foreground(TextSecondary).
+	//MarginRight(1).
+	Bold(true)
+
+var LinksStyle = lipgloss.NewStyle().
+	Width(8)
 
 var RemoteStatusRed = lipgloss.NewStyle().
 	Foreground(Red).
@@ -96,9 +114,9 @@ var RemoteStatusBlue = lipgloss.NewStyle().
 	Width(12)
 
 var BadgeStyle = lipgloss.NewStyle().
-	//Foreground(Blue).
-	//Bold(true).
-	Width(25)
+	Width(20).
+	Inline(true).
+	MarginLeft(2)
 
 var IconStyle = lipgloss.NewStyle().
 	Foreground(TextPrimary)
@@ -106,13 +124,14 @@ var IconStyle = lipgloss.NewStyle().
 // ---------- Badge Styles ----------
 
 var BadgeReadyStyle = lipgloss.NewStyle().
-	Foreground(Green).
-	Background(lipgloss.Color("#1a3a2e")).
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(Green)
-
-//Padding(0, 1).
-//Bold(true)
+	Foreground(lipgloss.Color("#000000")).
+	Background(Green).
+	Padding(0, 1).
+	Bold(true).
+	Inline(true).
+	Height(1).
+	MaxHeight(1).
+	MarginLeft(2)
 
 // ---------- "MANUAL" Tag ----------
 
@@ -121,7 +140,10 @@ var TagStyle = lipgloss.NewStyle().
 	Background(TagBg).
 	Padding(0, 1).
 	Bold(true).
-	MarginLeft(1)
+	Inline(true).
+	Height(1).
+	MaxHeight(1).
+	MarginLeft(2)
 
 // ---------- Time Ago ----------
 
@@ -205,3 +227,11 @@ const (
 var (
 	quitTextStyle = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 )
+
+// Selection styles
+var SelectorStyle = lipgloss.NewStyle().
+	Foreground(Blue).
+	Width(2).
+	Bold(true)
+
+var SelectedRowStyle = lipgloss.NewStyle()
