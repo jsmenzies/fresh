@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/jsmenzies/fresh/compare/v1.1.1...v1.2.0) (2025-12-15)
+
+
+### Features
+
+* **goreleaser:** add homebrew tap configuration ([83dc1ea](https://github.com/jsmenzies/fresh/commit/83dc1eae273c68b63fd96d8493633859133f2f1e))
+
+
+### Bug Fixes
+
+* Correct GoReleaser config for proper archiving ([b247851](https://github.com/jsmenzies/fresh/commit/b2478518c81e38cb769cf0afcd54d67ba5dc1e80))
+* Correct GoReleaser config for proper archiving ([8613a43](https://github.com/jsmenzies/fresh/commit/8613a438749d58656bfd1e58064d39ea6acf2c76))
+
 ## [1.1.1](https://github.com/jsmenzies/fresh/compare/v1.1.0...v1.1.1) (2025-12-15)
 
 
