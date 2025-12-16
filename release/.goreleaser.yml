@@ -149,6 +149,7 @@ brews:
       owner: jsmenzies
       name: homebrew-fresh
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
     commit_author:
       name: James Menzies
       email: bot@goreleaser.com
