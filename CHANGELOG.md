@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.5](https://github.com/jsmenzies/fresh/compare/v1.2.4...v1.2.5) (2025-12-16)
+
+
+### Bug Fixes
+
+* Set Homebrew formula directory in GoReleaser ([39abffd](https://github.com/jsmenzies/fresh/commit/39abffd85e54f90515fbbaa0a5829b411f67b32d))
+* Set Homebrew formula directory in GoReleaser ([788af04](https://github.com/jsmenzies/fresh/commit/788af04416b3926431774a10b50585dec01647b7))
+
 ## [1.2.4](https://github.com/jsmenzies/fresh/compare/v1.2.3...v1.2.4) (2025-12-16)
 
 
