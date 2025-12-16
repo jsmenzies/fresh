@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.3](https://github.com/jsmenzies/fresh/compare/v1.2.2...v1.2.3) (2025-12-16)
+
+
+### Bug Fixes
+
+* Configure release-please for main branch and changelog path ([3753b2b](https://github.com/jsmenzies/fresh/commit/3753b2b4783742b3a52ddbb94722f8e4a5f7ff81))
+* Configure release-please to use main as primary branch and changelog path ([afbff6b](https://github.com/jsmenzies/fresh/commit/afbff6b62a1b86539791e4821d8060d8b7d25122))
+
 ## [1.2.2](https://github.com/jsmenzies/fresh/compare/v1.2.1...v1.2.2) (2025-12-16)
 
 
