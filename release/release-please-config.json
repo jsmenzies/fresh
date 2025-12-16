@@ -2,6 +2,8 @@
   "packages": {
     ".": {
       "release-type": "go",
+      "primary-branch": "main",
+      "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
       "draft": false,
