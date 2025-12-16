@@ -1,68 +1,47 @@
 # Fresh - Git Repository Management CLI
 
-A CLI tool for managing multiple Git repositories with an interactive terminal interface.
+A CLI tool for interactively managing the status of multiple Git repositories. It aims to provide capabilities for viewing the status of multiple repositories and eventually applying updates (e.g., pulls, fetches) across them simultaneously, handling conflicts gracefully.
+
+## Installation
+
+### Homebrew (macOS and Linux)
+
+You can install `fresh` using [Homebrew](https://brew.sh/):
+
+```sh
+brew tap jsmenzies/fresh && brew install jsmenzies/fresh/fresh
+```
+
+### Manual Installation
+
+1.  Download the latest release for your platform from the [Releases](https://github.com/jsmenzies/fresh/releases) page.
+2.  Extract the archive.
+3.  Move the `fresh` binary to a directory in your system's `PATH` (e.g., `/usr/local/bin`).
 
 ## Quick Start
 
+Simply run the application to scan the current directory for Git repositories:
 ```bash
-# Build the project
-go build -o fresh ./cmd/fresh
-
-# Check version
-./fresh --version
-
-# Run the application
-./fresh
-
-# Or run in a specific directory
-./fresh /path/to/directory
+fresh
 ```
 
-## Current Features
+Or provide a specific path to scan:
+```bash
+fresh /path/to/your/projects
+```
 
-- Interactive TUI built with Bubble Tea
-- List view for repositories (currently with sample data)
-- Keyboard navigation (↑/↓ arrows, Enter to select, q to quit)
+## Features
+
+- [x] Scan directories for Git repositories
+- [x] Interactive TUI for repository selection
+- [x] View local and remote branch status
+- [x] Fetch and pull updates from remotes
+- [ ] Perform batch operations (e.g., pull all)
+- [ ] View detailed repository information (e.g., recent commits)
 
 ## Releases
 
-Fresh uses automated releases via GitHub Actions. See the [`release/`](./release/) directory for:
-- [Release Guide](./release/RELEASING.md) - How to create releases
-- [CI/CD Setup](./release/CI-CD-SETUP.md) - Pipeline overview
-
-## Planned Features
-
-See `claude.md` for detailed project outline and roadmap.
-
-## Controls
-
-- `↑/↓` - Navigate repository list
-- `Enter` - Select repository
-- `q` or `Ctrl+C` - Quit
-
-## Project Structure
-
-```
-fresh/
-├── cmd/
-│   └── fresh/
-│       └── main.go           # Application entry point
-├── internal/
-│   ├── domain/               # Domain models (Repository, PullState)
-│   ├── formatting/           # Time and GitHub URL formatting
-│   ├── git/                  # Git operations (status, fetch, pull)
-│   ├── scanner/              # Directory scanning logic
-│   └── ui/                   # Bubble Tea UI components
-│       ├── commands.go       # Tea commands
-│       ├── messages.go       # Tea messages
-│       ├── model.go          # Application model
-│       ├── styles.go         # Lipgloss styles
-│       ├── table.go          # Table rendering
-│       ├── update.go         # Update logic
-│       └── view.go           # View rendering
-├── go.mod
-└── README.md
-```
+This project uses automated releases via GitHub Actions. For a full history of changes, see the [CHANGELOG.md](./CHANGELOG.md) file.
 
 ## Development
 
