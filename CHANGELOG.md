@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.2](https://github.com/jsmenzies/fresh/compare/v1.2.1...v1.2.2) (2025-12-16)
+
+
+### Reverts
+
+* Revert to using 'brews' in GoReleaser config ([84d8bfc](https://github.com/jsmenzies/fresh/commit/84d8bfc3a02c883f4620130cf7eef7ab2c204124))
+* Revert to using 'brews' in GoReleaser config ([ba268df](https://github.com/jsmenzies/fresh/commit/ba268df6fc837d6d8f4252a3bd4b20554bb82aed))
+
 ## [1.2.1](https://github.com/jsmenzies/fresh/compare/v1.2.0...v1.2.1) (2025-12-15)
 
 
