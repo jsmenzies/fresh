@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.4](https://github.com/jsmenzies/fresh/compare/v1.2.3...v1.2.4) (2025-12-16)
+
+
+### Documentation
+
+* Update README description ([cbfbe63](https://github.com/jsmenzies/fresh/commit/cbfbe6311d62f13c8406c38fb17c04ff9be3f975))
+* Update README description for multi-repo capabilities ([53a15ea](https://github.com/jsmenzies/fresh/commit/53a15ea726ac83c4249306b088b395206a0d43cc))
+
 ## [1.2.3](https://github.com/jsmenzies/fresh/compare/v1.2.2...v1.2.3) (2025-12-16)
 
 
