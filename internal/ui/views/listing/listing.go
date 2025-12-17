@@ -15,27 +15,27 @@ import (
 type listKeyMap struct {
 	refresh   key.Binding
 	updateAll key.Binding
-	enter     key.Binding
 	pull      key.Binding
+	pullAll   key.Binding
 }
 
 func newListKeyMap() *listKeyMap {
 	return &listKeyMap{
 		refresh: key.NewBinding(
 			key.WithKeys("r"),
-			key.WithHelp("r", "refresh"),
+			key.WithHelp("r", "fetch remote status"),
 		),
 		updateAll: key.NewBinding(
-			key.WithKeys("R"), // Changed to Shift+R for consistency
+			key.WithKeys("R"),
 			key.WithHelp("R", "refresh all"),
-		),
-		enter: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "cd into"),
 		),
 		pull: key.NewBinding(
 			key.WithKeys("p"),
-			key.WithHelp("p", "pull"),
+			key.WithHelp("p", "pull selected"),
+		),
+		pullAll: key.NewBinding(
+			key.WithKeys("P"),
+			key.WithHelp("P", "pull all"),
 		),
 	}
 }
@@ -73,12 +73,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.Keys.enter):
-			if m.Cursor < len(m.Repositories) {
-				repo := m.Repositories[m.Cursor]
-				fmt.Print(repo.Path)
-				return m, tea.Quit
-			}
 		case key.Matches(msg, m.Keys.refresh):
 			if m.Cursor < len(m.Repositories) {
 				repo := m.Repositories[m.Cursor]
@@ -95,6 +89,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.Repositories[m.Cursor].PullSpinner.Tick,
 				)
 			}
+		case key.Matches(msg, m.Keys.pullAll):
+			var cmds []tea.Cmd
+			for i := range m.Repositories {
+				m.Repositories[i].PullState = domain.NewPullState()
+				cmds = append(cmds, performPull(m.Repositories[i].Path))
+				cmds = append(cmds, m.Repositories[i].PullSpinner.Tick)
+			}
+			return m, tea.Batch(cmds...)
 		case msg.String() == "up", msg.String() == "k":
 			if m.Cursor > 0 {
 				m.Cursor--
@@ -109,6 +111,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for i := range m.Repositories {
 			if m.Repositories[i].Path == msg.repoPath {
 				m.Repositories[i].Refreshing = true
+				m.Repositories[i].PullState = nil
 				return m, tea.Batch(
 					performRefresh(msg.repoPath),
 					m.Repositories[i].RefreshSpinner.Tick,
@@ -205,10 +208,10 @@ func buildFooter() string {
 	keyStyle := lipgloss.NewStyle().Foreground(common.SubtleGray)
 	hotkeys := []string{
 		"↑/↓ navigate",
-		"enter cd into",
 		"r fetch remote status",
 		"R refresh all",
-		"p pull",
+		"p pull selected",
+		"P pull all",
 		"q quit",
 	}
 	footerText := strings.Join(hotkeys, "  •  ")
