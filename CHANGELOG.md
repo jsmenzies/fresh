@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0](https://github.com/jsmenzies/fresh/compare/v1.3.0...v1.4.0) (2025-12-17)
+
+
+### Features
+
+* **ui:** Enhance remote status display and add simulation ([6592da1](https://github.com/jsmenzies/fresh/commit/6592da1a2bd8d514a6cfe919f1583a3d09a28f8b))
+
+
+### Code Refactoring
+
+* **formatting:** Move and update formatting package ([39ea572](https://github.com/jsmenzies/fresh/commit/39ea57232859348dd05329c029246fb55510aa01))
+* state modelling for repositories and UI enhancements ([219e8ee](https://github.com/jsmenzies/fresh/commit/219e8ee45c5f82fb149d476b72c4d1d0ed001827))
+
 ## [1.3.0](https://github.com/jsmenzies/fresh/compare/v1.2.7...v1.3.0) (2025-12-17)
 
 
