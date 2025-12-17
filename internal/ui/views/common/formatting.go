@@ -1,4 +1,4 @@
-package formatting
+package common
 
 import (
 	"fmt"
