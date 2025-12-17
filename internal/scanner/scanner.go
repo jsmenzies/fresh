@@ -3,36 +3,24 @@ package scanner
 import (
 	"fresh/internal/domain"
 	"fresh/internal/git"
-	"os"
+	"io/fs"
 	"path/filepath"
+	"runtime"
+	"sync"
+	"time"
 )
 
 type Scanner struct {
-	scanDir      string
-	repositories []domain.Repository
-	ch           chan domain.Repository
-	finished     bool
+	scanDir string
+	ch      chan domain.Repository
+	wg      sync.WaitGroup
 }
 
 func New(scanDir string) *Scanner {
 	return &Scanner{
-		scanDir:      scanDir,
-		repositories: make([]domain.Repository, 0),
-		ch:           make(chan domain.Repository),
-		finished:     false,
+		scanDir: scanDir,
+		ch:      make(chan domain.Repository),
 	}
-}
-
-func (s *Scanner) IsFinished() bool {
-	return s.finished
-}
-
-func (s *Scanner) GetRepositories() []domain.Repository {
-	return s.repositories
-}
-
-func (s *Scanner) GetRepoCount() int {
-	return len(s.repositories)
 }
 
 func (s *Scanner) GetRepoChannel() chan domain.Repository {
@@ -40,25 +28,53 @@ func (s *Scanner) GetRepoChannel() chan domain.Repository {
 }
 
 func (s *Scanner) Scan() {
-	entries, err := os.ReadDir(s.scanDir)
-	if err != nil {
-		s.finished = true
-		return
-	}
+	defer close(s.ch)
 
-	for _, entry := range entries {
-		if entry.IsDir() {
-			fullPath := filepath.Join(s.scanDir, entry.Name())
-			if git.IsRepository(fullPath) {
-				repo := ToGitRepo(fullPath)
-				s.repositories = append(s.repositories, repo)
-				s.ch <- repo
+	numWorkers := runtime.NumCPU()
+	paths := make(chan string)
+
+	for i := 0; i < numWorkers; i++ {
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			for path := range paths {
+				// Simulate work
+				time.Sleep(100 * time.Millisecond)
+				if git.IsRepository(path) {
+					repo := ToGitRepo(path)
+					s.ch <- repo
+				}
 			}
-		}
+		}()
 	}
 
-	close(s.ch)
-	s.finished = true
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		defer close(paths)
+		err := filepath.WalkDir(s.scanDir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !d.IsDir() {
+				return nil
+			}
+
+			if d.Name() == ".git" {
+				paths <- filepath.Dir(path)
+				return filepath.SkipDir
+			}
+			return nil
+		})
+		if err != nil {
+			// errors are ignored if the scan can not access certain directories,
+		}
+	}()
+	s.wg.Wait()
+}
+
+func (s *Scanner) Wait() {
+	s.wg.Wait()
 }
 
 func ToGitRepo(path string) domain.Repository {

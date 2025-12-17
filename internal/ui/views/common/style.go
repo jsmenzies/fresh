@@ -1,11 +1,11 @@
-package ui
+package common
 
 import (
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/lipgloss"
 )
 
 const (
-	Background    = lipgloss.Color("#1a1b26") // dark muted blue-black
 	SubtleGray    = lipgloss.Color("#5b6078")
 	TextPrimary   = lipgloss.Color("#FFFFFF")
 	TextSecondary = lipgloss.Color("#a9b1d6")
@@ -21,10 +21,22 @@ const (
 	TagFg        = lipgloss.Color("#cfc9c2")
 )
 
+func NewGreenDotSpinner() spinner.Model {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a"))
+	return s
+}
+
+func NewSecondaryDotSpinner() spinner.Model {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(TextSecondary)
+	return s
+}
+
 var SpinnerStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("#9ece6a"))
-
-//Foreground(Green)
 
 var TableHeaderStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).
@@ -79,25 +91,19 @@ var LocalStatusConflict = lipgloss.NewStyle().
 
 var RemoteStatusSynced = lipgloss.NewStyle().
 	Foreground(SubtleGray).
-	//Bold(true).
 	Width(12).
 	Render(StatusSynced)
 
 var RemoteStatusGreen = lipgloss.NewStyle().
 	Foreground(Green).
-	//Bold(true).
 	Width(14)
-
-//Bold(true)
 
 var RemoteStatusYellow = lipgloss.NewStyle().
 	Foreground(Yellow).
-	//Bold(true).
 	Width(14)
 
 var LinkStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).
-	//MarginRight(1).
 	Bold(true)
 
 var LinksStyle = lipgloss.NewStyle().
@@ -105,12 +111,10 @@ var LinksStyle = lipgloss.NewStyle().
 
 var RemoteStatusRed = lipgloss.NewStyle().
 	Foreground(Red).
-	//Bold(true).
 	Width(12)
 
 var RemoteStatusBlue = lipgloss.NewStyle().
 	Foreground(Blue).
-	//Bold(true).
 	Width(12)
 
 var BadgeStyle = lipgloss.NewStyle().
@@ -120,8 +124,6 @@ var BadgeStyle = lipgloss.NewStyle().
 
 var IconStyle = lipgloss.NewStyle().
 	Foreground(TextPrimary)
-
-// ---------- Badge Styles ----------
 
 var BadgeReadyStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("#000000")).
@@ -133,8 +135,6 @@ var BadgeReadyStyle = lipgloss.NewStyle().
 	MaxHeight(1).
 	MarginLeft(2)
 
-// ---------- "MANUAL" Tag ----------
-
 var TagStyle = lipgloss.NewStyle().
 	Foreground(TagFg).
 	Background(TagBg).
@@ -145,12 +145,8 @@ var TagStyle = lipgloss.NewStyle().
 	MaxHeight(1).
 	MarginLeft(2)
 
-// ---------- Time Ago ----------
-
 var TimeAgoStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary)
-
-// ---------- Pull Output Styles ----------
 
 var PullOutputSuccess = lipgloss.NewStyle().
 	Foreground(Green).
@@ -173,8 +169,6 @@ var PullOutputError = lipgloss.NewStyle().
 	MaxHeight(1).
 	Inline(true)
 
-// ---------- Footer Keybindings ----------
-
 var KeyStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).
 	PaddingLeft(1)
@@ -184,14 +178,10 @@ var KeyHighlight = lipgloss.NewStyle().
 	Bold(true)
 
 const (
-	//IconGit      = "\uE0A0"
-	IconGit   = "\uF115"
-	IconClock = "\uF017"
-	//IconClean    = "✓"
-	IconClean = "\uF00C"
-	//IconDirty    = "●"
-	IconDirty = "\uF071"
-	//IconConflict = "✗"
+	IconGit          = "\uF115"
+	IconClock        = "\uF017"
+	IconClean        = "\uF00C"
+	IconDirty        = "\uF071"
 	IconConflict     = "\uEA87"
 	IconDiverged     = "⊘"
 	IconBehind       = "\uF063"
@@ -228,7 +218,6 @@ var (
 	quitTextStyle = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 )
 
-// Selection styles
 var SelectorStyle = lipgloss.NewStyle().
 	Foreground(Blue).
 	Width(2).

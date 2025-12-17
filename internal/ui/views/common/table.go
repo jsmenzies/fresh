@@ -1,4 +1,4 @@
-package ui
+package common
 
 import (
 	"fmt"
@@ -12,11 +12,12 @@ import (
 )
 
 func GenerateTable(repositories []domain.Repository, cursor int) string {
-	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "LINKS", "", "STATUS / UPDATE"}
+	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "LINKS", "", "LAST COMMIT"}
 
 	rows := make([][]string, len(repositories))
 	for i, repo := range repositories {
 		isSelected := i == cursor
+
 		rows[i] = repositoryToRow(repo, isSelected)
 	}
 
@@ -37,7 +38,7 @@ func GenerateTable(repositories []domain.Repository, cursor int) string {
 
 func repositoryToRow(repo domain.Repository, isSelected bool) []string {
 	selector := buildSelector(isSelected)
-	projectName := buildProjectName(repo.Name)
+	projectName := buildProjectName(repo.Name, isSelected)
 	branchName := buildBranchName(repo.CurrentBranch)
 	localCol := buildLocalStatus(repo)
 	remoteCol := buildRemoteStatus(repo)
@@ -110,17 +111,6 @@ func buildLastUpdate(repo domain.Repository) string {
 }
 
 func buildBadge(repo domain.Repository) string {
-	// MANUAL badge: repo has conflicts, is dirty, or is diverged
-	//if repo.HasError || repo.HasModified || (repo.BehindCount > 0 && repo.AheadCount > 0) {
-	//	return TagStyle.Render(BadgeManual)
-	//}
-	//
-	//// READY badge: repo is clean and behind (can be auto-updated)
-	//if repo.BehindCount > 0 && !repo.HasModified && !repo.HasError {
-	//	return BadgeReadyStyle.Render(BadgeReady)
-	//}
-
-	// No badge for synced repos or repos ahead only
 	return BadgeStyle.Render("")
 }
 
@@ -131,15 +121,12 @@ func buildLinks(repo domain.Repository) string {
 			if githubURLs != nil {
 				var shortcuts []string
 
-				// Code link (to current branch)
 				codeLink := MakeClickableURL(githubURLs["code"], IconCode)
 				shortcuts = append(shortcuts, LinkStyle.Render(codeLink))
 
-				// PRs link
 				prsLink := MakeClickableURL(githubURLs["prs"], IconPullRequests)
 				shortcuts = append(shortcuts, LinkStyle.Render(prsLink))
 
-				// Open PR link
 				openPRLink := MakeClickableURL(githubURLs["openpr"], IconOpenPR)
 				shortcuts = append(shortcuts, LinkStyle.Render(openPRLink))
 
@@ -161,7 +148,7 @@ func buildRemoteStatus(repo domain.Repository) string {
 		remoteCol = RemoteStatusBlue.Render(IconBehind + " " + StatusBehind)
 		return remoteCol
 	}
-	remoteCol = RemoteStatusSynced
+	remoteCol = StatusSynced
 	return remoteCol
 }
 
@@ -184,8 +171,11 @@ func buildBranchName(branch string) string {
 	return branchName
 }
 
-func buildProjectName(repo string) string {
-	return IconStyle.Render(IconGit) + " " + ProjectNameStyle.Render(repo)
+func buildProjectName(name string, isSelected bool) string {
+	if isSelected {
+		return ProjectNameStyle.Copy().Bold(true).Render(name)
+	}
+	return ProjectNameStyle.Render(name)
 }
 
 func buildSelector(isSelected bool) string {
@@ -195,7 +185,6 @@ func buildSelector(isSelected bool) string {
 	return SelectorStyle.Render(" ")
 }
 
-// MakeClickableURL creates a terminal hyperlink
 func MakeClickableURL(url string, displayText string) string {
 	if url == "" {
 		return displayText
