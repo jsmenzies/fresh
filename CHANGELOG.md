@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/jsmenzies/fresh/compare/v1.2.7...v1.3.0) (2025-12-17)
+
+
+### Features
+
+* **listing:** modify keyboard shortcuts ([6f55b28](https://github.com/jsmenzies/fresh/commit/6f55b2842244d206a34134c508738cf20cf9d3d4))
+
+
+### Bug Fixes
+
+* **goreleaser:** correct ldflags format and use dynamic builtBy ([39e51dd](https://github.com/jsmenzies/fresh/commit/39e51ddb4b2ef66dc92e367a7262119f83253ca8))
+* **goreleaser:** correct ldflags format and use dynamic builtBy ([804f81b](https://github.com/jsmenzies/fresh/commit/804f81be69c0c34df924f4d58c924ce993730886))
+
 ## [1.2.7](https://github.com/jsmenzies/fresh/compare/v1.2.6...v1.2.7) (2025-12-17)
 
 
