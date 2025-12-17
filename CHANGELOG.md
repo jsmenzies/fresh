@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.6](https://github.com/jsmenzies/fresh/compare/v1.2.5...v1.2.6) (2025-12-17)
+
+
+### Code Refactoring
+
+* **ui:** Modularized UI views and fixed concurrency warning. Implemented pointer-based models for performance and to prevent lock value copying. ([aedd3e2](https://github.com/jsmenzies/fresh/commit/aedd3e23352b1a0b70a21dc1a972ea6fe280c0a1))
+* **ui:** Modularized UI views and fixed concurrency warning. Implemented pointer-based models for performance and to prevent lock value copying. ([a197f8d](https://github.com/jsmenzies/fresh/commit/a197f8d5e0444368db15ae2398c6e9b518cf6d37))
+
 ## [1.2.5](https://github.com/jsmenzies/fresh/compare/v1.2.4...v1.2.5) (2025-12-16)
 
 
