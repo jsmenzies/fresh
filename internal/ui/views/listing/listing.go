@@ -15,6 +15,8 @@ import (
 type listKeyMap struct {
 	refresh   key.Binding
 	updateAll key.Binding
+	enter     key.Binding
+	pull      key.Binding
 }
 
 func newListKeyMap() *listKeyMap {
@@ -24,8 +26,16 @@ func newListKeyMap() *listKeyMap {
 			key.WithHelp("r", "refresh"),
 		),
 		updateAll: key.NewBinding(
-			key.WithKeys("u"),
-			key.WithHelp("u", "update all"),
+			key.WithKeys("R"), // Changed to Shift+R for consistency
+			key.WithHelp("R", "refresh all"),
+		),
+		enter: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "cd into"),
+		),
+		pull: key.NewBinding(
+			key.WithKeys("p"),
+			key.WithHelp("p", "pull"),
 		),
 	}
 }
@@ -40,6 +50,8 @@ type Model struct {
 func New(repos []domain.Repository) *Model {
 	for i := range repos {
 		repos[i].RefreshSpinner = common.NewSecondaryDotSpinner()
+		repos[i].PullSpinner = common.NewSecondaryDotSpinner()
+		repos[i].PullState = &domain.PullState{} // Initialize PullState
 	}
 	return &Model{
 		Repositories: repos,
@@ -61,14 +73,28 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, m.Keys.enter):
+			if m.Cursor < len(m.Repositories) {
+				repo := m.Repositories[m.Cursor]
+				fmt.Print(repo.Path)
+				return m, tea.Quit
+			}
 		case key.Matches(msg, m.Keys.refresh):
 			if m.Cursor < len(m.Repositories) {
 				repo := m.Repositories[m.Cursor]
 				return m, startBackgroundRefresh([]domain.Repository{repo})
 			}
 		case key.Matches(msg, m.Keys.updateAll):
-			// Handle update all
-			return m, nil
+			return m, startBackgroundRefresh(m.Repositories)
+		case key.Matches(msg, m.Keys.pull):
+			if m.Cursor < len(m.Repositories) {
+				repo := m.Repositories[m.Cursor]
+				m.Repositories[m.Cursor].PullState = domain.NewPullState()
+				return m, tea.Batch(
+					performPull(repo.Path),
+					m.Repositories[m.Cursor].PullSpinner.Tick,
+				)
+			}
 		case msg.String() == "up", msg.String() == "k":
 			if m.Cursor > 0 {
 				m.Cursor--
@@ -103,12 +129,53 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case pullStartMsg:
+		for i := range m.Repositories {
+			if m.Repositories[i].Path == msg.repoPath {
+				m.Repositories[i].PullState = domain.NewPullState()
+				return m, m.Repositories[i].PullSpinner.Tick
+			}
+		}
+
+	case pullWorkState:
+		return m, listenForPullProgress(msg)
+
+	case pullLineMsg:
+		for i := range m.Repositories {
+			if m.Repositories[i].Path == msg.repoPath {
+				if m.Repositories[i].PullState != nil {
+					m.Repositories[i].PullState.AddLine(msg.line)
+				}
+			}
+		}
+		if msg.state != nil {
+			return m, listenForPullProgress(*msg.state)
+		}
+
+	case pullCompleteMsg:
+		for i := range m.Repositories {
+			if m.Repositories[i].Path == msg.repoPath {
+				if m.Repositories[i].PullState != nil {
+					m.Repositories[i].PullState.Complete(msg.exitCode)
+				}
+				if msg.exitCode == 0 {
+					m.Repositories[i].BehindCount = 0
+					m.Repositories[i].HasRemoteUpdates = false
+				}
+			}
+		}
+
 	case spinner.TickMsg:
 		var cmds []tea.Cmd
 		for i := range m.Repositories {
 			if m.Repositories[i].Refreshing {
 				var cmd tea.Cmd
 				m.Repositories[i].RefreshSpinner, cmd = m.Repositories[i].RefreshSpinner.Update(msg)
+				cmds = append(cmds, cmd)
+			}
+			if m.Repositories[i].PullState != nil && m.Repositories[i].PullState.InProgress {
+				var cmd tea.Cmd
+				m.Repositories[i].PullSpinner, cmd = m.Repositories[i].PullSpinner.Update(msg)
 				cmds = append(cmds, cmd)
 			}
 		}
@@ -136,7 +203,14 @@ func (m *Model) View() string {
 
 func buildFooter() string {
 	keyStyle := lipgloss.NewStyle().Foreground(common.SubtleGray)
-	hotkeys := []string{"↑/↓ navigate", "r refresh", "q quit"}
+	hotkeys := []string{
+		"↑/↓ navigate",
+		"enter cd into",
+		"r fetch remote status",
+		"R refresh all",
+		"p pull",
+		"q quit",
+	}
 	footerText := strings.Join(hotkeys, "  •  ")
 	return "\n" + keyStyle.Render(footerText)
 }
