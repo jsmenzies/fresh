@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.7](https://github.com/jsmenzies/fresh/compare/v1.2.6...v1.2.7) (2025-12-17)
+
+
+### Bug Fixes
+
+* **goreleaser:** Dynamically set builtBy in ldflags ([b300271](https://github.com/jsmenzies/fresh/commit/b3002713b0d2296af7e3736470e19c5c7f8fe92e))
+* **goreleaser:** Dynamically set builtBy in ldflags ([8b381c9](https://github.com/jsmenzies/fresh/commit/8b381c9c93e569f3daf7c39758e11be31920b26a))
+
 ## [1.2.6](https://github.com/jsmenzies/fresh/compare/v1.2.5...v1.2.6) (2025-12-17)
 
 
