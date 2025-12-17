@@ -1,6 +1,8 @@
 package common
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -11,14 +13,15 @@ const (
 	TextSecondary = lipgloss.Color("#a9b1d6")
 	TextBranch    = lipgloss.Color("#C27AFF")
 
+	SubtleRed   = lipgloss.Color("#FF7A7A")
+	SubtleGreen = lipgloss.Color("#7AFFA1")
+
 	Green  = lipgloss.Color("#06DF71")
 	Yellow = lipgloss.Color("#FEC700")
 	Red    = lipgloss.Color("#FF6367")
 	Blue   = lipgloss.Color("#52A2FF")
 
 	DividerColor = lipgloss.Color("#414868")
-	TagBg        = lipgloss.Color("#3b4261")
-	TagFg        = lipgloss.Color("#cfc9c2")
 )
 
 func NewGreenDotSpinner() spinner.Model {
@@ -35,8 +38,19 @@ func NewSecondaryDotSpinner() spinner.Model {
 	return s
 }
 
-var SpinnerStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("#9ece6a"))
+func NewRefreshSpinner() spinner.Model {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(Blue)
+	return s
+}
+
+func NewPullSpinner() spinner.Model {
+	s := spinner.New()
+	s.Spinner = spinner.Line
+	s.Style = lipgloss.NewStyle().Foreground(Green)
+	return s
+}
 
 var TableHeaderStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).
@@ -46,17 +60,9 @@ var TableHeaderStyle = lipgloss.NewStyle().
 var ProjectNameStyle = lipgloss.NewStyle().
 	Foreground(TextPrimary).
 	Align(lipgloss.Left).
-	Width(28).
-	MaxWidth(40).
+	Width(22).
+	MaxWidth(30).
 	AlignHorizontal(lipgloss.Left)
-
-var SelectedProjectNameStyle = lipgloss.NewStyle().
-	Foreground(Blue).
-	Align(lipgloss.Left).
-	Width(28).
-	MaxWidth(40).
-	AlignHorizontal(lipgloss.Left).
-	Bold(true)
 
 var BranchNameStyle = lipgloss.NewStyle().
 	Foreground(TextBranch).
@@ -69,38 +75,87 @@ var BranchNameStyle = lipgloss.NewStyle().
 
 var BranchNameEmpty = lipgloss.NewStyle().
 	Foreground(SubtleGray).
-	Render("-")
+	Render("")
 
-var LastUpdateTime = lipgloss.NewStyle().
-	Foreground(SubtleGray)
+var BranchNameHead = lipgloss.NewStyle().
+	Foreground(SubtleGray).
+	Width(8).
+	MaxWidth(12).
+	Render(BranchHead)
 
 var LocalStatusClean = lipgloss.NewStyle().
 	Foreground(Green).
-	Width(12).
+	Width(14).
 	Render(IconClean + " " + StatusClean)
 
 var LocalStatusDirty = lipgloss.NewStyle().
 	Foreground(Yellow).
-	Width(12).
+	Width(14).
 	Render(IconDirty + " " + StatusDirty)
 
 var LocalStatusUntracked = lipgloss.NewStyle().
 	Foreground(Yellow).
-	Width(12).
+	Width(14).
 	Render(IconUntracked + " " + StatusUntracked)
 
+var LocalStatusError = lipgloss.NewStyle().
+	Width(14).
+	Render("")
+
 var RemoteStatusSynced = lipgloss.NewStyle().
-	Foreground(SubtleGray).
-	Width(12).
-	Render(StatusSynced)
+	Foreground(SubtleGreen).
+	Width(10).
+	Render(IconSynced)
 
-var RemoteStatusGreen = lipgloss.NewStyle().
-	Foreground(Green).
-	Width(12)
+var RemoteStatusError = lipgloss.NewStyle().
+	Foreground(SubtleRed).
+	Width(10).
+	Render(IconRemoteError)
 
-var RemoteStatusYellow = lipgloss.NewStyle().
+var RemoteStatusErrorText = lipgloss.NewStyle().
+	Foreground(SubtleRed)
+
+//Width(20)
+
+var RemoteStatusErrorHelpText = lipgloss.NewStyle().
+	Foreground(SubtleGray)
+
+//Width(60)
+
+var RemoteStatusDiverged = lipgloss.NewStyle().
 	Foreground(Yellow).
-	Width(12)
+	Width(12).
+	Render(IconDiverged + " " + StatusDiverged)
+
+func RemoteStatusCounts(behind int, ahead int) string {
+	content := ""
+	if behind > 0 && ahead > 0 {
+		content = fmt.Sprintf(IconAhead+" %d / "+IconBehind+" %d", ahead, behind)
+	} else if behind > 0 {
+		content = fmt.Sprintf(IconBehind+" %d", behind)
+	} else if ahead > 0 {
+		content = fmt.Sprintf(IconAhead+" %d", ahead)
+	}
+
+	return lipgloss.NewStyle().
+		Foreground(Blue).
+		Width(10).
+		Render(content)
+}
+
+var RemoteStatusBehind = lipgloss.NewStyle().
+	Foreground(Yellow).
+	Width(12).
+	Render(IconBehind + " " + StatusBehind)
+
+var RemoteStatusAhead = lipgloss.NewStyle().
+	Foreground(Green).
+	Width(12).
+	Render(IconAhead + " " + StatusAhead)
+
+var RemoteStatusUpdating = lipgloss.NewStyle().
+	Width(10).
+	Align(lipgloss.Left)
 
 var LinkStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).
@@ -109,40 +164,9 @@ var LinkStyle = lipgloss.NewStyle().
 var LinksStyle = lipgloss.NewStyle().
 	Width(8)
 
-var RemoteStatusRed = lipgloss.NewStyle().
-	Foreground(Red).
-	Width(12)
-
-var RemoteStatusBlue = lipgloss.NewStyle().
-	Foreground(Blue).
-	Width(12)
-
 var BadgeStyle = lipgloss.NewStyle().
-	Width(20).
+	Width(8).
 	Inline(true).
-	MarginLeft(2)
-
-var IconStyle = lipgloss.NewStyle().
-	Foreground(TextPrimary)
-
-var BadgeReadyStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("#000000")).
-	Background(Green).
-	Padding(0, 1).
-	Bold(true).
-	Inline(true).
-	Height(1).
-	MaxHeight(1).
-	MarginLeft(2)
-
-var TagStyle = lipgloss.NewStyle().
-	Foreground(TagFg).
-	Background(TagBg).
-	Padding(0, 1).
-	Bold(true).
-	Inline(true).
-	Height(1).
-	MaxHeight(1).
 	MarginLeft(2)
 
 var TimeAgoStyle = lipgloss.NewStyle().
@@ -169,31 +193,28 @@ var PullOutputError = lipgloss.NewStyle().
 	MaxHeight(1).
 	Inline(true)
 
-var KeyStyle = lipgloss.NewStyle().
-	Foreground(TextSecondary).
-	PaddingLeft(1)
-
-var KeyHighlight = lipgloss.NewStyle().
-	Foreground(TextPrimary).
-	Bold(true)
-
 const (
-	IconGit = "\uF115"
-	//IconUntracked     = "\uEA87"
-	IconClock        = "\uF017"
-	IconClean        = "\uF00C"
-	IconDirty        = "\uF071"
-	IconUntracked    = ""
-	IconDiverged     = "⊘"
-	IconBehind       = "\uF063"
-	IconAhead        = "\uF062"
-	IconPullRequests = "\uE726"
+	IconGit         = "\uF115"
+	IconClock       = "\uF017"
+	IconClean       = "\uF00C"
+	IconDirty       = "\uF071"
+	IconUntracked   = ""
+	IconDiverged    = "⊘"
+	IconRemoteError = "\U000F04E7"
+	IconBehind      = "\uF063"
+	IconAhead       = "\uF062"
+	//IconPullRequests = "\uE726"
+	IconPullRequests = "\uF03A"
 	IconCode         = "\uF09B"
 	IconIssues       = "\uEA60"
-	IconOpenPR       = "\uF013"
+	//IconOpenPR       = "\uF013"
+	IconOpenPR   = "\U000F04C2"
+	IconSynced   = "\U000F12D6"
+	IconSelector = "▶"
 )
 
 const (
+	BranchHead      = "HEAD"
 	StatusClean     = "Clean"
 	StatusDirty     = "Dirty"
 	StatusUntracked = "Untracked"
@@ -216,13 +237,7 @@ const (
 	Padding = 2
 )
 
-var (
-	quitTextStyle = lipgloss.NewStyle().Margin(1, 0, 2, 4)
-)
-
 var SelectorStyle = lipgloss.NewStyle().
 	Foreground(Blue).
 	Width(2).
 	Bold(true)
-
-var SelectedRowStyle = lipgloss.NewStyle()

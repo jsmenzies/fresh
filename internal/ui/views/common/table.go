@@ -11,7 +11,7 @@ import (
 )
 
 func GenerateTable(repositories []domain.Repository, cursor int) string {
-	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "LINKS", "", "LAST COMMIT"}
+	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "", "LAST COMMIT", "LINKS (Code, PRs, Create PR)", ""}
 
 	rows := make([][]string, len(repositories))
 	for i, repo := range repositories {
@@ -38,12 +38,12 @@ func GenerateTable(repositories []domain.Repository, cursor int) string {
 func repositoryToRow(repo domain.Repository, isSelected bool) []string {
 	selector := buildSelector(isSelected)
 	projectName := buildProjectName(repo.Name, isSelected)
-	branchName := buildBranchName(repo.CurrentBranch)
-	localCol := buildLocalStatus(repo)
+	branchName := buildBranchName(repo.Branch)
+	localCol := buildLocalStatus(repo.LocalState)
 	remoteCol := buildRemoteStatus(repo)
-	linksCol := buildLinks(repo)
-	badgeCol := buildBadge(repo)
+	linksCol := buildLinks(repo.RemoteURL, repo.Branch)
 	lastUpdateCol := buildLastUpdate(repo)
+	info := buildInfo(repo)
 
 	return []string{
 		selector,
@@ -51,10 +51,103 @@ func repositoryToRow(repo domain.Repository, isSelected bool) []string {
 		branchName,
 		localCol,
 		remoteCol,
-		linksCol,
-		badgeCol,
+		info,
 		lastUpdateCol,
+		linksCol,
 	}
+}
+
+func buildSelector(isSelected bool) string {
+	if isSelected {
+		return SelectorStyle.Render(IconSelector)
+	}
+	return SelectorStyle.Render(" ")
+}
+
+func buildProjectName(name string, isSelected bool) string {
+	if isSelected {
+		return ProjectNameStyle.Bold(true).Render(name)
+	}
+	return ProjectNameStyle.Render(name)
+}
+
+func buildBranchName(branch domain.Branch) string {
+	switch s := branch.(type) {
+	case domain.NoBranch:
+		return BranchNameEmpty
+	case domain.DetachedHead:
+		return BranchNameHead
+	case domain.OnBranch:
+		return BranchNameStyle.Render(s.Name)
+	default:
+		return BranchNameEmpty
+	}
+}
+
+func buildLocalStatus(state domain.LocalState) string {
+	switch state.(type) {
+	case domain.DirtyLocalState:
+		return LocalStatusDirty
+	case domain.UntrackedLocalState:
+		return LocalStatusUntracked
+	case domain.LocalStateError:
+		return LocalStatusError
+	default:
+		return LocalStatusClean
+	}
+}
+
+func buildRemoteStatus(repo domain.Repository) string {
+	switch activity := repo.Activity.(type) {
+	case domain.RefreshingActivity:
+		if !activity.Complete {
+			return RemoteStatusUpdating.Render(activity.Spinner.View())
+		}
+	}
+
+	switch s := repo.RemoteState.(type) {
+	case domain.NoUpstream:
+		return RemoteStatusError
+	case domain.DetachedRemote:
+		return RemoteStatusError
+	case domain.RemoteError:
+		return RemoteStatusError
+	case domain.Diverged:
+		return RemoteStatusCounts(s.BehindCount, s.AheadCount)
+	case domain.Behind:
+		return RemoteStatusCounts(s.Count, 0)
+	case domain.Ahead:
+		return RemoteStatusCounts(0, s.Count)
+	default:
+		return RemoteStatusSynced
+	}
+}
+
+func buildInfo(repo domain.Repository) string {
+	switch activity := repo.Activity.(type) {
+	case domain.PullingActivity:
+		if !activity.Complete {
+			lastLine := activity.GetLastLine()
+			truncated := truncateWithEllipsis(lastLine, 55)
+			return activity.Spinner.View() + " " + truncated
+		}
+		lastLine := activity.GetLastLine()
+		styledLine := stylePullOutput(lastLine, activity.ExitCode)
+		return styledLine
+	}
+
+	switch s := repo.RemoteState.(type) {
+	case domain.NoUpstream:
+		return RemoteStatusErrorText.Render("No upstream ") + RemoteStatusErrorHelpText.Render("(new branch or deleted remote)")
+	case domain.DetachedRemote:
+		return RemoteStatusErrorText.Render("Detached HEAD ") + RemoteStatusErrorHelpText.Render("(not currently on a branch)")
+	case domain.RemoteError:
+		return RemoteStatusErrorText.Render(s.Message)
+	case domain.Diverged:
+		return RemoteStatusErrorText.Render(
+			fmt.Sprintf("Diverged: behind %d, ahead %d", s.BehindCount, s.AheadCount))
+	}
+	return ""
 }
 
 func truncateWithEllipsis(text string, maxWidth int) string {
@@ -87,36 +180,19 @@ func stylePullOutput(lastLine string, exitCode int) string {
 
 func buildLastUpdate(repo domain.Repository) string {
 	timeAgo := FormatTimeAgo(repo.LastCommitTime)
-
-	// If we have pull state data, display it
-	if repo.PullState != nil {
-		if repo.PullState.InProgress {
-			lastLine := repo.PullState.GetLastLine()
-			truncated := truncateWithEllipsis(lastLine, 55)
-			return repo.PullSpinner.View() + " " + truncated
-		} else if repo.PullState.Completed {
-			lastLine := repo.PullState.GetLastLine()
-			styledLine := stylePullOutput(lastLine, repo.PullState.ExitCode)
-			return styledLine
-		}
-	}
-
-	// No pull state - show refresh status or time
-	if repo.Refreshing {
-		return repo.RefreshSpinner.View()
-	}
-
 	return TimeAgoStyle.Render(IconClock + " " + timeAgo)
 }
 
-func buildBadge(repo domain.Repository) string {
-	return BadgeStyle.Render("")
-}
-
-func buildLinks(repo domain.Repository) string {
-	if repo.RemoteURL != "" {
-		if IsGitHubRepository(repo.RemoteURL) {
-			githubURLs := BuildGitHubURLs(repo.RemoteURL, repo.CurrentBranch)
+func buildLinks(url string, branch domain.Branch) string {
+	var branchName string
+	if url != "" {
+		if IsGitHubRepository(url) {
+			if _, ok := branch.(domain.OnBranch); !ok {
+				branchName = ""
+			} else {
+				branchName = branch.(domain.OnBranch).Name
+			}
+			githubURLs := BuildGitHubURLs(url, branchName)
 			if githubURLs != nil {
 				var shortcuts []string
 
@@ -135,52 +211,6 @@ func buildLinks(repo domain.Repository) string {
 		}
 	}
 	return ""
-}
-
-func buildRemoteStatus(repo domain.Repository) string {
-	if repo.BehindCount > 0 && repo.AheadCount > 0 {
-		return RemoteStatusYellow.Render(IconDiverged + " " + StatusDiverged)
-	}
-	if repo.BehindCount > 0 {
-		return RemoteStatusBlue.Render(fmt.Sprintf("%s %s", IconBehind, StatusBehind))
-	}
-	if repo.AheadCount > 0 {
-		return RemoteStatusGreen.Render(fmt.Sprintf("%s %s", IconAhead, StatusAhead))
-	}
-	return RemoteStatusSynced
-}
-
-func buildLocalStatus(repo domain.Repository) string {
-	if repo.HasError {
-		return LocalStatusUntracked
-	} else if repo.HasModified {
-		return LocalStatusDirty
-	}
-	return LocalStatusClean
-}
-
-func buildBranchName(branch string) string {
-	branchName := branch
-	if branchName == "" {
-		branchName = BranchNameEmpty
-	} else {
-		branchName = BranchNameStyle.Render(branchName)
-	}
-	return branchName
-}
-
-func buildProjectName(name string, isSelected bool) string {
-	if isSelected {
-		return ProjectNameStyle.Copy().Bold(true).Render(name)
-	}
-	return ProjectNameStyle.Render(name)
-}
-
-func buildSelector(isSelected bool) string {
-	if isSelected {
-		return SelectorStyle.Render("▶")
-	}
-	return SelectorStyle.Render(" ")
 }
 
 func MakeClickableURL(url string, displayText string) string {

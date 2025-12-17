@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"fresh/internal/git"
 	"fresh/internal/ui"
@@ -16,24 +17,96 @@ var (
 	builtBy = "unknown"
 )
 
-func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
-		printVersion()
-		os.Exit(0)
-	}
+type Config struct {
+	ScanDir string
+	NoIcons bool
+}
 
-	scanDir, err := parseDir()
+type Action int
+
+const (
+	ActionRun Action = iota
+	ActionVersion
+	ActionHelp
+)
+
+func main() {
+	formatUsageOutput()
+	action, cfg, err := parseCliFlags()
+
 	if err != nil {
-		fmt.Printf("Error reading directory: %v\n", err)
+		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
 
+	switch action {
+	case ActionVersion:
+		printVersion()
+		os.Exit(0)
+	case ActionRun:
+		runApp(cfg)
+		os.Exit(0)
+	case ActionHelp:
+		flag.Usage()
+		os.Exit(0)
+	default:
+		flag.Usage()
+		os.Exit(1)
+	}
+}
+
+func parseCliFlags() (Action, *Config, error) {
+	var showVersion bool
+	var showHelp bool
+	var dirPath string
+	var noIcons bool
+
+	var defaultDir, _ = os.Getwd()
+
+	flag.BoolVar(&showVersion, "version", false, "Print version information")
+	flag.BoolVar(&showVersion, "v", false, "Print version information (shorthand)")
+	flag.BoolVar(&showHelp, "help", false, "Show help message")
+	flag.BoolVar(&showHelp, "h", false, "Show help message (shorthand)")
+	flag.StringVar(&dirPath, "dir", defaultDir, "Specify the directory to scan (shorthand: -d)")
+	flag.StringVar(&dirPath, "d", defaultDir, "Specify the directory to scan (shorthand for --dir)")
+	flag.BoolVar(&noIcons, "no-icons", false, "Disable icon display")
+
+	flag.Parse()
+
+	if len(flag.Args()) > 0 {
+		return ActionRun, nil, fmt.Errorf("unexpected arguments: %v\nUse --dir to specify a directory", flag.Args())
+	}
+
+	switch {
+	case showVersion:
+		return ActionVersion, nil, nil
+	case showHelp:
+		return ActionHelp, nil, nil
+	default:
+		cfg, err := buildConfig(dirPath, noIcons)
+		return ActionRun, cfg, err
+	}
+}
+
+func buildConfig(dirPath string, noIcons bool) (*Config, error) {
+	if err := validateScanDir(dirPath); err != nil {
+		return nil, err
+	}
+
+	cfg := &Config{
+		ScanDir: dirPath,
+		NoIcons: noIcons,
+	}
+	return cfg, nil
+}
+
+func runApp(cfg *Config) {
 	if git.IsGitInstalled() == false {
 		fmt.Println("Git is not installed or not found in PATH.")
 		os.Exit(1)
 	}
 
-	m := ui.New(scanDir)
+	m := ui.New(cfg.ScanDir)
 
 	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Println("Error running program:", err)
@@ -41,24 +114,25 @@ func main() {
 	}
 }
 
-func parseDir() (string, error) {
-	var scanDir string
-	var err error
-	if len(os.Args) > 1 {
-		scanDir = os.Args[1]
-	} else {
-		scanDir, err = os.Getwd()
+func validateScanDir(dir string) error {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return fmt.Errorf("directory does not exist: %s", dir)
 	}
+	return nil
+}
 
-	if err != nil {
-		return "", err
+func formatUsageOutput() {
+	flag.Usage = func() {
+		fmt.Println("")
+		fmt.Println("Usage: fresh [options]")
+		fmt.Println("\nOptions:")
+		fmt.Println("  --help -h           	Show this help message")
+		fmt.Println("  --dir -d <path>     	Specify the directory to scan for git repositories")
+		fmt.Println("  --no-icons		Disable icon usage in the UI")
+		fmt.Println("  --version -v   	Print version information")
+		fmt.Println("\nExample:")
+		fmt.Printf("  fresh --dir ~/projects \n\n")
 	}
-
-	if _, err := os.Stat(scanDir); os.IsNotExist(err) {
-		return "", err
-	}
-
-	return scanDir, nil
 }
 
 func printVersion() {
