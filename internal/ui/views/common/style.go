@@ -24,6 +24,8 @@ const (
 	DividerColor = lipgloss.Color("#414868")
 )
 
+var TableBorderStyle = lipgloss.NewStyle().Foreground(DividerColor)
+
 func NewGreenDotSpinner() spinner.Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -127,6 +129,10 @@ var RemoteStatusDiverged = lipgloss.NewStyle().
 	Width(12).
 	Render(IconDiverged + " " + StatusDiverged)
 
+var RemoteStatusCountsStyle = lipgloss.NewStyle().
+	Foreground(Blue).
+	Width(10)
+
 func RemoteStatusCounts(behind int, ahead int) string {
 	content := ""
 	if behind > 0 && ahead > 0 {
@@ -137,10 +143,7 @@ func RemoteStatusCounts(behind int, ahead int) string {
 		content = fmt.Sprintf(IconAhead+" %d", ahead)
 	}
 
-	return lipgloss.NewStyle().
-		Foreground(Blue).
-		Width(10).
-		Render(content)
+	return RemoteStatusCountsStyle.Render(content)
 }
 
 var RemoteStatusBehind = lipgloss.NewStyle().
@@ -193,6 +196,17 @@ var PullOutputError = lipgloss.NewStyle().
 	MaxHeight(1).
 	Inline(true)
 
+var PullProgressStyle = lipgloss.NewStyle().
+	Width(55)
+
+func FormatPullProgress(spinnerView string, lastLine string) string {
+	return spinnerView + " " + PullProgressStyle.Render(lastLine)
+}
+
+func FormatPRStatus(label string, help string) string {
+	return RemoteStatusErrorText.Render(label) + RemoteStatusErrorHelpText.Render(help)
+}
+
 const (
 	IconGit         = "\uF115"
 	IconClock       = "\uF017"
@@ -241,3 +255,25 @@ var SelectorStyle = lipgloss.NewStyle().
 	Foreground(Blue).
 	Width(2).
 	Bold(true)
+
+var HeaderStyle = lipgloss.NewStyle().
+	Foreground(Blue)
+
+func FormatHeader(count int) string {
+	return HeaderStyle.Render(fmt.Sprintf("\nScan complete. %d repositories found\n", count))
+}
+
+var FooterStyle = lipgloss.NewStyle().
+	Foreground(SubtleGray).
+	PaddingLeft(2)
+
+var ScanningFoundLabelStyle = lipgloss.NewStyle().
+	Foreground(TextPrimary).
+	PaddingLeft(1)
+
+var ScanningFoundNameStyle = lipgloss.NewStyle().
+	Foreground(Green)
+
+func FormatScanningFound(name string) string {
+	return ScanningFoundLabelStyle.Render("\uF061 Found git repository:") + " " + ScanningFoundNameStyle.Render(name)
+}

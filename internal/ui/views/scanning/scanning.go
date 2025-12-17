@@ -10,7 +10,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type Model struct {
@@ -75,9 +74,7 @@ func (m *Model) View() string {
 
 	for i := startIndex; i < len(m.Repositories); i++ {
 		repo := m.Repositories[i]
-		var name = lipgloss.NewStyle().Foreground(common.Green)
-		var text = lipgloss.NewStyle().Foreground(common.TextPrimary).PaddingLeft(1)
-		repoList.WriteString(fmt.Sprintf("%s %s \n", text.Render("\uF061 Found git repository:"), name.Render(repo.Name)))
+		repoList.WriteString(common.FormatScanningFound(repo.Name) + "\n")
 	}
 
 	return "\n" +

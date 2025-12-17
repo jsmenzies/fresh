@@ -1,7 +1,6 @@
 package listing
 
 import (
-	"fmt"
 	"fresh/internal/domain"
 	"fresh/internal/ui/views/common"
 	"sort"
@@ -10,7 +9,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type listKeyMap struct {
@@ -232,9 +230,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	var style = lipgloss.NewStyle().Foreground(common.Blue)
-	var text = style.Render(fmt.Sprintf("\nScan complete. %d repositories found\n", len(m.Repositories)))
-	headerLine := text
+	headerLine := common.FormatHeader(len(m.Repositories))
 
 	if len(m.Repositories) == 0 {
 		return headerLine + "No repositories found"
@@ -247,7 +243,6 @@ func (m *Model) View() string {
 }
 
 func buildFooter() string {
-	keyStyle := lipgloss.NewStyle().Foreground(common.SubtleGray).PaddingLeft(2)
 	hotkeys := []string{
 		"↑/↓ navigate",
 		"r refresh",
@@ -257,7 +252,7 @@ func buildFooter() string {
 		"q quit",
 	}
 	footerText := strings.Join(hotkeys, "  •  ")
-	return "\n" + keyStyle.Render(footerText)
+	return "\n" + common.FooterStyle.Render(footerText)
 }
 
 func isBusy(repo domain.Repository) bool {

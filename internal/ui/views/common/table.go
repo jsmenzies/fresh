@@ -24,7 +24,7 @@ func GenerateTable(repositories []domain.Repository, cursor int) string {
 		Border(lipgloss.HiddenBorder()).
 		Headers(headers...).
 		Rows(rows...).
-		BorderStyle(lipgloss.NewStyle().Foreground(DividerColor)).
+		BorderStyle(TableBorderStyle).
 		StyleFunc(func(row, col int) lipgloss.Style {
 			if row == table.HeaderRow {
 				return TableHeaderStyle
@@ -138,9 +138,9 @@ func buildInfo(repo domain.Repository) string {
 
 	switch s := repo.RemoteState.(type) {
 	case domain.NoUpstream:
-		return RemoteStatusErrorText.Render("No upstream ") + RemoteStatusErrorHelpText.Render("(new branch or deleted remote)")
+		return FormatPRStatus("No upstream ", "(new branch or deleted remote)")
 	case domain.DetachedRemote:
-		return RemoteStatusErrorText.Render("Detached HEAD ") + RemoteStatusErrorHelpText.Render("(not currently on a branch)")
+		return FormatPRStatus("Detached HEAD ", "(not currently on a branch)")
 	case domain.RemoteError:
 		return RemoteStatusErrorText.Render(s.Message)
 	case domain.Diverged:
