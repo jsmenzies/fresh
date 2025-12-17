@@ -84,10 +84,10 @@ var LocalStatusDirty = lipgloss.NewStyle().
 	Width(12).
 	Render(IconDirty + " " + StatusDirty)
 
-var LocalStatusConflict = lipgloss.NewStyle().
-	Foreground(Red).
+var LocalStatusUntracked = lipgloss.NewStyle().
+	Foreground(Yellow).
 	Width(12).
-	Render(IconConflict + " " + StatusConflict)
+	Render(IconUntracked + " " + StatusUntracked)
 
 var RemoteStatusSynced = lipgloss.NewStyle().
 	Foreground(SubtleGray).
@@ -96,11 +96,11 @@ var RemoteStatusSynced = lipgloss.NewStyle().
 
 var RemoteStatusGreen = lipgloss.NewStyle().
 	Foreground(Green).
-	Width(14)
+	Width(12)
 
 var RemoteStatusYellow = lipgloss.NewStyle().
 	Foreground(Yellow).
-	Width(14)
+	Width(12)
 
 var LinkStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).
@@ -178,11 +178,12 @@ var KeyHighlight = lipgloss.NewStyle().
 	Bold(true)
 
 const (
-	IconGit          = "\uF115"
+	IconGit = "\uF115"
+	//IconUntracked     = "\uEA87"
 	IconClock        = "\uF017"
 	IconClean        = "\uF00C"
 	IconDirty        = "\uF071"
-	IconConflict     = "\uEA87"
+	IconUntracked    = ""
 	IconDiverged     = "⊘"
 	IconBehind       = "\uF063"
 	IconAhead        = "\uF062"
@@ -193,13 +194,14 @@ const (
 )
 
 const (
-	StatusClean    = "Clean"
-	StatusDirty    = "Dirty"
-	StatusConflict = "Conflict"
-	StatusSynced   = "Synced"
-	StatusBehind   = "Behind"
-	StatusDiverged = "Diverged"
-	StatusUpToDate = "up to date"
+	StatusClean     = "Clean"
+	StatusDirty     = "Dirty"
+	StatusUntracked = "Untracked"
+	StatusSynced    = "Synced"
+	StatusBehind    = "Behind"
+	StatusAhead     = "Ahead"
+	StatusDiverged  = "Diverged"
+	StatusUpToDate  = "up to date"
 
 	ActionUpdating = "updating"
 	ActionPulling  = "pulling..."

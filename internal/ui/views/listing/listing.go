@@ -23,7 +23,7 @@ func newListKeyMap() *listKeyMap {
 	return &listKeyMap{
 		refresh: key.NewBinding(
 			key.WithKeys("r"),
-			key.WithHelp("r", "fetch remote status"),
+			key.WithHelp("r", "refresh remote"),
 		),
 		updateAll: key.NewBinding(
 			key.WithKeys("R"),
@@ -31,7 +31,7 @@ func newListKeyMap() *listKeyMap {
 		),
 		pull: key.NewBinding(
 			key.WithKeys("p"),
-			key.WithHelp("p", "pull selected"),
+			key.WithHelp("p", "pull"),
 		),
 		pullAll: key.NewBinding(
 			key.WithKeys("P"),
@@ -53,6 +53,7 @@ func New(repos []domain.Repository) *Model {
 		repos[i].PullSpinner = common.NewSecondaryDotSpinner()
 		repos[i].PullState = &domain.PullState{} // Initialize PullState
 	}
+
 	return &Model{
 		Repositories: repos,
 		Cursor:       0,
@@ -205,12 +206,12 @@ func (m *Model) View() string {
 }
 
 func buildFooter() string {
-	keyStyle := lipgloss.NewStyle().Foreground(common.SubtleGray)
+	keyStyle := lipgloss.NewStyle().Foreground(common.SubtleGray).PaddingLeft(2)
 	hotkeys := []string{
 		"↑/↓ navigate",
-		"r fetch remote status",
+		"r refresh",
 		"R refresh all",
-		"p pull selected",
+		"p pull",
 		"P pull all",
 		"q quit",
 	}

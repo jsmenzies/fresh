@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"fresh/internal/domain"
-	"fresh/internal/formatting"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
@@ -87,7 +86,7 @@ func stylePullOutput(lastLine string, exitCode int) string {
 }
 
 func buildLastUpdate(repo domain.Repository) string {
-	timeAgo := formatting.FormatTimeAgo(repo.LastCommitTime)
+	timeAgo := FormatTimeAgo(repo.LastCommitTime)
 
 	// If we have pull state data, display it
 	if repo.PullState != nil {
@@ -116,8 +115,8 @@ func buildBadge(repo domain.Repository) string {
 
 func buildLinks(repo domain.Repository) string {
 	if repo.RemoteURL != "" {
-		if formatting.IsGitHubRepository(repo.RemoteURL) {
-			githubURLs := formatting.BuildGitHubURLs(repo.RemoteURL, repo.CurrentBranch)
+		if IsGitHubRepository(repo.RemoteURL) {
+			githubURLs := BuildGitHubURLs(repo.RemoteURL, repo.CurrentBranch)
 			if githubURLs != nil {
 				var shortcuts []string
 
@@ -139,22 +138,21 @@ func buildLinks(repo domain.Repository) string {
 }
 
 func buildRemoteStatus(repo domain.Repository) string {
-	var remoteCol string
 	if repo.BehindCount > 0 && repo.AheadCount > 0 {
-		remoteCol = RemoteStatusRed.Render(IconDiverged + " " + StatusDiverged)
-		return remoteCol
+		return RemoteStatusYellow.Render(IconDiverged + " " + StatusDiverged)
 	}
 	if repo.BehindCount > 0 {
-		remoteCol = RemoteStatusBlue.Render(IconBehind + " " + StatusBehind)
-		return remoteCol
+		return RemoteStatusBlue.Render(fmt.Sprintf("%s %s", IconBehind, StatusBehind))
 	}
-	remoteCol = StatusSynced
-	return remoteCol
+	if repo.AheadCount > 0 {
+		return RemoteStatusGreen.Render(fmt.Sprintf("%s %s", IconAhead, StatusAhead))
+	}
+	return RemoteStatusSynced
 }
 
 func buildLocalStatus(repo domain.Repository) string {
 	if repo.HasError {
-		return LocalStatusConflict
+		return LocalStatusUntracked
 	} else if repo.HasModified {
 		return LocalStatusDirty
 	}
