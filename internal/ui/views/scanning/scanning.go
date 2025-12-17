@@ -3,6 +3,7 @@ package scanning
 import (
 	"fmt"
 	"fresh/internal/domain"
+	"fresh/internal/git"
 	"fresh/internal/scanner"
 	"fresh/internal/ui/views/common"
 	"strings"
@@ -44,7 +45,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case repoFoundMsg:
-		repo := domain.Repository(msg)
+		path := string(msg)
+		repo := git.BuildRepository(path)
 		m.Repositories = append(m.Repositories, repo)
 		return m, waitForRepo(m.scanner.GetRepoChannel())
 
@@ -83,12 +85,12 @@ func (m *Model) View() string {
 		repoList.String() + "\n"
 }
 
-func waitForRepo(c chan domain.Repository) tea.Cmd {
+func waitForRepo(c chan string) tea.Cmd {
 	return func() tea.Msg {
-		repo, ok := <-c
+		path, ok := <-c
 		if !ok {
 			return scanCompleteMsg{}
 		}
-		return repoFoundMsg(repo)
+		return repoFoundMsg(path)
 	}
 }

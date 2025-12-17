@@ -1,19 +1,9 @@
 package listing
 
-type refreshStartMsg struct {
-	repoPath string
-}
+import "fresh/internal/domain"
 
-type refreshCompleteMsg struct {
-	repoPath     string
-	aheadCount   int
-	behindCount  int
-	hasError     bool
-	errorMessage string
-}
-
-type pullStartMsg struct {
-	repoPath string
+type RepoUpdatedMsg struct {
+	Repo domain.Repository
 }
 
 type pullLineMsg struct {
@@ -25,6 +15,7 @@ type pullLineMsg struct {
 type pullCompleteMsg struct {
 	repoPath string
 	exitCode int
+	Repo     domain.Repository
 }
 
 type pullWorkState struct {

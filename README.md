@@ -2,6 +2,15 @@
 
 A CLI tool for interactively managing the status of multiple Git repositories. It aims to provide capabilities for viewing the status of multiple repositories and eventually applying updates (e.g., pulls, fetches) across them simultaneously, handling conflicts gracefully.
 
+## Font Recommendation
+
+**Nerd Font Recommended**
+
+Fresh uses [Nerd Fonts](https://www.nerdfonts.com/) to render icons in the terminal. While not strictly required, it is highly recommended. Without a Nerd Font installed and configured in your terminal emulator, icons may appear as broken characters (tofu) or question marks.
+
+-   **Download:** Visit [NerdFonts.com](https://www.nerdfonts.com/font-downloads) to download a patched font (e.g., "Hack Nerd Font" or "JetBrainsMono Nerd Font").
+-   **Configure:** Install the font on your system and set it as the font in your terminal settings.
+
 ## Installation
 
 ### Homebrew (macOS and Linux)

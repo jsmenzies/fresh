@@ -4,10 +4,31 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"fresh/internal/domain"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
+
+func BuildRepository(path string) domain.Repository {
+	repoName := filepath.Base(path)
+	branch := GetCurrentBranch(path)
+	localState := HasModifiedFiles(path)
+	remoteState := GetStatus(path)
+	lastCommitTime := GetLastCommitTime(path)
+	remoteURL := GetRemoteURL(path)
+
+	return domain.Repository{
+		Name:           repoName,
+		Path:           path,
+		Branch:         branch,
+		LocalState:     localState,
+		LastCommitTime: lastCommitTime,
+		RemoteURL:      remoteURL,
+		RemoteState:    remoteState,
+	}
+}
 
 func IsGitInstalled() bool {
 	cmd := exec.Command("git", "--version")
@@ -33,36 +54,84 @@ func GetRemoteURL(repoPath string) string {
 	return strings.TrimSpace(string(output))
 }
 
-func GetStatus(repoPath string) (aheadCount int, behindCount int) {
-	cmd := exec.Command("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
+func GetCurrentBranch(repoPath string) domain.Branch {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
 	cmd.Dir = repoPath
-	output, err := cmd.Output()
+	branch, err := cmd.Output()
 	if err != nil {
-		return 0, 0
+		return domain.NoBranch{Reason: err.Error()}
 	}
 
-	statusStr := strings.TrimSpace(string(output))
-	if statusStr == "" {
-		return 0, 0
+	name := strings.TrimSpace(string(branch))
+	switch name {
+	case "HEAD":
+		return domain.DetachedHead{}
+	case "":
+		return domain.NoBranch{Reason: "no branch"}
+	default:
+		return domain.OnBranch{Name: name}
 	}
-
-	var ahead, behind int
-	if _, err := fmt.Sscanf(statusStr, "%d\t%d", &ahead, &behind); err != nil {
-		return 0, 0
-	}
-
-	return ahead, behind
 }
 
-func HasModifiedFiles(repoPath string) bool {
+func HasModifiedFiles(repoPath string) domain.LocalState {
 	cmd := exec.Command("git", "status", "--porcelain")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
+
 	if err != nil {
-		return false
+		return domain.LocalStateError{Message: err.Error()}
+	}
+	result := strings.TrimSpace(string(output))
+	if result == "" {
+		return domain.CleanLocalState{}
+	}
+	if strings.Contains(result, "?? ") {
+		return domain.UntrackedLocalState{}
+	}
+	return domain.DirtyLocalState{}
+}
+
+func GetStatus(repoPath string) domain.RemoteState {
+	cmd := exec.Command("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
+	cmd.Dir = repoPath
+	output, err := cmd.Output()
+
+	if err != nil {
+		errStr := string(err.(*exec.ExitError).Stderr)
+
+		if strings.Contains(errStr, "no upstream") {
+			return domain.NoUpstream{}
+		}
+		if strings.Contains(errStr, "does not point to a branch") {
+			return domain.DetachedRemote{}
+		}
+		if strings.Contains(errStr, "bad revision") {
+			return domain.NoUpstream{}
+		}
+		if strings.Contains(errStr, "no such branch:") {
+			return domain.DetachedRemote{}
+		}
+		return domain.RemoteError{Message: errStr}
 	}
 
-	return strings.TrimSpace(string(output)) != ""
+	var ahead, behind int
+	if _, err := fmt.Sscanf(strings.TrimSpace(string(output)), "%d\t%d", &ahead, &behind); err != nil {
+		return domain.RemoteError{Message: "failed to parse git status output"}
+	}
+
+	if ahead > 0 && behind > 0 {
+		return domain.Diverged{AheadCount: ahead, BehindCount: behind}
+	}
+
+	if ahead > 0 {
+		return domain.Ahead{Count: ahead}
+	}
+
+	if behind > 0 {
+		return domain.Behind{Count: behind}
+	}
+
+	return domain.Synced{}
 }
 
 func GetLastCommitTime(repoPath string) time.Time {
@@ -86,54 +155,29 @@ func GetLastCommitTime(repoPath string) time.Time {
 	return time.Unix(timestamp, 0)
 }
 
-func GetCurrentBranch(repoPath string) string {
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	cmd.Dir = repoPath
-	output, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-
-	return strings.TrimSpace(string(output))
+func RefreshRepositoryState(repo *domain.Repository) {
+	repo.Branch = GetCurrentBranch(repo.Path)
+	repo.LocalState = HasModifiedFiles(repo.Path)
+	repo.RemoteState = GetStatus(repo.Path)
+	repo.LastCommitTime = GetLastCommitTime(repo.Path)
+	repo.RemoteURL = GetRemoteURL(repo.Path)
 }
 
-func RefreshRemoteStatus(repoPath string) (aheadCount, behindCount int, err error) {
+func RefreshRemoteStatusWithFetch(repo *domain.Repository) error {
 	cmd := exec.Command("git", "fetch", "--quiet")
-	cmd.Dir = repoPath
+	cmd.Dir = repo.Path
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		errMsg := strings.TrimSpace(string(output))
 		if errMsg == "" {
 			errMsg = err.Error()
 		}
-		return 0, 0, fmt.Errorf("fetch failed: %s", errMsg)
+		repo.RemoteState = domain.RemoteError{Message: errMsg}
+		return fmt.Errorf("fetch failed: %s", errMsg)
 	}
 
-	cmd = exec.Command("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
-	cmd.Dir = repoPath
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		errMsg := strings.TrimSpace(string(output))
-		if strings.Contains(errMsg, "no upstream") || strings.Contains(errMsg, "@{u}") {
-			return 0, 0, nil
-		}
-		if errMsg == "" {
-			errMsg = err.Error()
-		}
-		return 0, 0, fmt.Errorf("%s", errMsg)
-	}
-
-	statusStr := strings.TrimSpace(string(output))
-	if statusStr == "" {
-		return 0, 0, nil
-	}
-
-	var ahead, behind int
-	if _, err := fmt.Sscanf(statusStr, "%d\t%d", &ahead, &behind); err != nil {
-		return 0, 0, fmt.Errorf("parse status failed: %s (output: %s)", err.Error(), statusStr)
-	}
-
-	return ahead, behind, nil
+	repo.RemoteState = GetStatus(repo.Path)
+	return nil
 }
 
 func Pull(repoPath string, lineCallback func(string)) int {

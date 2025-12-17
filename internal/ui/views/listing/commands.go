@@ -1,77 +1,60 @@
 package listing
 
 import (
-	"fresh/internal/domain"
 	"fresh/internal/git"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func startBackgroundRefresh(repos []domain.Repository) tea.Cmd {
-	var cmds []tea.Cmd
-	for _, repo := range repos {
-		cmd := func(repoPath string) tea.Cmd {
-			return func() tea.Msg {
-				return refreshStartMsg{repoPath: repoPath}
-			}
-		}(repo.Path)
-		cmds = append(cmds, cmd)
-	}
-	return tea.Batch(cmds...)
-}
-
 func performRefresh(repoPath string) tea.Cmd {
 	return func() tea.Msg {
-		ahead, behind, err := git.RefreshRemoteStatus(repoPath)
+		repo := git.BuildRepository(repoPath)
+
+		// First do a fetch to update remote tracking branches
+		err := git.RefreshRemoteStatusWithFetch(&repo)
 		if err != nil {
-			return refreshCompleteMsg{
-				repoPath:     repoPath,
-				aheadCount:   0,
-				behindCount:  0,
-				hasError:     true,
-				errorMessage: err.Error(),
-			}
+			repo.ErrorMessage = err.Error()
+		} else {
+			repo.ErrorMessage = ""
 		}
-		return refreshCompleteMsg{
-			repoPath:     repoPath,
-			aheadCount:   ahead,
-			behindCount:  behind,
-			hasError:     false,
-			errorMessage: "",
+
+		// Re-get status after fetch
+		repo.RemoteState = git.GetStatus(repoPath)
+
+		return RepoUpdatedMsg{
+			Repo: repo,
 		}
 	}
 }
 
 func performPull(repoPath string) tea.Cmd {
-	return tea.Batch(
-		func() tea.Msg {
-			return pullStartMsg{repoPath: repoPath}
-		},
-		func() tea.Msg {
-			lineChan := make(chan string, 10)
-			doneChan := make(chan pullCompleteMsg, 1)
+	return func() tea.Msg {
+		lineChan := make(chan string, 10)
+		doneChan := make(chan pullCompleteMsg, 1)
 
-			go func() {
-				exitCode := git.Pull(repoPath, func(line string) {
-					lineChan <- line
-				})
+		go func() {
+			exitCode := git.Pull(repoPath, func(line string) {
+				lineChan <- line
+			})
 
-				close(lineChan)
+			close(lineChan)
 
-				doneChan <- pullCompleteMsg{
-					repoPath: repoPath,
-					exitCode: exitCode,
-				}
-				close(doneChan)
-			}()
+			repo := git.BuildRepository(repoPath)
 
-			return pullWorkState{
+			doneChan <- pullCompleteMsg{
 				repoPath: repoPath,
-				lineChan: lineChan,
-				doneChan: doneChan,
+				exitCode: exitCode,
+				Repo:     repo,
 			}
-		},
-	)
+			close(doneChan)
+		}()
+
+		return pullWorkState{
+			repoPath: repoPath,
+			lineChan: lineChan,
+			doneChan: doneChan,
+		}
+	}
 }
 
 func listenForPullProgress(state pullWorkState) tea.Cmd {

@@ -1,29 +1,27 @@
 package scanner
 
 import (
-	"fresh/internal/domain"
 	"fresh/internal/git"
 	"io/fs"
 	"path/filepath"
 	"runtime"
 	"sync"
-	"time"
 )
 
 type Scanner struct {
 	scanDir string
-	ch      chan domain.Repository
+	ch      chan string
 	wg      sync.WaitGroup
 }
 
 func New(scanDir string) *Scanner {
 	return &Scanner{
 		scanDir: scanDir,
-		ch:      make(chan domain.Repository),
+		ch:      make(chan string),
 	}
 }
 
-func (s *Scanner) GetRepoChannel() chan domain.Repository {
+func (s *Scanner) GetRepoChannel() chan string {
 	return s.ch
 }
 
@@ -38,11 +36,8 @@ func (s *Scanner) Scan() {
 		go func() {
 			defer s.wg.Done()
 			for path := range paths {
-				// Simulate work
-				time.Sleep(100 * time.Millisecond)
 				if git.IsRepository(path) {
-					repo := ToGitRepo(path)
-					s.ch <- repo
+					s.ch <- path
 				}
 			}
 		}()
@@ -75,24 +70,4 @@ func (s *Scanner) Scan() {
 
 func (s *Scanner) Wait() {
 	s.wg.Wait()
-}
-
-func ToGitRepo(path string) domain.Repository {
-	repoName := filepath.Base(path)
-	lastCommitTime := git.GetLastCommitTime(path)
-	remoteURL := git.GetRemoteURL(path)
-	aheadCount, behindCount := git.GetStatus(path)
-	hasModified := git.HasModifiedFiles(path)
-	currentBranch := git.GetCurrentBranch(path)
-
-	return domain.Repository{
-		Name:           repoName,
-		Path:           path,
-		LastCommitTime: lastCommitTime,
-		RemoteURL:      remoteURL,
-		HasModified:    hasModified,
-		AheadCount:     aheadCount,
-		BehindCount:    behindCount,
-		CurrentBranch:  currentBranch,
-	}
 }
