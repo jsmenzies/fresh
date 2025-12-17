@@ -33,9 +33,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	m := ui.NewModel(scanDir)
+	m := ui.New(scanDir)
 
-	if _, err := tea.NewProgram(m).Run(); err != nil {
+	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
