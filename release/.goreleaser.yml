@@ -33,14 +33,12 @@ builds:
     flags:
       - -trimpath
 
-    ldflags:
-      # Inject version information at build time
-      # -s -w strips debug information to reduce binary size
-      - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
-      - -X main.builtBy=James Menzies
+    ldflags: >-
+      -s -w
+      -X main.version={{.Version}}
+      -X main.commit={{.Commit}}
+      -X main.date={{.Date}}
+      -X 'main.builtBy={{ .Env.BUILT_BY }}'
 
     env:
       - CGO_ENABLED=0
