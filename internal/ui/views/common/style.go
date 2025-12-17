@@ -22,6 +22,8 @@ const (
 	Blue   = lipgloss.Color("#52A2FF")
 
 	DividerColor = lipgloss.Color("#414868")
+	InfoWidth    = 42
+	Padding      = 2
 )
 
 var TableBorderStyle = lipgloss.NewStyle().Foreground(DividerColor)
@@ -43,14 +45,14 @@ func NewSecondaryDotSpinner() spinner.Model {
 func NewRefreshSpinner() spinner.Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(Blue)
+	s.Style = lipgloss.NewStyle().Foreground(TextSecondary)
 	return s
 }
 
 func NewPullSpinner() spinner.Model {
 	s := spinner.New()
-	s.Spinner = spinner.Line
-	s.Style = lipgloss.NewStyle().Foreground(Green)
+	s.Spinner = spinner.Points
+	s.Style = lipgloss.NewStyle().Foreground(Blue)
 	return s
 }
 
@@ -177,27 +179,31 @@ var TimeAgoStyle = lipgloss.NewStyle().
 
 var PullOutputSuccess = lipgloss.NewStyle().
 	Foreground(Green).
-	Width(60).
+	Width(InfoWidth).
 	Height(1).
 	MaxHeight(1).
 	Inline(true)
 
 var PullOutputWarn = lipgloss.NewStyle().
 	Foreground(Yellow).
-	Width(60).
+	Width(InfoWidth).
 	Height(1).
 	MaxHeight(1).
 	Inline(true)
 
 var PullOutputError = lipgloss.NewStyle().
 	Foreground(Red).
-	Width(60).
+	Width(InfoWidth).
 	Height(1).
 	MaxHeight(1).
 	Inline(true)
 
 var PullProgressStyle = lipgloss.NewStyle().
-	Width(55)
+	Width(InfoWidth - 2)
+
+var InfoStyle = lipgloss.NewStyle().
+	Width(InfoWidth).
+	MaxWidth(InfoWidth).MaxHeight(1)
 
 func FormatPullProgress(spinnerView string, lastLine string) string {
 	return spinnerView + " " + PullProgressStyle.Render(lastLine)
@@ -245,10 +251,6 @@ const (
 	BadgeReady  = "READY"
 	TimeJustNow = "just now"
 	TimeUnknown = "unknown"
-)
-
-const (
-	Padding = 2
 )
 
 var SelectorStyle = lipgloss.NewStyle().
