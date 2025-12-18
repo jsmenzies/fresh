@@ -24,6 +24,12 @@ const (
 	DividerColor = lipgloss.Color("#414868")
 	InfoWidth    = 42
 	Padding      = 2
+
+	RowHeight         = 1
+	BranchWidth       = 8
+	MaxBranchWidth    = 12
+	LocalStatusWidth  = 14
+	RemoteStatusWidth = 11
 )
 
 var TableBorderStyle = lipgloss.NewStyle().Foreground(DividerColor)
@@ -32,13 +38,6 @@ func NewGreenDotSpinner() spinner.Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a"))
-	return s
-}
-
-func NewSecondaryDotSpinner() spinner.Model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(TextSecondary)
 	return s
 }
 
@@ -68,72 +67,67 @@ var ProjectNameStyle = lipgloss.NewStyle().
 	MaxWidth(30).
 	AlignHorizontal(lipgloss.Left)
 
-var BranchNameStyle = lipgloss.NewStyle().
-	Foreground(TextBranch).
+var branchBaseStyle = lipgloss.NewStyle().
 	Align(lipgloss.Left).
-	Width(8).
-	MaxWidth(12).
-	Height(1).
-	MaxHeight(1).
+	Width(BranchWidth).
+	MaxWidth(MaxBranchWidth).
+	Height(RowHeight).
+	MaxHeight(RowHeight).
 	AlignHorizontal(lipgloss.Left)
 
-var BranchNameEmpty = lipgloss.NewStyle().
+var BranchNameStyle = branchBaseStyle.
+	Foreground(TextBranch)
+
+var BranchNameEmpty = branchBaseStyle.
 	Foreground(SubtleGray).
 	Render("")
 
-var BranchNameHead = lipgloss.NewStyle().
+var BranchNameHead = branchBaseStyle.
 	Foreground(SubtleGray).
-	Width(8).
-	MaxWidth(12).
 	Render(BranchHead)
 
-var LocalStatusClean = lipgloss.NewStyle().
+var localStatusBaseStyle = lipgloss.NewStyle().
+	Width(LocalStatusWidth).
+	MaxWidth(LocalStatusWidth).
+	Height(RowHeight).
+	MaxHeight(RowHeight).
+	AlignHorizontal(lipgloss.Left)
+
+var LocalStatusClean = localStatusBaseStyle.
 	Foreground(Green).
-	Width(14).
 	Render(IconClean + " " + StatusClean)
 
-var LocalStatusDirty = lipgloss.NewStyle().
+var LocalStatusDirty = localStatusBaseStyle.
 	Foreground(Yellow).
-	Width(14).
 	Render(IconDirty + " " + StatusDirty)
 
-var LocalStatusUntracked = lipgloss.NewStyle().
+var LocalStatusUntracked = localStatusBaseStyle.
 	Foreground(Yellow).
-	Width(14).
 	Render(IconUntracked + " " + StatusUntracked)
 
-var LocalStatusError = lipgloss.NewStyle().
-	Width(14).
+var LocalStatusError = localStatusBaseStyle.
 	Render("")
 
-var RemoteStatusSynced = lipgloss.NewStyle().
+var remoteStatusBaseStyle = lipgloss.NewStyle().
+	Width(RemoteStatusWidth).
+	MaxWidth(RemoteStatusWidth).
+	Height(RowHeight).
+	MaxHeight(RowHeight).
+	AlignHorizontal(lipgloss.Left)
+
+var RemoteStatusSynced = remoteStatusBaseStyle.
 	Foreground(SubtleGreen).
-	Width(10).
 	Render(IconSynced)
 
-var RemoteStatusError = lipgloss.NewStyle().
+var RemoteStatusError = remoteStatusBaseStyle.
 	Foreground(SubtleRed).
-	Width(10).
 	Render(IconRemoteError)
 
-var RemoteStatusErrorText = lipgloss.NewStyle().
-	Foreground(SubtleRed)
+var RemoteStatusCountsStyle = remoteStatusBaseStyle.
+	Foreground(Blue)
 
-//Width(20)
-
-var RemoteStatusErrorHelpText = lipgloss.NewStyle().
-	Foreground(SubtleGray)
-
-//Width(60)
-
-var RemoteStatusDiverged = lipgloss.NewStyle().
-	Foreground(Yellow).
-	Width(12).
-	Render(IconDiverged + " " + StatusDiverged)
-
-var RemoteStatusCountsStyle = lipgloss.NewStyle().
-	Foreground(Blue).
-	Width(10)
+var RemoteStatusUpdating = remoteStatusBaseStyle.
+	Align(lipgloss.Left)
 
 func RemoteStatusCounts(behind int, ahead int) string {
 	content := ""
@@ -148,19 +142,15 @@ func RemoteStatusCounts(behind int, ahead int) string {
 	return RemoteStatusCountsStyle.Render(content)
 }
 
-var RemoteStatusBehind = lipgloss.NewStyle().
+var RemoteStatusErrorText = lipgloss.NewStyle().
+	Foreground(SubtleRed)
+
+var RemoteStatusDivergedText = lipgloss.NewStyle().
 	Foreground(Yellow).
-	Width(12).
-	Render(IconBehind + " " + StatusBehind)
+	Render(StatusDiverged)
 
-var RemoteStatusAhead = lipgloss.NewStyle().
-	Foreground(Green).
-	Width(12).
-	Render(IconAhead + " " + StatusAhead)
-
-var RemoteStatusUpdating = lipgloss.NewStyle().
-	Width(10).
-	Align(lipgloss.Left)
+var RemoteStatusErrorHelpText = lipgloss.NewStyle().
+	Foreground(SubtleGray)
 
 var LinkStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).

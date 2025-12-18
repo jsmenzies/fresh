@@ -11,7 +11,7 @@ import (
 )
 
 func GenerateTable(repositories []domain.Repository, cursor int) string {
-	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "", "LAST COMMIT", "LINKS (Code, PRs, Create PR)"}
+	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "", "LAST COMMIT", "LINKS"}
 
 	rows := make([][]string, len(repositories))
 	for i, repo := range repositories {
@@ -137,7 +137,7 @@ func buildInfo(repo domain.Repository) string {
 		}
 	case domain.RefreshingActivity:
 		if !activity.Complete {
-			content = "" // Refreshing state is shown in REMOTE column
+			content = ""
 		}
 	}
 
@@ -150,8 +150,7 @@ func buildInfo(repo domain.Repository) string {
 		case domain.RemoteError:
 			content = RemoteStatusErrorText.Render(truncateWithEllipsis(s.Message, InfoWidth))
 		case domain.Diverged:
-			content = RemoteStatusErrorText.Render(
-				fmt.Sprintf("Diverged: behind %d, ahead %d", s.BehindCount, s.AheadCount))
+			content = RemoteStatusDivergedText + RemoteStatusErrorHelpText.Render(" (Pulling will run --rebase)")
 		}
 	}
 
