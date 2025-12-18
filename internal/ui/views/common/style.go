@@ -195,12 +195,47 @@ var InfoStyle = lipgloss.NewStyle().
 	Width(InfoWidth).
 	MaxWidth(InfoWidth).MaxHeight(1)
 
-func FormatPullProgress(spinnerView string, lastLine string) string {
-	return spinnerView + " " + PullProgressStyle.Render(lastLine)
+const (
+	LabelNoUpstream = "No upstream "
+	HelpNoUpstream  = "(new branch or deleted remote)"
+	LabelDetached   = "Detached HEAD "
+	HelpDetached    = "(not currently on a branch)"
+	HelpDiverged    = " (Pulling will run --rebase)"
+)
+
+type StatusMessage struct {
+	Label string
+	Help  string
 }
 
-func FormatPRStatus(label string, help string) string {
-	return RemoteStatusErrorText.Render(label) + RemoteStatusErrorHelpText.Render(help)
+var (
+	MsgNoUpstream = StatusMessage{Label: LabelNoUpstream, Help: HelpNoUpstream}
+	MsgDetached   = StatusMessage{Label: LabelDetached, Help: HelpDetached}
+	MsgDiverged   = StatusMessage{Label: StatusDiverged, Help: HelpDiverged}
+)
+
+func RenderStatusMessage(msg StatusMessage, maxWidth int) string {
+	available := maxWidth - len(msg.Label)
+	if available < 0 {
+		available = 0
+	}
+	truncatedHelp := TruncateWithEllipsis(msg.Help, available)
+	return RemoteStatusErrorText.Render(msg.Label) + RemoteStatusErrorHelpText.Render(truncatedHelp)
+}
+
+func TruncateWithEllipsis(text string, maxWidth int) string {
+	runes := []rune(text)
+	if len(runes) <= maxWidth {
+		return text
+	}
+	if maxWidth <= 3 {
+		return string(runes[:maxWidth])
+	}
+	return string(runes[:maxWidth-3]) + "..."
+}
+
+func FormatPullProgress(spinnerView string, lastLine string) string {
+	return spinnerView + " " + PullProgressStyle.Render(lastLine)
 }
 
 const (

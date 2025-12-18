@@ -129,7 +129,7 @@ func buildInfo(repo domain.Repository) string {
 	case domain.PullingActivity:
 		if !activity.Complete {
 			lastLine := activity.GetLastLine()
-			truncated := truncateWithEllipsis(lastLine, InfoWidth-3)
+			truncated := TruncateWithEllipsis(lastLine, InfoWidth-3)
 			content = FormatPullProgress(activity.Spinner.View(), truncated)
 		} else {
 			lastLine := activity.GetLastLine()
@@ -144,32 +144,22 @@ func buildInfo(repo domain.Repository) string {
 	if content == "" {
 		switch s := repo.RemoteState.(type) {
 		case domain.NoUpstream:
-			content = FormatPRStatus("No upstream ", "(new branch or deleted remote)")
+			content = RenderStatusMessage(MsgNoUpstream, InfoWidth)
 		case domain.DetachedRemote:
-			content = FormatPRStatus("Detached HEAD ", "(not currently on a branch)")
+			content = RenderStatusMessage(MsgDetached, InfoWidth)
 		case domain.RemoteError:
-			content = RemoteStatusErrorText.Render(truncateWithEllipsis(s.Message, InfoWidth))
+			content = RemoteStatusErrorText.Render(TruncateWithEllipsis(s.Message, InfoWidth))
 		case domain.Diverged:
-			content = RemoteStatusDivergedText + RemoteStatusErrorHelpText.Render(" (Pulling will run --rebase)")
+			content = RenderStatusMessage(MsgDiverged, InfoWidth)
 		}
 	}
 
 	return InfoStyle.Render(content)
 }
 
-func truncateWithEllipsis(text string, maxWidth int) string {
-	if len(text) <= maxWidth {
-		return text
-	}
-	if maxWidth <= 3 {
-		return text[:maxWidth]
-	}
-	return text[:maxWidth-3] + "..."
-}
-
 func stylePullOutput(lastLine string, exitCode int) string {
 	lowerLine := strings.ToLower(lastLine)
-	truncated := truncateWithEllipsis(lastLine, InfoWidth)
+	truncated := TruncateWithEllipsis(lastLine, InfoWidth)
 
 	if strings.Contains(lowerLine, "error") || strings.Contains(lowerLine, "fatal") {
 		return PullOutputError.Render(truncated)
