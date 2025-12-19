@@ -22,7 +22,17 @@ const (
 	Blue   = lipgloss.Color("#52A2FF")
 
 	DividerColor = lipgloss.Color("#414868")
+	InfoWidth    = 42
+	Padding      = 2
+
+	RowHeight         = 1
+	BranchWidth       = 8
+	MaxBranchWidth    = 12
+	LocalStatusWidth  = 14
+	RemoteStatusWidth = 11
 )
+
+var TableBorderStyle = lipgloss.NewStyle().Foreground(DividerColor)
 
 func NewGreenDotSpinner() spinner.Model {
 	s := spinner.New()
@@ -31,24 +41,17 @@ func NewGreenDotSpinner() spinner.Model {
 	return s
 }
 
-func NewSecondaryDotSpinner() spinner.Model {
+func NewRefreshSpinner() spinner.Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(TextSecondary)
 	return s
 }
 
-func NewRefreshSpinner() spinner.Model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(Blue)
-	return s
-}
-
 func NewPullSpinner() spinner.Model {
 	s := spinner.New()
-	s.Spinner = spinner.Line
-	s.Style = lipgloss.NewStyle().Foreground(Green)
+	s.Spinner = spinner.Points
+	s.Style = lipgloss.NewStyle().Foreground(Blue)
 	return s
 }
 
@@ -64,68 +67,67 @@ var ProjectNameStyle = lipgloss.NewStyle().
 	MaxWidth(30).
 	AlignHorizontal(lipgloss.Left)
 
-var BranchNameStyle = lipgloss.NewStyle().
-	Foreground(TextBranch).
+var branchBaseStyle = lipgloss.NewStyle().
 	Align(lipgloss.Left).
-	Width(8).
-	MaxWidth(12).
-	Height(1).
-	MaxHeight(1).
+	Width(BranchWidth).
+	MaxWidth(MaxBranchWidth).
+	Height(RowHeight).
+	MaxHeight(RowHeight).
 	AlignHorizontal(lipgloss.Left)
 
-var BranchNameEmpty = lipgloss.NewStyle().
+var BranchNameStyle = branchBaseStyle.
+	Foreground(TextBranch)
+
+var BranchNameEmpty = branchBaseStyle.
 	Foreground(SubtleGray).
 	Render("")
 
-var BranchNameHead = lipgloss.NewStyle().
+var BranchNameHead = branchBaseStyle.
 	Foreground(SubtleGray).
-	Width(8).
-	MaxWidth(12).
 	Render(BranchHead)
 
-var LocalStatusClean = lipgloss.NewStyle().
+var localStatusBaseStyle = lipgloss.NewStyle().
+	Width(LocalStatusWidth).
+	MaxWidth(LocalStatusWidth).
+	Height(RowHeight).
+	MaxHeight(RowHeight).
+	AlignHorizontal(lipgloss.Left)
+
+var LocalStatusClean = localStatusBaseStyle.
 	Foreground(Green).
-	Width(14).
 	Render(IconClean + " " + StatusClean)
 
-var LocalStatusDirty = lipgloss.NewStyle().
+var LocalStatusDirty = localStatusBaseStyle.
 	Foreground(Yellow).
-	Width(14).
 	Render(IconDirty + " " + StatusDirty)
 
-var LocalStatusUntracked = lipgloss.NewStyle().
+var LocalStatusUntracked = localStatusBaseStyle.
 	Foreground(Yellow).
-	Width(14).
 	Render(IconUntracked + " " + StatusUntracked)
 
-var LocalStatusError = lipgloss.NewStyle().
-	Width(14).
+var LocalStatusError = localStatusBaseStyle.
 	Render("")
 
-var RemoteStatusSynced = lipgloss.NewStyle().
+var remoteStatusBaseStyle = lipgloss.NewStyle().
+	Width(RemoteStatusWidth).
+	MaxWidth(RemoteStatusWidth).
+	Height(RowHeight).
+	MaxHeight(RowHeight).
+	AlignHorizontal(lipgloss.Left)
+
+var RemoteStatusSynced = remoteStatusBaseStyle.
 	Foreground(SubtleGreen).
-	Width(10).
 	Render(IconSynced)
 
-var RemoteStatusError = lipgloss.NewStyle().
+var RemoteStatusError = remoteStatusBaseStyle.
 	Foreground(SubtleRed).
-	Width(10).
 	Render(IconRemoteError)
 
-var RemoteStatusErrorText = lipgloss.NewStyle().
-	Foreground(SubtleRed)
+var RemoteStatusCountsStyle = remoteStatusBaseStyle.
+	Foreground(Blue)
 
-//Width(20)
-
-var RemoteStatusErrorHelpText = lipgloss.NewStyle().
-	Foreground(SubtleGray)
-
-//Width(60)
-
-var RemoteStatusDiverged = lipgloss.NewStyle().
-	Foreground(Yellow).
-	Width(12).
-	Render(IconDiverged + " " + StatusDiverged)
+var RemoteStatusUpdating = remoteStatusBaseStyle.
+	Align(lipgloss.Left)
 
 func RemoteStatusCounts(behind int, ahead int) string {
 	content := ""
@@ -137,25 +139,18 @@ func RemoteStatusCounts(behind int, ahead int) string {
 		content = fmt.Sprintf(IconAhead+" %d", ahead)
 	}
 
-	return lipgloss.NewStyle().
-		Foreground(Blue).
-		Width(10).
-		Render(content)
+	return RemoteStatusCountsStyle.Render(content)
 }
 
-var RemoteStatusBehind = lipgloss.NewStyle().
+var RemoteStatusErrorText = lipgloss.NewStyle().
+	Foreground(SubtleRed)
+
+var RemoteStatusDivergedText = lipgloss.NewStyle().
 	Foreground(Yellow).
-	Width(12).
-	Render(IconBehind + " " + StatusBehind)
+	Render(StatusDiverged)
 
-var RemoteStatusAhead = lipgloss.NewStyle().
-	Foreground(Green).
-	Width(12).
-	Render(IconAhead + " " + StatusAhead)
-
-var RemoteStatusUpdating = lipgloss.NewStyle().
-	Width(10).
-	Align(lipgloss.Left)
+var RemoteStatusErrorHelpText = lipgloss.NewStyle().
+	Foreground(SubtleGray)
 
 var LinkStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).
@@ -174,24 +169,74 @@ var TimeAgoStyle = lipgloss.NewStyle().
 
 var PullOutputSuccess = lipgloss.NewStyle().
 	Foreground(Green).
-	Width(60).
+	Width(InfoWidth).
 	Height(1).
 	MaxHeight(1).
 	Inline(true)
 
 var PullOutputWarn = lipgloss.NewStyle().
 	Foreground(Yellow).
-	Width(60).
+	Width(InfoWidth).
 	Height(1).
 	MaxHeight(1).
 	Inline(true)
 
 var PullOutputError = lipgloss.NewStyle().
 	Foreground(Red).
-	Width(60).
+	Width(InfoWidth).
 	Height(1).
 	MaxHeight(1).
 	Inline(true)
+
+var PullProgressStyle = lipgloss.NewStyle().
+	Width(InfoWidth - 2)
+
+var InfoStyle = lipgloss.NewStyle().
+	Width(InfoWidth).
+	MaxWidth(InfoWidth).MaxHeight(1)
+
+const (
+	LabelNoUpstream = "No upstream "
+	HelpNoUpstream  = "(new branch or deleted remote)"
+	LabelDetached   = "Detached HEAD "
+	HelpDetached    = "(not currently on a branch)"
+	HelpDiverged    = " (Pulling will run --rebase)"
+)
+
+type StatusMessage struct {
+	Label string
+	Help  string
+}
+
+var (
+	MsgNoUpstream = StatusMessage{Label: LabelNoUpstream, Help: HelpNoUpstream}
+	MsgDetached   = StatusMessage{Label: LabelDetached, Help: HelpDetached}
+	MsgDiverged   = StatusMessage{Label: StatusDiverged, Help: HelpDiverged}
+)
+
+func RenderStatusMessage(msg StatusMessage, maxWidth int) string {
+	available := maxWidth - len(msg.Label)
+	if available < 0 {
+		available = 0
+	}
+	truncatedHelp := TruncateWithEllipsis(msg.Help, available)
+	return RemoteStatusErrorText.Render(msg.Label) + RemoteStatusErrorHelpText.Render(truncatedHelp)
+}
+
+func TruncateWithEllipsis(text string, maxWidth int) string {
+	runes := []rune(text)
+	if len(runes) <= maxWidth {
+		return text
+	}
+	if maxWidth <= 3 {
+		return string(runes[:maxWidth])
+	}
+	return string(runes[:maxWidth-3]) + "..."
+}
+
+func FormatPullProgress(spinnerView string, lastLine string) string {
+	return spinnerView + " " + PullProgressStyle.Render(lastLine)
+}
 
 const (
 	IconGit         = "\uF115"
@@ -233,11 +278,29 @@ const (
 	TimeUnknown = "unknown"
 )
 
-const (
-	Padding = 2
-)
-
 var SelectorStyle = lipgloss.NewStyle().
 	Foreground(Blue).
 	Width(2).
 	Bold(true)
+
+var HeaderStyle = lipgloss.NewStyle().
+	Foreground(Blue)
+
+func FormatHeader(count int) string {
+	return HeaderStyle.Render(fmt.Sprintf("\nScan complete. %d repositories found\n", count))
+}
+
+var FooterStyle = lipgloss.NewStyle().
+	Foreground(SubtleGray).
+	PaddingLeft(2)
+
+var ScanningFoundLabelStyle = lipgloss.NewStyle().
+	Foreground(TextPrimary).
+	PaddingLeft(1)
+
+var ScanningFoundNameStyle = lipgloss.NewStyle().
+	Foreground(Green)
+
+func FormatScanningFound(name string) string {
+	return ScanningFoundLabelStyle.Render("\uF061 Found git repository:") + " " + ScanningFoundNameStyle.Render(name)
+}

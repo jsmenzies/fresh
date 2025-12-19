@@ -11,7 +11,7 @@ import (
 )
 
 func GenerateTable(repositories []domain.Repository, cursor int) string {
-	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "", "LAST COMMIT", "LINKS (Code, PRs, Create PR)", ""}
+	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "", "LAST COMMIT", "LINKS"}
 
 	rows := make([][]string, len(repositories))
 	for i, repo := range repositories {
@@ -24,7 +24,7 @@ func GenerateTable(repositories []domain.Repository, cursor int) string {
 		Border(lipgloss.HiddenBorder()).
 		Headers(headers...).
 		Rows(rows...).
-		BorderStyle(lipgloss.NewStyle().Foreground(DividerColor)).
+		BorderStyle(TableBorderStyle).
 		StyleFunc(func(row, col int) lipgloss.Style {
 			if row == table.HeaderRow {
 				return TableHeaderStyle
@@ -124,45 +124,42 @@ func buildRemoteStatus(repo domain.Repository) string {
 }
 
 func buildInfo(repo domain.Repository) string {
+	var content string
 	switch activity := repo.Activity.(type) {
 	case domain.PullingActivity:
 		if !activity.Complete {
 			lastLine := activity.GetLastLine()
-			truncated := truncateWithEllipsis(lastLine, 55)
-			return activity.Spinner.View() + " " + truncated
+			truncated := TruncateWithEllipsis(lastLine, InfoWidth-3)
+			content = FormatPullProgress(activity.Spinner.View(), truncated)
+		} else {
+			lastLine := activity.GetLastLine()
+			content = stylePullOutput(lastLine, activity.ExitCode)
 		}
-		lastLine := activity.GetLastLine()
-		styledLine := stylePullOutput(lastLine, activity.ExitCode)
-		return styledLine
+	case domain.RefreshingActivity:
+		if !activity.Complete {
+			content = ""
+		}
 	}
 
-	switch s := repo.RemoteState.(type) {
-	case domain.NoUpstream:
-		return RemoteStatusErrorText.Render("No upstream ") + RemoteStatusErrorHelpText.Render("(new branch or deleted remote)")
-	case domain.DetachedRemote:
-		return RemoteStatusErrorText.Render("Detached HEAD ") + RemoteStatusErrorHelpText.Render("(not currently on a branch)")
-	case domain.RemoteError:
-		return RemoteStatusErrorText.Render(s.Message)
-	case domain.Diverged:
-		return RemoteStatusErrorText.Render(
-			fmt.Sprintf("Diverged: behind %d, ahead %d", s.BehindCount, s.AheadCount))
+	if content == "" {
+		switch s := repo.RemoteState.(type) {
+		case domain.NoUpstream:
+			content = RenderStatusMessage(MsgNoUpstream, InfoWidth)
+		case domain.DetachedRemote:
+			content = RenderStatusMessage(MsgDetached, InfoWidth)
+		case domain.RemoteError:
+			content = RemoteStatusErrorText.Render(TruncateWithEllipsis(s.Message, InfoWidth))
+		case domain.Diverged:
+			content = RenderStatusMessage(MsgDiverged, InfoWidth)
+		}
 	}
-	return ""
-}
 
-func truncateWithEllipsis(text string, maxWidth int) string {
-	if len(text) <= maxWidth {
-		return text
-	}
-	if maxWidth <= 3 {
-		return text[:maxWidth]
-	}
-	return text[:maxWidth-3] + "..."
+	return InfoStyle.Render(content)
 }
 
 func stylePullOutput(lastLine string, exitCode int) string {
 	lowerLine := strings.ToLower(lastLine)
-	truncated := truncateWithEllipsis(lastLine, 60)
+	truncated := TruncateWithEllipsis(lastLine, InfoWidth)
 
 	if strings.Contains(lowerLine, "error") || strings.Contains(lowerLine, "fatal") {
 		return PullOutputError.Render(truncated)
