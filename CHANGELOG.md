@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1](https://github.com/jsmenzies/fresh/compare/v1.6.0...v1.6.1) (2025-12-19)
+
+
+### Code Refactoring
+
+* use repo index for efficient lookup and style 'up to date' messages ([067f78d](https://github.com/jsmenzies/fresh/commit/067f78d52399e804a69c7ad6ba4e8cbb7a2cf135))
+* use repo index for efficient lookup and style 'up to date' messages ([b9ca781](https://github.com/jsmenzies/fresh/commit/b9ca781c07568de956d142cb3773367c13b7ad91))
+
 ## [1.6.0](https://github.com/jsmenzies/fresh/compare/v1.5.0...v1.6.0) (2025-12-19)
 
 
