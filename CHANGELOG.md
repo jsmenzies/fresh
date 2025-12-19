@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.0](https://github.com/jsmenzies/fresh/compare/v1.4.0...v1.5.0) (2025-12-19)
+
+
+### Features
+
+* **ui:** implement strictly truncated status messages ([9b5d08b](https://github.com/jsmenzies/fresh/commit/9b5d08b717e1e35ed1e84e1bdc691f87dbe581d3))
+
+
+### Code Refactoring
+
+* centralize info box width and fix layout stability ([d70b4db](https://github.com/jsmenzies/fresh/commit/d70b4db23e0040366ba0f29c90c03044291cd54c))
+* centralize styles and formatting helpers ([09e2154](https://github.com/jsmenzies/fresh/commit/09e2154cece2ccddd277a13460866c44d1b52eaa))
+* **ui:** consolidate style definitions and extract constants ([b1851fc](https://github.com/jsmenzies/fresh/commit/b1851fc001a42756bf9079f14b03a73bad6031e6))
+
 ## [1.4.0](https://github.com/jsmenzies/fresh/compare/v1.3.0...v1.4.0) (2025-12-17)
 
 
