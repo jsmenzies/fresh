@@ -69,7 +69,7 @@ func (m *Model) Init() tea.Cmd {
 		repo.Activity = domain.RefreshingActivity{
 			Spinner: common.NewRefreshSpinner(),
 		}
-		cmds = append(cmds, performRefresh(repo.Path))
+		cmds = append(cmds, performRefresh(i, repo.Path))
 		cmds = append(cmds, repo.Activity.(domain.RefreshingActivity).Spinner.Tick)
 	}
 	return tea.Batch(cmds...)
@@ -93,7 +93,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					repo.Activity = refreshing
 					return m, tea.Batch(
-						performRefresh(repo.Path),
+						performRefresh(m.Cursor, repo.Path),
 						refreshing.Spinner.Tick,
 					)
 				}
@@ -108,7 +108,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						Spinner: common.NewRefreshSpinner(),
 					}
 					repo.Activity = refreshing
-					cmds = append(cmds, performRefresh(repo.Path))
+					cmds = append(cmds, performRefresh(i, repo.Path))
 					cmds = append(cmds, refreshing.Spinner.Tick)
 				}
 			}
@@ -124,7 +124,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					repo.Activity = pulling
 					return m, tea.Batch(
-						performPull(repo.Path),
+						performPull(m.Cursor, repo.Path),
 						pulling.Spinner.Tick,
 					)
 				}
@@ -139,7 +139,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						Lines:   make([]string, 0),
 					}
 					repo.Activity = pulling
-					cmds = append(cmds, performPull(repo.Path))
+					cmds = append(cmds, performPull(i, repo.Path))
 					cmds = append(cmds, pulling.Spinner.Tick)
 				}
 			}
@@ -157,18 +157,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case RepoUpdatedMsg:
-		for i := range m.Repositories {
-			if m.Repositories[i].Path == msg.Repo.Path {
-				activity := m.Repositories[i].Activity
-				m.Repositories[i] = msg.Repo
+		if msg.Index < len(m.Repositories) {
+			repo := &m.Repositories[msg.Index]
+			activity := repo.Activity
+			*repo = msg.Repo
 
-				if refreshing, ok := activity.(domain.RefreshingActivity); ok {
-					refreshing.MarkComplete()
-					m.Repositories[i].Activity = refreshing
-				} else {
-					m.Repositories[i].Activity = activity
-				}
-				break
+			if refreshing, ok := activity.(domain.RefreshingActivity); ok {
+				refreshing.MarkComplete()
+				repo.Activity = refreshing
+			} else {
+				repo.Activity = activity
 			}
 		}
 
@@ -176,12 +174,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, listenForPullProgress(msg)
 
 	case pullLineMsg:
-		for i := range m.Repositories {
-			if m.Repositories[i].Path == msg.repoPath {
-				if pulling, ok := m.Repositories[i].Activity.(domain.PullingActivity); ok {
-					pulling.AddLine(msg.line)
-					m.Repositories[i].Activity = pulling
-				}
+		if msg.Index < len(m.Repositories) {
+			repo := &m.Repositories[msg.Index]
+			if pulling, ok := repo.Activity.(domain.PullingActivity); ok {
+				pulling.AddLine(msg.line)
+				repo.Activity = pulling
 			}
 		}
 		if msg.state != nil {
@@ -189,16 +186,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case pullCompleteMsg:
-		for i := range m.Repositories {
-			if m.Repositories[i].Path == msg.repoPath {
-				activity := m.Repositories[i].Activity
-				m.Repositories[i] = msg.Repo
-				if pulling, ok := activity.(domain.PullingActivity); ok {
-					pulling.MarkComplete(msg.exitCode)
-					m.Repositories[i].Activity = pulling
-				} else {
-					m.Repositories[i].Activity = activity
-				}
+		if msg.Index < len(m.Repositories) {
+			repo := &m.Repositories[msg.Index]
+			activity := repo.Activity
+			*repo = msg.Repo
+			if pulling, ok := activity.(domain.PullingActivity); ok {
+				pulling.MarkComplete(msg.exitCode)
+				repo.Activity = pulling
+			} else {
+				repo.Activity = activity
 			}
 		}
 

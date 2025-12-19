@@ -3,23 +3,24 @@ package listing
 import "fresh/internal/domain"
 
 type RepoUpdatedMsg struct {
-	Repo domain.Repository
+	Repo  domain.Repository
+	Index int
 }
 
 type pullLineMsg struct {
-	repoPath string
-	line     string
-	state    *pullWorkState
+	Index int
+	line  string
+	state *pullWorkState
 }
 
 type pullCompleteMsg struct {
-	repoPath string
+	Index    int
 	exitCode int
 	Repo     domain.Repository
 }
 
 type pullWorkState struct {
-	repoPath string
+	Index    int
 	lineChan chan string
 	doneChan chan pullCompleteMsg
 }
