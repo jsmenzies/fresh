@@ -174,6 +174,13 @@ var PullOutputSuccess = lipgloss.NewStyle().
 	MaxHeight(1).
 	Inline(true)
 
+var PullOutputUpToDate = lipgloss.NewStyle().
+	Foreground(TextPrimary).
+	Width(InfoWidth).
+	Height(1).
+	MaxHeight(1).
+	Inline(true)
+
 var PullOutputWarn = lipgloss.NewStyle().
 	Foreground(Yellow).
 	Width(InfoWidth).

@@ -10,8 +10,6 @@ type Repository struct {
 	LocalState     LocalState
 	RemoteState    RemoteState
 	LastCommitTime time.Time
-
-	// UI state
-	Activity     Activity
-	ErrorMessage string
+	Activity       Activity
+	ErrorMessage   string
 }

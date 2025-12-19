@@ -165,11 +165,14 @@ func stylePullOutput(lastLine string, exitCode int) string {
 		return PullOutputError.Render(truncated)
 	}
 
-	if exitCode == 0 && (strings.Contains(lowerLine, "done") ||
-		strings.Contains(lowerLine, "up to date") ||
-		strings.Contains(lowerLine, "up-to-date") ||
-		strings.Contains(lowerLine, "file") && strings.Contains(lowerLine, "changed")) {
-		return PullOutputSuccess.Render(truncated)
+	if exitCode == 0 {
+		if strings.Contains(lowerLine, "up to date") || strings.Contains(lowerLine, "up-to-date") {
+			return PullOutputUpToDate.Render(truncated)
+		}
+		if strings.Contains(lowerLine, "done") ||
+			(strings.Contains(lowerLine, "file") && strings.Contains(lowerLine, "changed")) {
+			return PullOutputSuccess.Render(truncated)
+		}
 	}
 
 	return PullOutputWarn.Render(truncated)

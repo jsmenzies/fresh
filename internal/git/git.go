@@ -248,26 +248,19 @@ func splitOnCROrLF(data []byte, atEOF bool) (advance int, token []byte, err erro
 		return 0, nil, nil
 	}
 
-	// Look for \r or \n
 	if i := bytes.IndexAny(data, "\r\n"); i >= 0 {
-		// Found a delimiter
 		if data[i] == '\r' {
-			// Check for \r\n (Windows line ending)
 			if i+1 < len(data) && data[i+1] == '\n' {
 				return i + 2, data[0:i], nil
 			}
-			// Just \r
 			return i + 1, data[0:i], nil
 		}
-		// Just \n
 		return i + 1, data[0:i], nil
 	}
 
-	// No delimiter found
 	if atEOF {
 		return len(data), data, nil
 	}
 
-	// Request more data
 	return 0, nil, nil
 }
