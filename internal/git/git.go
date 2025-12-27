@@ -30,6 +30,14 @@ func BuildRepository(path string) domain.Repository {
 	}
 }
 
+func RefreshRepositoryState(repo *domain.Repository) {
+	repo.Branch = GetCurrentBranch(repo.Path)
+	repo.LocalState = HasModifiedFiles(repo.Path)
+	repo.RemoteState = GetStatus(repo.Path)
+	repo.LastCommitTime = GetLastCommitTime(repo.Path)
+	repo.RemoteURL = GetRemoteURL(repo.Path)
+}
+
 func IsGitInstalled() bool {
 	cmd := exec.Command("git", "--version")
 	err := cmd.Run()
@@ -74,7 +82,7 @@ func GetCurrentBranch(repoPath string) domain.Branch {
 }
 
 func HasModifiedFiles(repoPath string) domain.LocalState {
-	cmd := exec.Command("git", "status", "--porcelain")
+	cmd := exec.Command("git", "status", "--porcelain=v2")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 
@@ -85,10 +93,44 @@ func HasModifiedFiles(repoPath string) domain.LocalState {
 	if result == "" {
 		return domain.CleanLocalState{}
 	}
-	if strings.Contains(result, "?? ") {
-		return domain.UntrackedLocalState{}
+
+	var added, modified, deleted, untracked int
+
+	scanner := bufio.NewScanner(strings.NewReader(result))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(line) == 0 {
+			continue
+		}
+
+		switch line[0] {
+		case '?':
+			untracked++
+		case '1', '2':
+			parts := strings.Fields(line)
+			if len(parts) < 2 {
+				continue
+			}
+			xy := parts[1]
+
+			if strings.Contains(xy, "A") {
+				added++
+			} else if strings.Contains(xy, "D") {
+				deleted++
+			} else if strings.Contains(xy, "M") || strings.Contains(xy, "R") {
+				modified++
+			}
+		case 'u':
+			modified++
+		}
 	}
-	return domain.DirtyLocalState{}
+
+	return domain.DirtyLocalState{
+		Added:     added,
+		Modified:  modified,
+		Deleted:   deleted,
+		Untracked: untracked,
+	}
 }
 
 func GetStatus(repoPath string) domain.RemoteState {
@@ -153,14 +195,6 @@ func GetLastCommitTime(repoPath string) time.Time {
 	}
 
 	return time.Unix(timestamp, 0)
-}
-
-func RefreshRepositoryState(repo *domain.Repository) {
-	repo.Branch = GetCurrentBranch(repo.Path)
-	repo.LocalState = HasModifiedFiles(repo.Path)
-	repo.RemoteState = GetStatus(repo.Path)
-	repo.LastCommitTime = GetLastCommitTime(repo.Path)
-	repo.RemoteURL = GetRemoteURL(repo.Path)
 }
 
 func RefreshRemoteStatusWithFetch(repo *domain.Repository) error {

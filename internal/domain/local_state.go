@@ -6,18 +6,17 @@ type LocalState interface {
 
 type CleanLocalState struct{}
 
-// DirtyLocalState TODO: potentially add number of new files, modified files, deleted files, etc to display in UI
 type DirtyLocalState struct {
-}
-
-type UntrackedLocalState struct {
+	Added     int
+	Modified  int
+	Deleted   int
+	Untracked int
 }
 
 type LocalStateError struct {
 	Message string
 }
 
-func (CleanLocalState) isLocal()     {}
-func (DirtyLocalState) isLocal()     {}
-func (UntrackedLocalState) isLocal() {}
-func (LocalStateError) isLocal()     {}
+func (CleanLocalState) isLocal() {}
+func (DirtyLocalState) isLocal() {}
+func (LocalStateError) isLocal() {}
