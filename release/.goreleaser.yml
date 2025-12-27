@@ -151,3 +151,17 @@ brews:
     license: "MIT"
     install: |
       bin.install "fresh"
+
+scoops:
+  - repository:
+      owner: jsmenzies
+      name: scoop-fresh
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+
+    commit_author:
+      name: James Menzies
+      email: jsmenzies@users.noreply.github.com
+
+    homepage: "https://github.com/jsmenzies/fresh"
+    description: "Git repository management CLI tool"
+    license: "MIT"
