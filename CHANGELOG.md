@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0](https://github.com/jsmenzies/fresh/compare/v1.6.1...v1.7.0) (2025-12-27)
+
+
+### Features
+
+* enhance pull logic and file status display ([794aa54](https://github.com/jsmenzies/fresh/commit/794aa5426051bc206af25b8b00f5d5090cb23133))
+* enhance pull logic and file status display ([db792fd](https://github.com/jsmenzies/fresh/commit/db792fdd8cb2ce6656668ea9da0e9eef863c832b))
+
 ## [1.6.1](https://github.com/jsmenzies/fresh/compare/v1.6.0...v1.6.1) (2025-12-19)
 
 
