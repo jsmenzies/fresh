@@ -4,6 +4,8 @@
 
 A CLI tool for interactively managing the status of multiple Git repositories. `fresh` provides a lightning-fast TUI to view the status of your projects and perform safe updates across them simultaneously.
 
+![Fresh Demo](demo/demo.gif)
+
 ## Features
 
 - [X] **Git Repo Scanning**: Automatically finds git repositories in your projects folder.
