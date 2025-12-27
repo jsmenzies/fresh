@@ -25,16 +25,16 @@ func newListKeyMap() *listKeyMap {
 			key.WithHelp("r", "refresh remote"),
 		),
 		updateAll: key.NewBinding(
-			key.WithKeys("R"),
-			key.WithHelp("R", "refresh all"),
+			key.WithKeys("ctrl+r"),
+			key.WithHelp("ctrl+r", "refresh all"),
 		),
 		pull: key.NewBinding(
 			key.WithKeys("p"),
 			key.WithHelp("p", "pull"),
 		),
 		pullAll: key.NewBinding(
-			key.WithKeys("P"),
-			key.WithHelp("P", "pull all"),
+			key.WithKeys("ctrl+p"),
+			key.WithHelp("ctrl+p", "pull all"),
 		),
 	}
 }
@@ -117,7 +117,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.Keys.pull):
 			if m.Cursor < len(m.Repositories) {
 				repo := &m.Repositories[m.Cursor]
-				if !isBusy(*repo) {
+				if !isBusy(*repo) && canPull(*repo) {
 					pulling := domain.PullingActivity{
 						Spinner: common.NewPullSpinner(),
 						Lines:   make([]string, 0),
@@ -133,7 +133,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmds []tea.Cmd
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
-				if !isBusy(*repo) {
+				if !isBusy(*repo) && shouldPull(*repo) {
 					pulling := domain.PullingActivity{
 						Spinner: common.NewPullSpinner(),
 						Lines:   make([]string, 0),
@@ -242,9 +242,9 @@ func buildFooter() string {
 	hotkeys := []string{
 		"↑/↓ navigate",
 		"r refresh",
-		"R refresh all",
+		"ctrl+r refresh all",
 		"p pull",
-		"P pull all",
+		"ctrl+p pull all",
 		"q quit",
 	}
 	footerText := strings.Join(hotkeys, "  •  ")
@@ -259,6 +259,26 @@ func isBusy(repo domain.Repository) bool {
 		return !a.Complete
 	case domain.PullingActivity:
 		return !a.Complete
+	default:
+		return false
+	}
+}
+
+func canPull(repo domain.Repository) bool {
+	switch repo.RemoteState.(type) {
+	case domain.NoUpstream, domain.DetachedRemote, domain.RemoteError:
+		return false
+	default:
+		return true
+	}
+}
+
+func shouldPull(repo domain.Repository) bool {
+	switch s := repo.RemoteState.(type) {
+	case domain.Behind:
+		return s.Count > 0
+	case domain.Diverged:
+		return s.BehindCount > 0
 	default:
 		return false
 	}

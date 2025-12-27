@@ -85,11 +85,26 @@ func buildBranchName(branch domain.Branch) string {
 }
 
 func buildLocalStatus(state domain.LocalState) string {
-	switch state.(type) {
+	switch s := state.(type) {
 	case domain.DirtyLocalState:
-		return LocalStatusDirty
-	case domain.UntrackedLocalState:
-		return LocalStatusUntracked
+		var parts []string
+		parts = append(parts, IconDirty)
+
+		if s.Untracked > 0 {
+			parts = append(parts, fmt.Sprintf("%s%d", IconGhost, s.Untracked))
+		}
+		if s.Added > 0 {
+			parts = append(parts, fmt.Sprintf("+%d", s.Added))
+		}
+		if s.Modified > 0 {
+			parts = append(parts, fmt.Sprintf("~%d", s.Modified))
+		}
+		if s.Deleted > 0 {
+			parts = append(parts, fmt.Sprintf("-%d", s.Deleted))
+		}
+
+		text := strings.Join(parts, " ")
+		return LocalStatusDirtyStyle.Render(text)
 	case domain.LocalStateError:
 		return LocalStatusError
 	default:
@@ -179,6 +194,9 @@ func stylePullOutput(lastLine string, exitCode int) string {
 }
 
 func buildLastUpdate(repo domain.Repository) string {
+	if repo.LastCommitTime.IsZero() {
+		return ""
+	}
 	timeAgo := FormatTimeAgo(repo.LastCommitTime)
 	return TimeAgoStyle.Render(IconClock + " " + timeAgo)
 }

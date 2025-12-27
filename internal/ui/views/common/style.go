@@ -95,10 +95,14 @@ var localStatusBaseStyle = lipgloss.NewStyle().
 
 var LocalStatusClean = localStatusBaseStyle.
 	Foreground(Green).
-	Render(IconClean + " " + StatusClean)
+	Render(IconClean)
 
-var LocalStatusDirty = localStatusBaseStyle.
-	Foreground(Yellow).
+//Render(IconClean + " " + StatusClean)
+
+var LocalStatusDirtyStyle = localStatusBaseStyle.
+	Foreground(Yellow)
+
+var LocalStatusDirty = LocalStatusDirtyStyle.
 	Render(IconDirty + " " + StatusDirty)
 
 var LocalStatusUntracked = localStatusBaseStyle.
@@ -246,10 +250,13 @@ func FormatPullProgress(spinnerView string, lastLine string) string {
 }
 
 const (
-	IconGit         = "\uF115"
-	IconClock       = "\uF017"
-	IconClean       = "\uF00C"
-	IconDirty       = "\uF071"
+	IconGit   = "\uF115"
+	IconClock = "\uF017"
+	IconClean = "\uF00C"
+	IconDirty = "\uF071"
+	IconGhost = "\uF79F"
+	//IconGhost       = "\uF128"
+	//IconGhost       = "\uF059"
 	IconUntracked   = ""
 	IconDiverged    = "⊘"
 	IconRemoteError = "\U000F04E7"
