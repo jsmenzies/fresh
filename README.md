@@ -1,56 +1,59 @@
-# Fresh - Git Repository Management CLI
+# Fresh
 
-A CLI tool for interactively managing the status of multiple Git repositories. It aims to provide capabilities for viewing the status of multiple repositories and eventually applying updates (e.g., pulls, fetches) across them simultaneously, handling conflicts gracefully.
+> **Keep your git repositories fresh.**
+
+A CLI tool for interactively managing the status of multiple Git repositories. `fresh` provides a lightning-fast TUI to view the status of your projects and perform safe updates across them simultaneously.
+
+## Features
+
+- [x] **Recursive Scanning**: Automatically finds git repositories in your projects folder.
+- [x] **Interactive TUI**: Navigate your repos with ease using a modern bubbletea interface.
+- [x] **Smart Status**: Instantly see local changes (+Added, ~Modified, -Deleted, ?Untracked) and remote status (Ahead, Behind, Diverged).
+- [x] **Safe Updates**: "Pull All" intelligently targets only repositories that are behind, avoiding unsafe merges.
+- [x] **Detailed Insights**: View last commit times and quick links to GitHub.
 
 ## Font Recommendation
 
-**Nerd Font Recommended**
+**Nerd Font Required**
 
-Fresh uses [Nerd Fonts](https://www.nerdfonts.com/) to render icons in the terminal. While not strictly required, it is highly recommended. Without a Nerd Font installed and configured in your terminal emulator, icons may appear as broken characters (tofu) or question marks.
+Fresh uses [Nerd Fonts](https://www.nerdfonts.com/) to render icons. We specifically recommend **Hack Nerd Font** for the best experience.
 
--   **Download:** Visit [NerdFonts.com](https://www.nerdfonts.com/font-downloads) to download a patched font (e.g., "Hack Nerd Font" or "JetBrainsMono Nerd Font").
--   **Configure:** Install the font on your system and set it as the font in your terminal settings.
+-   **Download:** Get it from [NerdFonts.com](https://www.nerdfonts.com/font-downloads).
+-   **Configure:** Install the font and set it as your terminal font.
 
 ## Installation
 
-### Homebrew (macOS and Linux)
+### Homebrew (macOS / Linux)
 
-You can install `fresh` using [Homebrew](https://brew.sh/):
+```bash
+brew tap jsmenzies/fresh
+brew install fresh
+```
 
-```sh
-brew tap jsmenzies/fresh && brew install jsmenzies/fresh/fresh
+### Scoop (Windows)
+
+```powershell
+scoop bucket add fresh https://github.com/jsmenzies/scoop-fresh
+scoop install fresh
 ```
 
 ### Manual Installation
 
 1.  Download the latest release for your platform from the [Releases](https://github.com/jsmenzies/fresh/releases) page.
 2.  Extract the archive.
-3.  Move the `fresh` binary to a directory in your system's `PATH` (e.g., `/usr/local/bin`).
+3.  Move the `fresh` binary to a directory in your system's `PATH`.
 
 ## Quick Start
 
-Simply run the application to scan the current directory for Git repositories:
+Run `fresh` in your projects directory:
 ```bash
 fresh
 ```
 
-Or provide a specific path to scan:
+Or scan a specific path:
 ```bash
-fresh /path/to/your/projects
+fresh --dir ~/MyProjects
 ```
-
-## Features
-
-- [x] Scan directories for Git repositories
-- [x] Interactive TUI for repository selection
-- [x] View local and remote branch status
-- [x] Fetch and pull updates from remotes
-- [ ] Perform batch operations (e.g., pull all)
-- [ ] View detailed repository information (e.g., recent commits)
-
-## Releases
-
-This project uses automated releases via GitHub Actions. For a full history of changes, see the [CHANGELOG.md](./CHANGELOG.md) file.
 
 ## Development
 
