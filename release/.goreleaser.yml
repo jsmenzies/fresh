@@ -146,7 +146,7 @@ brews:
     commit_author:
       name: James Menzies
       email: jsmenzies@users.noreply.github.com
-    description: "Git repository management CLI tool"
+    description: "A CLI tool for interactively managing the status of multiple Git repositories"
     homepage: "https://github.com/jsmenzies/fresh"
     license: "MIT"
     install: |
@@ -163,5 +163,5 @@ scoops:
       email: jsmenzies@users.noreply.github.com
 
     homepage: "https://github.com/jsmenzies/fresh"
-    description: "Git repository management CLI tool"
+    description: "A CLI tool for interactively managing the status of multiple Git repositories"
     license: "MIT"
