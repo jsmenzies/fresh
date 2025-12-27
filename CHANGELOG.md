@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.2](https://github.com/jsmenzies/fresh/compare/v1.7.1...v1.7.2) (2025-12-27)
+
+
+### Bug Fixes
+
+* temporarily remove untracked icon and count, update readme ([2de8935](https://github.com/jsmenzies/fresh/commit/2de8935d2247c32023867e4060799f3ae6298847))
+* temporarily remove untracked icon and count, update readme ([269c954](https://github.com/jsmenzies/fresh/commit/269c95452c0d4b5563cb08982aeac45c06fb95dd))
+
 ## [1.7.1](https://github.com/jsmenzies/fresh/compare/v1.7.0...v1.7.1) (2025-12-27)
 
 
