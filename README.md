@@ -6,8 +6,7 @@ A CLI tool for interactively managing the status of multiple Git repositories. `
 
 ## Features
 
-- [x] **Recursive Scanning**: Automatically finds git repositories in your projects folder.
-- [x] **Interactive TUI**: Navigate your repos with ease using a modern bubbletea interface.
+- [X] **Git Repo Scanning**: Automatically finds git repositories in your projects folder.
 - [x] **Smart Status**: Instantly see local changes (+Added, ~Modified, -Deleted, ?Untracked) and remote status (Ahead, Behind, Diverged).
 - [x] **Safe Updates**: "Pull All" intelligently targets only repositories that are behind, avoiding unsafe merges.
 - [x] **Detailed Insights**: View last commit times and quick links to GitHub.
@@ -45,12 +44,7 @@ scoop install fresh
 
 ## Quick Start
 
-Run `fresh` in your projects directory:
-```bash
-fresh
-```
-
-Or scan a specific path:
+Run `fresh` pointed the directory you want to scan for git repositories:
 ```bash
 fresh --dir ~/MyProjects
 ```
@@ -63,7 +57,3 @@ go mod tidy
 
 # Build
 go build -o fresh ./cmd/fresh
-
-# Run
-./fresh
-```
