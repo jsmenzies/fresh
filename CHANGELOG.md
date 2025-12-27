@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.1](https://github.com/jsmenzies/fresh/compare/v1.7.0...v1.7.1) (2025-12-27)
+
+
+### Documentation
+
+* update readme usage and release description ([9e92487](https://github.com/jsmenzies/fresh/commit/9e924872df2e237d9f5996547ffc67594e5a4013))
+* update readme usage and release description ([afb9772](https://github.com/jsmenzies/fresh/commit/afb977274f1a3610191f2e0df88e73d398bbbe59))
+
 ## [1.7.0](https://github.com/jsmenzies/fresh/compare/v1.6.1...v1.7.0) (2025-12-27)
 
 
