@@ -90,9 +90,9 @@ func buildLocalStatus(state domain.LocalState) string {
 		var parts []string
 		parts = append(parts, IconDirty)
 
-		if s.Untracked > 0 {
-			parts = append(parts, fmt.Sprintf("%s%d", IconGhost, s.Untracked))
-		}
+		//if s.Untracked > 0 {
+		//	parts = append(parts, fmt.Sprintf("%s%d", IconGhost, s.Untracked))
+		//}
 		if s.Added > 0 {
 			parts = append(parts, fmt.Sprintf("+%d", s.Added))
 		}
