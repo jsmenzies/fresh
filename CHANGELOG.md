@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.3](https://github.com/jsmenzies/fresh/compare/v1.7.2...v1.7.3) (2025-12-27)
+
+
+### Documentation
+
+* add demo gif and tape ([43a6513](https://github.com/jsmenzies/fresh/commit/43a65136a49a5984c77ca128452c9b9fc1afc0f3))
+* add demo gif and tape ([c9c0760](https://github.com/jsmenzies/fresh/commit/c9c0760d22358cd6c8c2e1963d2368487130fd9e))
+
 ## [1.7.2](https://github.com/jsmenzies/fresh/compare/v1.7.1...v1.7.2) (2025-12-27)
 
 
