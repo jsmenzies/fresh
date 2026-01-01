@@ -230,8 +230,9 @@ func RenderStatusMessage(msg StatusMessage, maxWidth int) string {
 	if available < 0 {
 		available = 0
 	}
-	truncatedHelp := TruncateWithEllipsis(msg.Help, available)
-	return RemoteStatusErrorText.Render(msg.Label) + RemoteStatusErrorHelpText.Render(truncatedHelp)
+	//truncatedHelp := TruncateWithEllipsis(msg.Help, available)
+	return RemoteStatusErrorText.Render(msg.Label)
+	//+ RemoteStatusErrorHelpText.Render(truncatedHelp)
 }
 
 func TruncateWithEllipsis(text string, maxWidth int) string {
