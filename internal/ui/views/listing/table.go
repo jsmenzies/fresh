@@ -1,10 +1,11 @@
-package common
+package listing
 
 import (
 	"fmt"
 	"strings"
 
 	"fresh/internal/domain"
+	"fresh/internal/ui/views/common"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
@@ -24,10 +25,10 @@ func GenerateTable(repositories []domain.Repository, cursor int) string {
 		Border(lipgloss.HiddenBorder()).
 		Headers(headers...).
 		Rows(rows...).
-		BorderStyle(TableBorderStyle).
+		BorderStyle(common.TableBorderStyle).
 		StyleFunc(func(row, col int) lipgloss.Style {
 			if row == table.HeaderRow {
-				return TableHeaderStyle
+				return common.TableHeaderStyle
 			}
 			return lipgloss.NewStyle()
 		})
@@ -59,28 +60,28 @@ func repositoryToRow(repo domain.Repository, isSelected bool) []string {
 
 func buildSelector(isSelected bool) string {
 	if isSelected {
-		return SelectorStyle.Render(IconSelector)
+		return common.SelectorStyle.Render(common.IconSelector)
 	}
-	return SelectorStyle.Render(" ")
+	return common.SelectorStyle.Render(" ")
 }
 
 func buildProjectName(name string, isSelected bool) string {
 	if isSelected {
-		return ProjectNameStyle.Bold(true).Render(name)
+		return common.ProjectNameStyle.Bold(true).Render(name)
 	}
-	return ProjectNameStyle.Render(name)
+	return common.ProjectNameStyle.Render(name)
 }
 
 func buildBranchName(branch domain.Branch) string {
 	switch s := branch.(type) {
 	case domain.NoBranch:
-		return BranchNameEmpty
+		return common.BranchNameEmpty
 	case domain.DetachedHead:
-		return BranchNameHead
+		return common.BranchNameHead
 	case domain.OnBranch:
-		return BranchNameStyle.Render(s.Name)
+		return common.BranchNameStyle.Render(s.Name)
 	default:
-		return BranchNameEmpty
+		return common.BranchNameEmpty
 	}
 }
 
@@ -90,30 +91,30 @@ func buildLocalStatus(state domain.LocalState) string {
 		var parts []string
 
 		if s.Untracked > 0 {
-			parts = append(parts, LocalStatusUntrackedItem.Render(IconDiverged))
+			parts = append(parts, common.LocalStatusUntrackedItem.Render(common.IconDiverged))
 		} else {
-			parts = append(parts, LocalStatusDirtyItem.Render(IconWarning))
+			parts = append(parts, common.LocalStatusDirtyItem.Render(common.IconWarning))
 		}
 
 		if s.Untracked > 0 {
-			parts = append(parts, LocalStatusUntrackedItem.Render(fmt.Sprintf("%s%d", IconUntracked, s.Untracked)))
+			parts = append(parts, common.LocalStatusUntrackedItem.Render(fmt.Sprintf("%s%d", common.IconUntracked, s.Untracked)))
 		}
 		if s.Added > 0 {
-			parts = append(parts, LocalStatusDirtyItem.Render(fmt.Sprintf("+%d", s.Added)))
+			parts = append(parts, common.LocalStatusDirtyItem.Render(fmt.Sprintf("+%d", s.Added)))
 		}
 		if s.Modified > 0 {
-			parts = append(parts, LocalStatusDirtyItem.Render(fmt.Sprintf("~%d", s.Modified)))
+			parts = append(parts, common.LocalStatusDirtyItem.Render(fmt.Sprintf("~%d", s.Modified)))
 		}
 		if s.Deleted > 0 {
-			parts = append(parts, LocalStatusDirtyItem.Render(fmt.Sprintf("-%d", s.Deleted)))
+			parts = append(parts, common.LocalStatusDirtyItem.Render(fmt.Sprintf("-%d", s.Deleted)))
 		}
 
 		text := strings.Join(parts, " ")
-		return localStatusBaseStyle.Render(text)
+		return common.LocalStatusBaseStyle.Render(text)
 	case domain.LocalStateError:
-		return LocalStatusError
+		return common.LocalStatusError
 	default:
-		return LocalStatusClean
+		return common.LocalStatusClean
 	}
 }
 
@@ -121,25 +122,25 @@ func buildRemoteStatus(repo domain.Repository) string {
 	switch activity := repo.Activity.(type) {
 	case domain.RefreshingActivity:
 		if !activity.Complete {
-			return RemoteStatusUpdating.Render(activity.Spinner.View())
+			return common.RemoteStatusUpdating.Render(activity.Spinner.View())
 		}
 	}
 
 	switch s := repo.RemoteState.(type) {
 	case domain.NoUpstream:
-		return RemoteStatusError
+		return common.RemoteStatusError
 	case domain.DetachedRemote:
-		return RemoteStatusError
+		return common.RemoteStatusError
 	case domain.RemoteError:
-		return RemoteStatusError
+		return common.RemoteStatusError
 	case domain.Diverged:
-		return RemoteStatusCounts(s.BehindCount, s.AheadCount)
+		return common.RemoteStatusCounts(s.BehindCount, s.AheadCount)
 	case domain.Behind:
-		return RemoteStatusCounts(s.Count, 0)
+		return common.RemoteStatusCounts(s.Count, 0)
 	case domain.Ahead:
-		return RemoteStatusCounts(0, s.Count)
+		return common.RemoteStatusCounts(0, s.Count)
 	default:
-		return RemoteStatusSynced
+		return common.RemoteStatusSynced
 	}
 }
 
@@ -149,8 +150,8 @@ func buildInfo(repo domain.Repository) string {
 	case domain.PullingActivity:
 		if !activity.Complete {
 			lastLine := activity.GetLastLine()
-			truncated := TruncateWithEllipsis(lastLine, InfoWidth-3)
-			content = FormatPullProgress(activity.Spinner.View(), truncated)
+			truncated := common.TruncateWithEllipsis(lastLine, common.InfoWidth-3)
+			content = common.FormatPullProgress(activity.Spinner.View(), truncated)
 		} else {
 			lastLine := activity.GetLastLine()
 			content = stylePullOutput(lastLine, activity.ExitCode)
@@ -164,72 +165,72 @@ func buildInfo(repo domain.Repository) string {
 	if content == "" {
 		switch s := repo.RemoteState.(type) {
 		case domain.NoUpstream:
-			content = RenderStatusMessage(MsgNoUpstream, InfoWidth)
+			content = common.RenderStatusMessage(common.MsgNoUpstream, common.InfoWidth)
 		case domain.DetachedRemote:
-			content = RenderStatusMessage(MsgDetached, InfoWidth)
+			content = common.RenderStatusMessage(common.MsgDetached, common.InfoWidth)
 		case domain.RemoteError:
-			content = RemoteStatusErrorText.Render(TruncateWithEllipsis(s.Message, InfoWidth))
+			content = common.RemoteStatusErrorText.Render(common.TruncateWithEllipsis(s.Message, common.InfoWidth))
 		case domain.Diverged:
-			content = RenderStatusMessage(MsgDiverged, InfoWidth)
+			content = common.RenderStatusMessage(common.MsgDiverged, common.InfoWidth)
 		}
 	}
 
-	return InfoStyle.Render(content)
+	return common.InfoStyle.Render(content)
 }
 
 func stylePullOutput(lastLine string, exitCode int) string {
 	lowerLine := strings.ToLower(lastLine)
-	truncated := TruncateWithEllipsis(lastLine, InfoWidth)
+	truncated := common.TruncateWithEllipsis(lastLine, common.InfoWidth)
 
 	if strings.Contains(lowerLine, "error") || strings.Contains(lowerLine, "fatal") {
-		return PullOutputError.Render(truncated)
+		return common.PullOutputError.Render(truncated)
 	}
 
 	if exitCode == 0 {
 		if strings.Contains(lowerLine, "up to date") || strings.Contains(lowerLine, "up-to-date") {
-			return PullOutputUpToDate.Render(truncated)
+			return common.PullOutputUpToDate.Render(truncated)
 		}
 		if strings.Contains(lowerLine, "done") ||
 			(strings.Contains(lowerLine, "file") && strings.Contains(lowerLine, "changed")) {
-			return PullOutputSuccess.Render(truncated)
+			return common.PullOutputSuccess.Render(truncated)
 		}
 	}
 
-	return PullOutputWarn.Render(truncated)
+	return common.PullOutputWarn.Render(truncated)
 }
 
 func buildLastUpdate(repo domain.Repository) string {
 	if repo.LastCommitTime.IsZero() {
 		return ""
 	}
-	timeAgo := FormatTimeAgo(repo.LastCommitTime)
-	return TimeAgoStyle.Render(IconClock + " " + timeAgo)
+	timeAgo := common.FormatTimeAgo(repo.LastCommitTime)
+	return common.TimeAgoStyle.Render(common.IconClock + " " + timeAgo)
 }
 
 func buildLinks(url string, branch domain.Branch) string {
 	var branchName string
 	if url != "" {
-		if IsGitHubRepository(url) {
+		if common.IsGitHubRepository(url) {
 			if _, ok := branch.(domain.OnBranch); !ok {
 				branchName = ""
 			} else {
 				branchName = branch.(domain.OnBranch).Name
 			}
-			githubURLs := BuildGitHubURLs(url, branchName)
+			githubURLs := common.BuildGitHubURLs(url, branchName)
 			if githubURLs != nil {
 				var shortcuts []string
 
-				codeLink := MakeClickableURL(githubURLs["code"], IconCode)
-				shortcuts = append(shortcuts, LinkStyle.Render(codeLink))
+				codeLink := MakeClickableURL(githubURLs["code"], common.IconCode)
+				shortcuts = append(shortcuts, common.LinkStyle.Render(codeLink))
 
-				prsLink := MakeClickableURL(githubURLs["prs"], IconPullRequests)
-				shortcuts = append(shortcuts, LinkStyle.Render(prsLink))
+				prsLink := MakeClickableURL(githubURLs["prs"], common.IconPullRequests)
+				shortcuts = append(shortcuts, common.LinkStyle.Render(prsLink))
 
-				openPRLink := MakeClickableURL(githubURLs["openpr"], IconOpenPR)
-				shortcuts = append(shortcuts, LinkStyle.Render(openPRLink))
+				openPRLink := MakeClickableURL(githubURLs["openpr"], common.IconOpenPR)
+				shortcuts = append(shortcuts, common.LinkStyle.Render(openPRLink))
 
 				shortcutsDisplay := fmt.Sprintf("%s", strings.Join(shortcuts, " "))
-				return LinksStyle.Render(shortcutsDisplay)
+				return common.LinksStyle.Render(shortcutsDisplay)
 			}
 		}
 	}

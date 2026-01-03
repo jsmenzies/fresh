@@ -12,10 +12,11 @@ import (
 )
 
 type listKeyMap struct {
-	refresh   key.Binding
-	updateAll key.Binding
-	pull      key.Binding
-	pullAll   key.Binding
+	refresh      key.Binding
+	updateAll    key.Binding
+	pull         key.Binding
+	pullAll      key.Binding
+	toggleLegend key.Binding
 }
 
 func newListKeyMap() *listKeyMap {
@@ -36,6 +37,10 @@ func newListKeyMap() *listKeyMap {
 			key.WithKeys("ctrl+p"),
 			key.WithHelp("ctrl+p", "pull all"),
 		),
+		toggleLegend: key.NewBinding(
+			key.WithKeys("?"),
+			key.WithHelp("?", "toggle legend"),
+		),
 	}
 }
 
@@ -44,6 +49,7 @@ type Model struct {
 	Cursor        int
 	Keys          *listKeyMap
 	width, height int
+	LegendMode    LegendType
 }
 
 func New(repos []domain.Repository) *Model {
@@ -59,6 +65,7 @@ func New(repos []domain.Repository) *Model {
 		Repositories: repos,
 		Cursor:       0,
 		Keys:         newListKeyMap(),
+		LegendMode:   LegendNone,
 	}
 }
 
@@ -145,6 +152,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tea.Batch(cmds...)
 
+		case key.Matches(msg, m.Keys.toggleLegend):
+			switch m.LegendMode {
+			case LegendNone:
+				m.LegendMode = LegendPartial
+			case LegendPartial:
+				m.LegendMode = LegendFull
+			case LegendFull:
+				m.LegendMode = LegendNone
+			}
+			return m, nil
+
 		case msg.String() == "up", msg.String() == "k":
 			if m.Cursor > 0 {
 				m.Cursor--
@@ -226,32 +244,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	headerLine := common.FormatHeader(len(m.Repositories))
+	var s strings.Builder
+	s.WriteString(common.FormatHeader(len(m.Repositories)))
 
 	if len(m.Repositories) == 0 {
-		return headerLine + "No repositories found"
+		s.WriteString("No repositories found")
+		return s.String()
 	}
 
-	tableView := common.GenerateTable(m.Repositories, m.Cursor)
-	legend := buildLegend()
-	footer := buildFooter()
+	s.WriteString(GenerateTable(m.Repositories, m.Cursor))
+	s.WriteString("\n\n")
 
-	return headerLine + tableView + "\n" + legend + "\n\n" + footer
-}
+	s.WriteString(buildFooter())
 
-func buildLegend() string {
-	items := []string{
-		common.LocalStatusUntrackedItem.Render(common.IconUntracked) + " Untracked",
-		common.LocalStatusDirtyItem.Render("~") + " Modified",
-		common.LocalStatusDirtyItem.Render(common.IconDirty) + " Dirty",
-		common.TextGreen.Render(common.IconClean) + " Clean",
-		common.TextSubtleGreen.Render(common.IconSynced) + " Synced",
-		common.TextBlue.Render(common.IconAhead) + " Ahead",
-		common.TextBlue.Render(common.IconBehind) + " Behind",
-		common.RemoteStatusErrorText.Render(common.IconRemoteError) + " No Upstream",
-	}
-	legendText := strings.Join(items, "  •  ")
-	return common.FooterStyle.Render(legendText)
+	legend := RenderLegend(m.Repositories[m.Cursor], m.LegendMode)
+	s.WriteString("\n\n")
+	s.WriteString(legend)
+
+	return s.String()
 }
 
 func buildFooter() string {
@@ -261,6 +271,7 @@ func buildFooter() string {
 		"ctrl+r refresh all",
 		"p pull",
 		"ctrl+p pull all",
+		"? toggle legend",
 		"q quit",
 	}
 	footerText := strings.Join(hotkeys, "  •  ")

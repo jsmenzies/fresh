@@ -86,20 +86,20 @@ var BranchNameHead = branchBaseStyle.
 	Foreground(SubtleGray).
 	Render(BranchHead)
 
-var localStatusBaseStyle = lipgloss.NewStyle().
+var LocalStatusBaseStyle = lipgloss.NewStyle().
 	Width(LocalStatusWidth).
 	MaxWidth(LocalStatusWidth).
 	Height(RowHeight).
 	MaxHeight(RowHeight).
 	AlignHorizontal(lipgloss.Left)
 
-var LocalStatusClean = localStatusBaseStyle.
+var LocalStatusClean = LocalStatusBaseStyle.
 	Foreground(Green).
 	Render(IconClean)
 
 //Render(IconClean + " " + StatusClean)
 
-var LocalStatusDirtyStyle = localStatusBaseStyle.
+var LocalStatusDirtyStyle = LocalStatusBaseStyle.
 	Foreground(Yellow)
 
 var LocalStatusDirty = LocalStatusDirtyStyle.
@@ -111,11 +111,11 @@ var TextGreen = lipgloss.NewStyle().Foreground(Green)
 var TextSubtleGreen = lipgloss.NewStyle().Foreground(SubtleGreen)
 var TextBlue = lipgloss.NewStyle().Foreground(Blue)
 
-var LocalStatusUntracked = localStatusBaseStyle.
+var LocalStatusUntracked = LocalStatusBaseStyle.
 	Foreground(Yellow).
 	Render(IconUntracked + " " + StatusUntracked)
 
-var LocalStatusError = localStatusBaseStyle.
+var LocalStatusError = LocalStatusBaseStyle.
 	Render("")
 
 var remoteStatusBaseStyle = lipgloss.NewStyle().
@@ -296,6 +296,8 @@ const (
 	TimeJustNow = "just now"
 	TimeUnknown = "unknown"
 )
+
+
 
 var SelectorStyle = lipgloss.NewStyle().
 	Foreground(Blue).
