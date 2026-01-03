@@ -233,9 +233,25 @@ func (m *Model) View() string {
 	}
 
 	tableView := common.GenerateTable(m.Repositories, m.Cursor)
+	legend := buildLegend()
 	footer := buildFooter()
 
-	return headerLine + tableView + "\n" + footer
+	return headerLine + tableView + "\n" + legend + "\n\n" + footer
+}
+
+func buildLegend() string {
+	items := []string{
+		common.LocalStatusUntrackedItem.Render(common.IconUntracked) + " Untracked",
+		common.LocalStatusDirtyItem.Render("~") + " Modified",
+		common.LocalStatusDirtyItem.Render(common.IconDirty) + " Dirty",
+		common.TextGreen.Render(common.IconClean) + " Clean",
+		common.TextSubtleGreen.Render(common.IconSynced) + " Synced",
+		common.TextBlue.Render(common.IconAhead) + " Ahead",
+		common.TextBlue.Render(common.IconBehind) + " Behind",
+		common.RemoteStatusErrorText.Render(common.IconRemoteError) + " No Upstream",
+	}
+	legendText := strings.Join(items, "  •  ")
+	return common.FooterStyle.Render(legendText)
 }
 
 func buildFooter() string {
@@ -248,7 +264,7 @@ func buildFooter() string {
 		"q quit",
 	}
 	footerText := strings.Join(hotkeys, "  •  ")
-	return "\n" + common.FooterStyle.Render(footerText)
+	return common.FooterStyle.Render(footerText)
 }
 
 func isBusy(repo domain.Repository) bool {
