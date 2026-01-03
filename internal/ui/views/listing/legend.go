@@ -1,94 +1,44 @@
 package listing
 
 import (
-	"fresh/internal/domain"
 	"fresh/internal/ui/views/common"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
-type LegendType int
-
-const (
-	LegendNone LegendType = iota
-	LegendPartial
-	LegendFull
-)
-
-type item struct {
-	icon, label string
-	style       lipgloss.Style
-	active      bool
-}
-
-func RenderLegend(repo domain.Repository, mode LegendType) string {
-	if mode == LegendNone {
+func RenderLegend(show bool) string {
+	if !show {
 		return ""
 	}
-
-	isDirty := false
-	hasUntracked := false
-	hasModified := false
-	hasAdded := false
-	hasDeleted := false
-	isClean := true
-
-	if s, ok := repo.LocalState.(domain.DirtyLocalState); ok {
-		hasUntracked = s.Untracked > 0
-		hasModified = s.Modified > 0
-		hasAdded = s.Added > 0
-		hasDeleted = s.Deleted > 0
-		isDirty = hasModified || hasAdded || hasDeleted || hasUntracked
-		isClean = false
-	} else if _, ok := repo.LocalState.(domain.LocalStateError); ok {
-		isClean = false
-	}
-
-	isAhead := false
-	isBehind := false
-	isSynced := false
-	isError := false
-
-	switch repo.RemoteState.(type) {
-	case domain.Ahead:
-		isAhead = true
-	case domain.Behind:
-		isBehind = true
-	case domain.Diverged:
-		isAhead = true
-		isBehind = true
-	case domain.NoUpstream, domain.DetachedRemote, domain.RemoteError:
-		isError = true
-	default:
-		isSynced = true
+	type item struct {
+		icon, label string
+		style       lipgloss.Style
 	}
 
 	c1 := []item{
-		{common.IconClean, "Clean", common.TextGreen, isClean},
-		{common.IconDirty, "Dirty", common.LocalStatusDirtyItem, isDirty},
-		{common.IconDiverged, "Untracked", common.LocalStatusUntrackedItem, hasUntracked},
+		{common.IconClean, "Clean", common.TextGreen},
+		{common.IconDirty, "Dirty", common.LocalStatusDirtyItem},
+		{common.IconDiverged, "Untracked", common.LocalStatusUntrackedItem},
 	}
 
 	c2 := []item{
-		{common.IconUntracked, "Untracked Files", common.LocalStatusUntrackedItem, hasUntracked},
-		{"~", "Modified Files", common.LocalStatusDirtyItem, hasModified},
-		{"-", "Deleted Files", common.LocalStatusDirtyItem, hasDeleted},
-		{"+", "Added Files", common.LocalStatusDirtyItem, hasAdded},
+		{common.IconUntracked, "Untracked Files", common.LocalStatusUntrackedItem},
+		{"~", "Modified Files", common.LocalStatusDirtyItem},
+		{"-", "Deleted Files", common.LocalStatusDirtyItem},
+		{"+", "Added Files", common.LocalStatusDirtyItem},
 	}
 
 	c3 := []item{
-		{common.IconAhead, "Ahead", common.TextBlue, isAhead},
-		{common.IconBehind, "Behind", common.TextBlue, isBehind},
-		{common.IconSynced, "Synced", common.TextSubtleGreen, isSynced},
-		{common.IconRemoteError, "Error Fetching", common.RemoteStatusErrorText, isError},
+		{common.IconAhead, "Ahead", common.TextBlue},
+		{common.IconBehind, "Behind", common.TextBlue},
+		{common.IconSynced, "Synced", common.TextSubtleGreen},
+		{common.IconRemoteError, "Error Fetching", common.RemoteStatusErrorText},
 	}
 
 	process := func(items []item) []string {
 		var rows []string
 		for _, it := range items {
-			if mode == LegendFull || it.active {
-				rows = append(rows, it.style.Render(it.icon)+" "+it.label)
-			}
+			rows = append(rows, it.style.Render(it.icon)+" "+it.label)
 		}
 		return rows
 	}

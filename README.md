@@ -10,8 +10,9 @@ A CLI tool for interactively managing the status of multiple Git repositories. `
 
 - [X] **Git Repo Scanning**: Automatically finds git repositories in your projects folder.
 - [x] **Smart Status**: Instantly see local changes (+Added, ~Modified, -Deleted, ?Untracked) and remote status (Ahead, Behind, Diverged).
-- [x] **Safe Updates**: "Pull All" intelligently targets only repositories that are behind, avoiding unsafe merges.
+- [x] **Safe Updates**: "Pull All" intelligently targets repositories that are behind, using `--rebase` to keep your branch history clean and avoiding unsafe merges.
 - [x] **Detailed Insights**: View last commit times and quick links to GitHub.
+- [ ] **No-Icons Mode**: Option to disable Nerd Font icons for standard terminal compatibility.
 
 ## Font Recommendation
 
@@ -44,7 +45,7 @@ scoop install fresh
 2.  Extract the archive.
 3.  Move the `fresh` binary to a directory in your system's `PATH`.
 
-## Quick Start
+## Usage
 
 Run `fresh` pointed the directory you want to scan for git repositories:
 ```bash

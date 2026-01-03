@@ -28,7 +28,7 @@ const (
 	RowHeight         = 1
 	BranchWidth       = 8
 	MaxBranchWidth    = 12
-	LocalStatusWidth  = 14
+	LocalStatusWidth  = 15
 	RemoteStatusWidth = 11
 )
 
@@ -257,16 +257,18 @@ func FormatPullProgress(spinnerView string, lastLine string) string {
 }
 
 const (
-	IconGit         = "\uF115"
-	IconClock       = "\uF017"
-	IconClean       = "\uF00C"
-	IconDirty       = "\uF071"
-	IconWarning     = "\uF071"
-	IconUntracked   = "?"
-	IconDiverged    = "⊘"
-	IconRemoteError = "\U000F04E7"
-	IconBehind      = "\uF063"
-	IconAhead       = "\uF062"
+	IconGit       = "\uF115"
+	IconClock     = "\uF017"
+	IconClean     = "\uF00C"
+	IconDirty     = "\uF071"
+	IconWarning   = "\uF071"
+	IconUntracked = "?"
+	IconDiverged  = "⊘"
+	//IconDiverged       = "\U000F0A39"
+	IconRemoteError    = "\U000F04E7"
+	IconRemoteQuestion = "\U000F0A39"
+	IconBehind         = "\uF063"
+	IconAhead          = "\uF062"
 	//IconPullRequests = "\uE726"
 	IconPullRequests = "\uF03A"
 	IconCode         = "\uF09B"
@@ -296,8 +298,6 @@ const (
 	TimeJustNow = "just now"
 	TimeUnknown = "unknown"
 )
-
-
 
 var SelectorStyle = lipgloss.NewStyle().
 	Foreground(Blue).
