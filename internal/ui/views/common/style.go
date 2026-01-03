@@ -105,6 +105,12 @@ var LocalStatusDirtyStyle = localStatusBaseStyle.
 var LocalStatusDirty = LocalStatusDirtyStyle.
 	Render(IconDirty + " " + StatusDirty)
 
+var LocalStatusUntrackedItem = lipgloss.NewStyle().Foreground(Red)
+var LocalStatusDirtyItem = lipgloss.NewStyle().Foreground(Yellow)
+var TextGreen = lipgloss.NewStyle().Foreground(Green)
+var TextSubtleGreen = lipgloss.NewStyle().Foreground(SubtleGreen)
+var TextBlue = lipgloss.NewStyle().Foreground(Blue)
+
 var LocalStatusUntracked = localStatusBaseStyle.
 	Foreground(Yellow).
 	Render(IconUntracked + " " + StatusUntracked)
@@ -251,14 +257,12 @@ func FormatPullProgress(spinnerView string, lastLine string) string {
 }
 
 const (
-	IconGit   = "\uF115"
-	IconClock = "\uF017"
-	IconClean = "\uF00C"
-	IconDirty = "\uF071"
-	IconGhost = "\uF79F"
-	//IconGhost       = "\uF128"
-	//IconGhost       = "\uF059"
-	IconUntracked   = ""
+	IconGit         = "\uF115"
+	IconClock       = "\uF017"
+	IconClean       = "\uF00C"
+	IconDirty       = "\uF071"
+	IconWarning     = "\uF071"
+	IconUntracked   = "?"
 	IconDiverged    = "⊘"
 	IconRemoteError = "\U000F04E7"
 	IconBehind      = "\uF063"

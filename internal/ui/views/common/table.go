@@ -88,23 +88,28 @@ func buildLocalStatus(state domain.LocalState) string {
 	switch s := state.(type) {
 	case domain.DirtyLocalState:
 		var parts []string
-		parts = append(parts, IconDirty)
 
-		//if s.Untracked > 0 {
-		//	parts = append(parts, fmt.Sprintf("%s%d", IconGhost, s.Untracked))
-		//}
+		if s.Untracked > 0 {
+			parts = append(parts, LocalStatusUntrackedItem.Render(IconDiverged))
+		} else {
+			parts = append(parts, LocalStatusDirtyItem.Render(IconWarning))
+		}
+
+		if s.Untracked > 0 {
+			parts = append(parts, LocalStatusUntrackedItem.Render(fmt.Sprintf("%s%d", IconUntracked, s.Untracked)))
+		}
 		if s.Added > 0 {
-			parts = append(parts, fmt.Sprintf("+%d", s.Added))
+			parts = append(parts, LocalStatusDirtyItem.Render(fmt.Sprintf("+%d", s.Added)))
 		}
 		if s.Modified > 0 {
-			parts = append(parts, fmt.Sprintf("~%d", s.Modified))
+			parts = append(parts, LocalStatusDirtyItem.Render(fmt.Sprintf("~%d", s.Modified)))
 		}
 		if s.Deleted > 0 {
-			parts = append(parts, fmt.Sprintf("-%d", s.Deleted))
+			parts = append(parts, LocalStatusDirtyItem.Render(fmt.Sprintf("-%d", s.Deleted)))
 		}
 
 		text := strings.Join(parts, " ")
-		return LocalStatusDirtyStyle.Render(text)
+		return localStatusBaseStyle.Render(text)
 	case domain.LocalStateError:
 		return LocalStatusError
 	default:
