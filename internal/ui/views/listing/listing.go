@@ -49,7 +49,7 @@ type Model struct {
 	Cursor        int
 	Keys          *listKeyMap
 	width, height int
-	LegendMode    LegendType
+	ShowLegend    bool
 }
 
 func New(repos []domain.Repository) *Model {
@@ -65,7 +65,7 @@ func New(repos []domain.Repository) *Model {
 		Repositories: repos,
 		Cursor:       0,
 		Keys:         newListKeyMap(),
-		LegendMode:   LegendNone,
+		ShowLegend:   false,
 	}
 }
 
@@ -153,14 +153,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 
 		case key.Matches(msg, m.Keys.toggleLegend):
-			switch m.LegendMode {
-			case LegendNone:
-				m.LegendMode = LegendPartial
-			case LegendPartial:
-				m.LegendMode = LegendFull
-			case LegendFull:
-				m.LegendMode = LegendNone
-			}
+			m.ShowLegend = !m.ShowLegend
 			return m, nil
 
 		case msg.String() == "up", msg.String() == "k":
@@ -257,9 +250,11 @@ func (m *Model) View() string {
 
 	s.WriteString(buildFooter())
 
-	legend := RenderLegend(m.Repositories[m.Cursor], m.LegendMode)
-	s.WriteString("\n\n")
-	s.WriteString(legend)
+	if m.ShowLegend {
+		legend := RenderLegend()
+		s.WriteString("\n\n")
+		s.WriteString(legend)
+	}
 
 	return s.String()
 }
