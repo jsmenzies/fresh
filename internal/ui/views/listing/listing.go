@@ -12,11 +12,11 @@ import (
 )
 
 type listKeyMap struct {
-	refresh    key.Binding
-	updateAll  key.Binding
-	pull       key.Binding
-	pullAll    key.Binding
-	toggleHelp key.Binding
+	refresh      key.Binding
+	updateAll    key.Binding
+	pull         key.Binding
+	pullAll      key.Binding
+	toggleLegend key.Binding
 }
 
 func newListKeyMap() *listKeyMap {
@@ -37,19 +37,19 @@ func newListKeyMap() *listKeyMap {
 			key.WithKeys("ctrl+p"),
 			key.WithHelp("ctrl+p", "pull all"),
 		),
-		toggleHelp: key.NewBinding(
+		toggleLegend: key.NewBinding(
 			key.WithKeys("?"),
-			key.WithHelp("?", "toggle help"),
+			key.WithHelp("?", "toggle legend"),
 		),
 	}
 }
 
 type Model struct {
-	Repositories   []domain.Repository
-	Cursor         int
-	Keys           *listKeyMap
-	width, height  int
-	ShowFullLegend bool
+	Repositories  []domain.Repository
+	Cursor        int
+	Keys          *listKeyMap
+	width, height int
+	LegendMode    LegendType
 }
 
 func New(repos []domain.Repository) *Model {
@@ -65,6 +65,7 @@ func New(repos []domain.Repository) *Model {
 		Repositories: repos,
 		Cursor:       0,
 		Keys:         newListKeyMap(),
+		LegendMode:   LegendNone,
 	}
 }
 
@@ -151,8 +152,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tea.Batch(cmds...)
 
-		case key.Matches(msg, m.Keys.toggleHelp):
-			m.ShowFullLegend = !m.ShowFullLegend
+		case key.Matches(msg, m.Keys.toggleLegend):
+			switch m.LegendMode {
+			case LegendNone:
+				m.LegendMode = LegendPartial
+			case LegendPartial:
+				m.LegendMode = LegendFull
+			case LegendFull:
+				m.LegendMode = LegendNone
+			}
 			return m, nil
 
 		case msg.String() == "up", msg.String() == "k":
@@ -236,75 +244,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	headerLine := common.FormatHeader(len(m.Repositories))
+	var s strings.Builder
+	s.WriteString(common.FormatHeader(len(m.Repositories)))
 
 	if len(m.Repositories) == 0 {
-		return headerLine + "No repositories found"
+		s.WriteString("No repositories found")
+		return s.String()
 	}
 
-	tableView := common.GenerateTable(m.Repositories, m.Cursor)
+	s.WriteString(GenerateTable(m.Repositories, m.Cursor))
+	s.WriteString("\n\n")
 
-	var legend string
-	if m.ShowFullLegend {
-		legend = buildFullLegend()
-	} else if m.Cursor < len(m.Repositories) {
-		legend = buildContextualLegend(m.Repositories[m.Cursor])
-	}
+	s.WriteString(buildFooter())
 
-	footer := buildFooter()
+	legend := RenderLegend(m.Repositories[m.Cursor], m.LegendMode)
+	s.WriteString("\n\n")
+	s.WriteString(legend)
 
-	return headerLine + tableView + "\n" + legend + "\n\n" + footer
-}
-
-func buildContextualLegend(repo domain.Repository) string {
-	var items []string
-
-	// Local Status
-	switch s := repo.LocalState.(type) {
-	case domain.DirtyLocalState:
-		if s.Untracked > 0 {
-			items = append(items, common.LocalStatusUntrackedItem.Render(common.IconUntracked)+" Untracked")
-		}
-		if s.Modified > 0 || s.Added > 0 || s.Deleted > 0 {
-			items = append(items, common.LocalStatusDirtyItem.Render("~")+" Modified")
-		}
-	case domain.LocalStateError:
-		// Handle error if needed
-	default:
-		items = append(items, common.TextGreen.Render(common.IconClean)+" Clean")
-	}
-
-	// Remote Status
-	switch repo.RemoteState.(type) {
-	case domain.Ahead:
-		items = append(items, common.TextBlue.Render(common.IconAhead)+" Ahead")
-	case domain.Behind:
-		items = append(items, common.TextBlue.Render(common.IconBehind)+" Behind")
-	case domain.Diverged:
-		items = append(items, common.TextBlue.Render(common.IconAhead)+" Ahead")
-		items = append(items, common.TextBlue.Render(common.IconBehind)+" Behind")
-	case domain.NoUpstream, domain.DetachedRemote, domain.RemoteError:
-		items = append(items, common.RemoteStatusErrorText.Render(common.IconRemoteError)+" No Upstream")
-	default:
-		items = append(items, common.TextSubtleGreen.Render(common.IconSynced)+" Synced")
-	}
-
-	return common.FooterStyle.Render(strings.Join(items, "  •  "))
-}
-
-func buildFullLegend() string {
-	items := []string{
-		common.LocalStatusUntrackedItem.Render(common.IconUntracked) + " Untracked",
-		common.LocalStatusDirtyItem.Render("~") + " Modified",
-		common.LocalStatusDirtyItem.Render(common.IconDirty) + " Dirty",
-		common.TextGreen.Render(common.IconClean) + " Clean",
-		common.TextSubtleGreen.Render(common.IconSynced) + " Synced",
-		common.TextBlue.Render(common.IconAhead) + " Ahead",
-		common.TextBlue.Render(common.IconBehind) + " Behind",
-		common.RemoteStatusErrorText.Render(common.IconRemoteError) + " No Upstream",
-	}
-	legendText := strings.Join(items, "  •  ")
-	return common.FooterStyle.Render(legendText)
+	return s.String()
 }
 
 func buildFooter() string {
@@ -314,7 +271,7 @@ func buildFooter() string {
 		"ctrl+r refresh all",
 		"p pull",
 		"ctrl+p pull all",
-		"? toggle help",
+		"? toggle legend",
 		"q quit",
 	}
 	footerText := strings.Join(hotkeys, "  •  ")
