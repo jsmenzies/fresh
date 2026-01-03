@@ -250,11 +250,9 @@ func (m *Model) View() string {
 
 	s.WriteString(buildFooter())
 
-	if m.ShowLegend {
-		legend := RenderLegend()
-		s.WriteString("\n\n")
-		s.WriteString(legend)
-	}
+	legend := RenderLegend(m.ShowLegend)
+	s.WriteString("\n\n")
+	s.WriteString(legend)
 
 	return s.String()
 }

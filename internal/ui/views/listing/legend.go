@@ -6,7 +6,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func RenderLegend() string {
+func RenderLegend(show bool) string {
+	if !show {
+		return ""
+	}
 	type item struct {
 		icon, label string
 		style       lipgloss.Style
