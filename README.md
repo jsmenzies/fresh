@@ -13,6 +13,7 @@ A CLI tool for interactively managing the status of multiple Git repositories. `
 - [x] **Safe Updates**: "Pull All" intelligently targets repositories that are behind, using `--rebase` to keep your branch history clean and avoiding unsafe merges.
 - [x] **Detailed Insights**: View last commit times and quick links to GitHub.
 - [ ] **No-Icons Mode**: Option to disable Nerd Font icons for standard terminal compatibility.
+- [ ] **Push Support**: Quickly push local commits to the remote repository.
 
 ## Font Recommendation
 
