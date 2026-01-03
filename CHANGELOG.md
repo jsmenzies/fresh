@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.9.1](https://github.com/jsmenzies/fresh/compare/v1.9.0...v1.9.1) (2026-01-03)
+
+
+### Documentation
+
+* clarify rebase usage and add no-icons to feature list ([402dd42](https://github.com/jsmenzies/fresh/commit/402dd42c4edeb673135b63e7f5946fe0a0f3a8b2))
+* update README for alpha release ([0857e06](https://github.com/jsmenzies/fresh/commit/0857e06bdcfb6a75c333ba8f11d6241c07c211ee))
+
+
+### Code Refactoring
+
+* **ui:** simplify legend to a simple toggle and remove state-based filtering ([711db7e](https://github.com/jsmenzies/fresh/commit/711db7eed62d69113eb473a692d4e58ad833d4ce))
+* **ui:** update legend rendering and adjust status column width ([73794c4](https://github.com/jsmenzies/fresh/commit/73794c413f4c27af5c2885d81f9c6da37c498db2))
+
 ## [1.9.0](https://github.com/jsmenzies/fresh/compare/v1.8.0...v1.9.0) (2026-01-03)
 
 
