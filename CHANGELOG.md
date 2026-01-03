@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.9.0](https://github.com/jsmenzies/fresh/compare/v1.8.0...v1.9.0) (2026-01-03)
+
+
+### Features
+
+* **ui:** implement contextual status bar with help toggle ([a4ef2c3](https://github.com/jsmenzies/fresh/commit/a4ef2c387c42a3c6ab7029bae92f240f1f44e3db))
+
+
+### Code Refactoring
+
+* **ui:** move table view to listing package and implement legend grid ([680875b](https://github.com/jsmenzies/fresh/commit/680875bd29f367012384399a4c2e347dbdd772cf))
+
 ## [1.8.0](https://github.com/jsmenzies/fresh/compare/v1.7.3...v1.8.0) (2026-01-03)
 
 
