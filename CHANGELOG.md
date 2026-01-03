@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.0](https://github.com/jsmenzies/fresh/compare/v1.7.3...v1.8.0) (2026-01-03)
+
+
+### Features
+
+* **ui:** highlight untracked files and add status legend ([dfc90b1](https://github.com/jsmenzies/fresh/commit/dfc90b192ffc10b2043eec3b80a58589b3bc0d57))
+* **ui:** highlight untracked files and add status legend ([914f8e7](https://github.com/jsmenzies/fresh/commit/914f8e79822957e4308f9a2e680fc8d393b3b3dc))
+
 ## [1.7.3](https://github.com/jsmenzies/fresh/compare/v1.7.2...v1.7.3) (2025-12-27)
 
 
