@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.2](https://github.com/jsmenzies/fresh/compare/v1.9.1...v1.9.2) (2026-01-26)
+
+
+### Documentation
+
+* update features and demo ([38cd766](https://github.com/jsmenzies/fresh/commit/38cd766f937793cb7f5df00b8996972973c6862f))
+* update readme features and refresh demo gif ([628c2ba](https://github.com/jsmenzies/fresh/commit/628c2ba71bb41878b2dbbefef4bf42b5b9478a32))
+
 ## [1.9.1](https://github.com/jsmenzies/fresh/compare/v1.9.0...v1.9.1) (2026-01-03)
 
 
