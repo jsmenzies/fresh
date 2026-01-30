@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.3](https://github.com/jsmenzies/fresh/compare/v1.9.2...v1.9.3) (2026-01-30)
+
+
+### Documentation
+
+* document release process changes and trigger release ([733d2be](https://github.com/jsmenzies/fresh/commit/733d2bed801337a235cb0f03b8de9ec4433e77b8))
+* document release process migration to homebrew_casks ([b2cee92](https://github.com/jsmenzies/fresh/commit/b2cee92fe9e57ce5f483e0e34cae3e04d4b6a161))
+
 ## [1.9.2](https://github.com/jsmenzies/fresh/compare/v1.9.1...v1.9.2) (2026-01-26)
 
 
