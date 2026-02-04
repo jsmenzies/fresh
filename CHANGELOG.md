@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.4](https://github.com/jsmenzies/fresh/compare/v1.9.3...v1.9.4) (2026-02-03)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/charmbracelet/bubbles to v0.21.1 ([a9f6015](https://github.com/jsmenzies/fresh/commit/a9f601529e59b6f57abdd96cbcce0ad9d6dbdc37))
+* **deps:** update module github.com/charmbracelet/bubbles to v0.21.1 ([3f15be6](https://github.com/jsmenzies/fresh/commit/3f15be6dac10bb32d28fbede11d118a730b3a9b7))
+
 ## [1.9.3](https://github.com/jsmenzies/fresh/compare/v1.9.2...v1.9.3) (2026-01-30)
 
 
