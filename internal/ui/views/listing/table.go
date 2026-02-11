@@ -175,15 +175,37 @@ func buildInfo(repo domain.Repository) string {
 	}
 
 	if content == "" {
-		switch s := repo.RemoteState.(type) {
-		case domain.NoUpstream:
-			content = common.RenderStatusMessage(common.MsgNoUpstream, common.InfoWidth)
-		case domain.DetachedRemote:
-			content = common.RenderStatusMessage(common.MsgDetached, common.InfoWidth)
-		case domain.RemoteError:
-			content = common.RemoteStatusErrorText.Render(common.TruncateWithEllipsis(s.Message, common.InfoWidth))
-		case domain.Diverged:
-			content = common.RenderStatusMessage(common.MsgDiverged, common.InfoWidth)
+		mergedCount := len(repo.MergedBranches)
+		squashedCount := len(repo.SquashedBranches)
+
+		if mergedCount > 0 || squashedCount > 0 {
+			var parts []string
+			if mergedCount > 0 {
+				branchText := "branches"
+				if mergedCount == 1 {
+					branchText = "branch"
+				}
+				parts = append(parts, common.TextBlue.Render(fmt.Sprintf("%d merged %s", mergedCount, branchText)))
+			}
+			if squashedCount > 0 {
+				branchText := "branches"
+				if squashedCount == 1 {
+					branchText = "branch"
+				}
+				parts = append(parts, common.LocalStatusDirtyStyle.Render(fmt.Sprintf("%d squashed %s", squashedCount, branchText)))
+			}
+			content = strings.Join(parts, ", ") + " can be cleaned"
+		} else {
+			switch s := repo.RemoteState.(type) {
+			case domain.NoUpstream:
+				content = common.RenderStatusMessage(common.MsgNoUpstream, common.InfoWidth)
+			case domain.DetachedRemote:
+				content = common.RenderStatusMessage(common.MsgDetached, common.InfoWidth)
+			case domain.RemoteError:
+				content = common.RemoteStatusErrorText.Render(common.TruncateWithEllipsis(s.Message, common.InfoWidth))
+			case domain.Diverged:
+				content = common.RenderStatusMessage(common.MsgDiverged, common.InfoWidth)
+			}
 		}
 	}
 
