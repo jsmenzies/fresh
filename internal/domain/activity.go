@@ -4,11 +4,14 @@ import "github.com/charmbracelet/bubbles/spinner"
 
 type Activity interface {
 	isActivity()
+	IsInProgress() bool
 }
 
 type IdleActivity struct{}
 
 func (IdleActivity) isActivity() {}
+
+func (IdleActivity) IsInProgress() bool { return false }
 
 type RefreshingActivity struct {
 	Spinner  spinner.Model
@@ -20,6 +23,8 @@ func (*RefreshingActivity) isActivity() {}
 func (r *RefreshingActivity) MarkComplete() {
 	r.Complete = true
 }
+
+func (r *RefreshingActivity) IsInProgress() bool { return !r.Complete }
 
 type LineBuffer struct {
 	Lines []string
@@ -50,6 +55,8 @@ func (p *PullingActivity) MarkComplete(exitCode int) {
 	p.ExitCode = exitCode
 }
 
+func (p *PullingActivity) IsInProgress() bool { return !p.Complete }
+
 type PruningActivity struct {
 	LineBuffer
 	Spinner      spinner.Model
@@ -65,3 +72,5 @@ func (p *PruningActivity) MarkComplete(exitCode int, deletedCount int) {
 	p.ExitCode = exitCode
 	p.DeletedCount = deletedCount
 }
+
+func (p *PruningActivity) IsInProgress() bool { return !p.Complete }

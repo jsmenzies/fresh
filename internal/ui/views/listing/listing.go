@@ -90,7 +90,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmds []tea.Cmd
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
-				if !isBusy(*repo) {
+				if !repo.IsBusy() {
 					repo.Activity = &domain.RefreshingActivity{
 						Spinner: common.NewRefreshSpinner(),
 					}
@@ -104,7 +104,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmds []tea.Cmd
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
-				if !isBusy(*repo) && shouldPull(*repo) {
+				if !repo.IsBusy() && repo.CanPull() {
 					repo.Activity = &domain.PullingActivity{
 						Spinner: common.NewPullSpinner(),
 					}
@@ -118,7 +118,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmds []tea.Cmd
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
-				if !isBusy(*repo) && len(repo.Branches.Merged) > 0 {
+				if !repo.IsBusy() && len(repo.Branches.Merged) > 0 {
 					repo.Activity = &domain.PruningActivity{
 						Spinner: common.NewPullSpinner(),
 					}
@@ -274,30 +274,4 @@ func buildFooter() string {
 	}
 	footerText := strings.Join(hotkeys, "  •  ")
 	return common.FooterStyle.Render(footerText)
-}
-
-func isBusy(repo domain.Repository) bool {
-	switch a := repo.Activity.(type) {
-	case *domain.IdleActivity:
-		return false
-	case *domain.RefreshingActivity:
-		return !a.Complete
-	case *domain.PullingActivity:
-		return !a.Complete
-	case *domain.PruningActivity:
-		return !a.Complete
-	default:
-		return false
-	}
-}
-
-func shouldPull(repo domain.Repository) bool {
-	switch s := repo.RemoteState.(type) {
-	case domain.Behind:
-		return s.Count > 0
-	case domain.Diverged:
-		return s.BehindCount > 0
-	default:
-		return false
-	}
 }
