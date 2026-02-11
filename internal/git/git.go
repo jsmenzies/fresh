@@ -15,33 +15,29 @@ var ProtectedBranches = []string{"main", "master", "develop", "dev", "production
 
 func BuildRepository(path string) domain.Repository {
 	repoName := filepath.Base(path)
-	branch := GetCurrentBranch(path)
 	localState := HasModifiedFiles(path)
 	remoteState := GetStatus(path)
 	lastCommitTime := GetLastCommitTime(path)
 	remoteURL := GetRemoteURL(path)
-	mergedBranches, squashedBranches, _ := GetMergedBranches(path, ProtectedBranches)
+	branches := BuildBranches(path, ProtectedBranches)
 
 	return domain.Repository{
-		Name:             repoName,
-		Path:             path,
-		Branch:           branch,
-		LocalState:       localState,
-		LastCommitTime:   lastCommitTime,
-		RemoteURL:        remoteURL,
-		RemoteState:      remoteState,
-		MergedBranches:   mergedBranches,
-		SquashedBranches: squashedBranches,
+		Name:           repoName,
+		Path:           path,
+		Branches:       branches,
+		LocalState:     localState,
+		LastCommitTime: lastCommitTime,
+		RemoteURL:      remoteURL,
+		RemoteState:    remoteState,
 	}
 }
 
 func RefreshRepositoryState(repo *domain.Repository) {
-	repo.Branch = GetCurrentBranch(repo.Path)
+	repo.Branches = BuildBranches(repo.Path, ProtectedBranches)
 	repo.LocalState = HasModifiedFiles(repo.Path)
 	repo.RemoteState = GetStatus(repo.Path)
 	repo.LastCommitTime = GetLastCommitTime(repo.Path)
 	repo.RemoteURL = GetRemoteURL(repo.Path)
-	repo.MergedBranches, repo.SquashedBranches, _ = GetMergedBranches(repo.Path, ProtectedBranches)
 }
 
 func IsGitInstalled() bool {
@@ -305,46 +301,91 @@ func splitOnCROrLF(data []byte, atEOF bool) (advance int, token []byte, err erro
 	return 0, nil, nil
 }
 
-func GetMergedBranches(repoPath string, excludedBranches []string) ([]string, []string, error) {
-	cmd := exec.Command("git", "branch", "--merged", "HEAD", "--format=%(refname:short)")
-	cmd.Dir = repoPath
-	output, err := cmd.Output()
+func BuildBranches(repoPath string, excludedBranches []string) domain.Branches {
+	branches := domain.Branches{}
+
+	branches.Current = GetCurrentBranch(repoPath)
+
+	allBranches, err := ListLocalBranches(repoPath)
 	if err != nil {
-		return nil, nil, err
+		// If we can't list branches, return with just current
+		return branches
 	}
 
-	currentBranch := ""
-	if branch, ok := GetCurrentBranch(repoPath).(domain.OnBranch); ok {
-		currentBranch = branch.Name
+	currentBranchName := ""
+	if branch, ok := branches.Current.(domain.OnBranch); ok {
+		currentBranchName = branch.Name
 	}
 
 	excludedMap := make(map[string]bool)
 	for _, branch := range excludedBranches {
 		excludedMap[branch] = true
 	}
+	excludedMap[currentBranchName] = true
 
-	var mergedBranches []string
-	var squashedBranches []string
-	scanner := bufio.NewScanner(strings.NewReader(string(output)))
-	for scanner.Scan() {
-		branch := strings.TrimSpace(scanner.Text())
-		if branch != "" && branch != currentBranch && !excludedMap[branch] {
-			if isBranchFullyMerged(repoPath, branch) {
-				mergedBranches = append(mergedBranches, branch)
-			} else {
-				squashedBranches = append(squashedBranches, branch)
-			}
+	var candidates []string
+	for _, branch := range allBranches {
+		if !excludedMap[branch] {
+			candidates = append(candidates, branch)
 		}
 	}
 
-	return mergedBranches, squashedBranches, scanner.Err()
+	branches.Merged = FilterMergedBranches(repoPath, candidates)
+	branches.Squashed = FilterSquashedBranches(candidates, branches.Merged)
+	return branches
 }
 
-func isBranchFullyMerged(repoPath string, branch string) bool {
-	cmd := exec.Command("git", "merge-base", "--is-ancestor", branch, "HEAD")
+func ListLocalBranches(repoPath string) ([]string, error) {
+	cmd := exec.Command("git", "branch", "--format=%(refname:short)")
+	cmd.Dir = repoPath
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	var branches []string
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		branch := strings.TrimSpace(scanner.Text())
+		if branch != "" {
+			branches = append(branches, branch)
+		}
+	}
+
+	return branches, scanner.Err()
+}
+
+func IsBranchFullyMerged(repoPath string, branchName string) bool {
+	cmd := exec.Command("git", "merge-base", "--is-ancestor", branchName, "HEAD")
 	cmd.Dir = repoPath
 	err := cmd.Run()
 	return err == nil
+}
+
+func FilterMergedBranches(repoPath string, branches []string) []string {
+	var merged []string
+	for _, branch := range branches {
+		if IsBranchFullyMerged(repoPath, branch) {
+			merged = append(merged, branch)
+		}
+	}
+	return merged
+}
+
+func FilterSquashedBranches(branches []string, mergedBranches []string) []string {
+	mergedMap := make(map[string]bool)
+	for _, b := range mergedBranches {
+		mergedMap[b] = true
+	}
+
+	var squashed []string
+	for _, branch := range branches {
+		if !mergedMap[branch] {
+			squashed = append(squashed, branch)
+		}
+	}
+
+	return squashed
 }
 
 func DeleteBranches(repoPath string, branches []string, lineCallback func(string)) (exitCode int, deletedCount int) {
@@ -374,6 +415,7 @@ func DeleteBranches(repoPath string, branches []string, lineCallback func(string
 	return 0, deletedCount
 }
 
+// DeleteSquashedBranches deletes squashed branches using force delete
 func DeleteSquashedBranches(repoPath string, branches []string, lineCallback func(string)) (exitCode int, deletedCount int) {
 	deletedCount = 0
 
@@ -384,9 +426,8 @@ func DeleteSquashedBranches(repoPath string, branches []string, lineCallback fun
 		outputStr := strings.TrimSpace(string(output))
 
 		if err != nil {
-			// Force delete should rarely fail, but handle it
 			if lineCallback != nil {
-				lineCallback(fmt.Sprintf("Error: %s", outputStr))
+				lineCallback(fmt.Sprintf("Failed: %s (%s)", branch, outputStr))
 			}
 			continue
 		}

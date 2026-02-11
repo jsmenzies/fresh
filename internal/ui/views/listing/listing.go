@@ -175,14 +175,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.Keys.prune):
 			if m.Cursor < len(m.Repositories) {
 				repo := &m.Repositories[m.Cursor]
-				if !isBusy(*repo) && canPrune(*repo) && len(repo.MergedBranches) > 0 {
+				if !isBusy(*repo) && canPrune(*repo) && len(repo.Branches.Merged) > 0 {
 					pruning := domain.PruningActivity{
 						Spinner: common.NewPullSpinner(),
 						Lines:   make([]string, 0),
 					}
 					repo.Activity = pruning
 					return m, tea.Batch(
-						performPrune(m.Cursor, repo.Path, repo.MergedBranches),
+						performPrune(m.Cursor, repo.Path, repo.Branches.Merged),
 						pruning.Spinner.Tick,
 					)
 				}
@@ -192,13 +192,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmds []tea.Cmd
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
-				if !isBusy(*repo) && canPrune(*repo) && len(repo.MergedBranches) > 0 {
+				if !isBusy(*repo) && canPrune(*repo) && len(repo.Branches.Merged) > 0 {
 					pruning := domain.PruningActivity{
 						Spinner: common.NewPullSpinner(),
 						Lines:   make([]string, 0),
 					}
 					repo.Activity = pruning
-					cmds = append(cmds, performPrune(i, repo.Path, repo.MergedBranches))
+					cmds = append(cmds, performPrune(i, repo.Path, repo.Branches.Merged))
 					cmds = append(cmds, pruning.Spinner.Tick)
 				}
 			}
@@ -207,14 +207,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.Keys.pruneSquashed):
 			if m.Cursor < len(m.Repositories) {
 				repo := &m.Repositories[m.Cursor]
-				if !isBusy(*repo) && canPrune(*repo) && len(repo.SquashedBranches) > 0 {
+				if !isBusy(*repo) && canPrune(*repo) && len(repo.Branches.Squashed) > 0 {
 					pruning := domain.PruningActivity{
 						Spinner: common.NewPullSpinner(),
 						Lines:   make([]string, 0),
 					}
 					repo.Activity = pruning
 					return m, tea.Batch(
-						performPruneSquashed(m.Cursor, repo.Path, repo.SquashedBranches),
+						performPruneSquashed(m.Cursor, repo.Path, repo.Branches.Squashed),
 						pruning.Spinner.Tick,
 					)
 				}
@@ -224,13 +224,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmds []tea.Cmd
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
-				if !isBusy(*repo) && canPrune(*repo) && len(repo.SquashedBranches) > 0 {
+				if !isBusy(*repo) && canPrune(*repo) && len(repo.Branches.Squashed) > 0 {
 					pruning := domain.PruningActivity{
 						Spinner: common.NewPullSpinner(),
 						Lines:   make([]string, 0),
 					}
 					repo.Activity = pruning
-					cmds = append(cmds, performPruneSquashed(i, repo.Path, repo.SquashedBranches))
+					cmds = append(cmds, performPruneSquashed(i, repo.Path, repo.Branches.Squashed))
 					cmds = append(cmds, pruning.Spinner.Tick)
 				}
 			}
@@ -420,7 +420,7 @@ func canPull(repo domain.Repository) bool {
 
 func canPrune(repo domain.Repository) bool {
 	// Only prune if on a proper branch (not detached HEAD)
-	if _, ok := repo.Branch.(domain.OnBranch); !ok {
+	if _, ok := repo.Branches.Current.(domain.OnBranch); !ok {
 		return false
 	}
 	return true

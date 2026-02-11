@@ -39,10 +39,10 @@ func GenerateTable(repositories []domain.Repository, cursor int) string {
 func repositoryToRow(repo domain.Repository, isSelected bool) []string {
 	selector := buildSelector(isSelected)
 	projectName := buildProjectName(repo.Name, isSelected)
-	branchName := buildBranchName(repo.Branch)
+	branchName := buildBranchName(repo.Branches.Current)
 	localCol := buildLocalStatus(repo.LocalState)
 	remoteCol := buildRemoteStatus(repo)
-	linksCol := buildLinks(repo.RemoteURL, repo.Branch)
+	linksCol := buildLinks(repo.RemoteURL, repo.Branches.Current)
 	lastUpdateCol := buildLastUpdate(repo)
 	info := buildInfo(repo)
 
@@ -175,8 +175,8 @@ func buildInfo(repo domain.Repository) string {
 	}
 
 	if content == "" {
-		mergedCount := len(repo.MergedBranches)
-		squashedCount := len(repo.SquashedBranches)
+		mergedCount := len(repo.Branches.Merged)
+		squashedCount := len(repo.Branches.Squashed)
 
 		if mergedCount > 0 || squashedCount > 0 {
 			var parts []string
