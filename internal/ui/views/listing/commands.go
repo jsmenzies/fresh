@@ -78,12 +78,8 @@ func performPrune(index int, repoPath string, branches []string) tea.Cmd {
 		doneChan := make(chan pruneCompleteMsg, 1)
 
 		go func() {
-			deletedCount := 0
 			lineCallback := func(line string) {
 				lineChan <- line
-				if len(line) > 9 && line[:9] == "Deleted: " {
-					deletedCount++
-				}
 			}
 
 			_, deleted := git.DeleteBranches(repoPath, branches, lineCallback)

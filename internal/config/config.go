@@ -1,7 +1,16 @@
 package config
 
+import "time"
+
+type TimeoutConfig struct {
+	Default time.Duration
+	Pull    time.Duration
+	Fetch   time.Duration
+}
+
 type Config struct {
 	ProtectedBranches []string
+	Timeout           TimeoutConfig
 }
 
 func DefaultConfig() *Config {
@@ -14,6 +23,11 @@ func DefaultConfig() *Config {
 			"production",
 			"staging",
 			"release",
+		},
+		Timeout: TimeoutConfig{
+			Default: 30 * time.Second,
+			Pull:    2 * time.Minute,
+			Fetch:   1 * time.Minute,
 		},
 	}
 }
