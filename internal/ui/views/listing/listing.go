@@ -53,7 +53,7 @@ func New(repos []domain.Repository) *Model {
 	})
 
 	for i := range repos {
-		repos[i].Activity = domain.IdleActivity{}
+		repos[i].Activity = &domain.IdleActivity{}
 	}
 
 	return &Model{
@@ -68,11 +68,11 @@ func (m *Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	for i := range m.Repositories {
 		repo := &m.Repositories[i]
-		repo.Activity = domain.RefreshingActivity{
+		repo.Activity = &domain.RefreshingActivity{
 			Spinner: common.NewRefreshSpinner(),
 		}
 		cmds = append(cmds, performRefresh(i, repo.Path))
-		cmds = append(cmds, repo.Activity.(domain.RefreshingActivity).Spinner.Tick)
+		cmds = append(cmds, repo.Activity.(*domain.RefreshingActivity).Spinner.Tick)
 	}
 	return tea.Batch(cmds...)
 }
@@ -91,12 +91,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
 				if !isBusy(*repo) {
-					refreshing := domain.RefreshingActivity{
+					repo.Activity = &domain.RefreshingActivity{
 						Spinner: common.NewRefreshSpinner(),
 					}
-					repo.Activity = refreshing
 					cmds = append(cmds, performRefresh(i, repo.Path))
-					cmds = append(cmds, refreshing.Spinner.Tick)
+					cmds = append(cmds, repo.Activity.(*domain.RefreshingActivity).Spinner.Tick)
 				}
 			}
 			return m, tea.Batch(cmds...)
@@ -106,12 +105,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
 				if !isBusy(*repo) && shouldPull(*repo) {
-					pulling := domain.PullingActivity{
+					repo.Activity = &domain.PullingActivity{
 						Spinner: common.NewPullSpinner(),
 					}
-					repo.Activity = pulling
 					cmds = append(cmds, performPull(i, repo.Path))
-					cmds = append(cmds, pulling.Spinner.Tick)
+					cmds = append(cmds, repo.Activity.(*domain.PullingActivity).Spinner.Tick)
 				}
 			}
 			return m, tea.Batch(cmds...)
@@ -121,12 +119,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
 				if !isBusy(*repo) && len(repo.Branches.Merged) > 0 {
-					pruning := domain.PruningActivity{
+					repo.Activity = &domain.PruningActivity{
 						Spinner: common.NewPullSpinner(),
 					}
-					repo.Activity = pruning
 					cmds = append(cmds, performPrune(i, repo.Path, repo.Branches.Merged))
-					cmds = append(cmds, pruning.Spinner.Tick)
+					cmds = append(cmds, repo.Activity.(*domain.PruningActivity).Spinner.Tick)
 				}
 			}
 			return m, tea.Batch(cmds...)
@@ -152,7 +149,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			activity := repo.Activity
 			*repo = msg.Repo
 
-			if refreshing, ok := activity.(domain.RefreshingActivity); ok {
+			if refreshing, ok := activity.(*domain.RefreshingActivity); ok {
 				refreshing.MarkComplete()
 				repo.Activity = refreshing
 			} else {
@@ -166,9 +163,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pullLineMsg:
 		if msg.Index < len(m.Repositories) {
 			repo := &m.Repositories[msg.Index]
-			if pulling, ok := repo.Activity.(domain.PullingActivity); ok {
+			if pulling, ok := repo.Activity.(*domain.PullingActivity); ok {
 				pulling.AddLine(msg.line)
-				repo.Activity = pulling
 			}
 		}
 		if msg.state != nil {
@@ -180,7 +176,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			repo := &m.Repositories[msg.Index]
 			activity := repo.Activity
 			*repo = msg.Repo
-			if pulling, ok := activity.(domain.PullingActivity); ok {
+			if pulling, ok := activity.(*domain.PullingActivity); ok {
 				pulling.MarkComplete(msg.exitCode)
 				repo.Activity = pulling
 			} else {
@@ -194,9 +190,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pruneLineMsg:
 		if msg.Index < len(m.Repositories) {
 			repo := &m.Repositories[msg.Index]
-			if pruning, ok := repo.Activity.(domain.PruningActivity); ok {
+			if pruning, ok := repo.Activity.(*domain.PruningActivity); ok {
 				pruning.AddLine(msg.line)
-				repo.Activity = pruning
 			}
 		}
 		if msg.state != nil {
@@ -208,7 +203,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			repo := &m.Repositories[msg.Index]
 			activity := repo.Activity
 			*repo = msg.Repo
-			if pruning, ok := activity.(domain.PruningActivity); ok {
+			if pruning, ok := activity.(*domain.PruningActivity); ok {
 				pruning.MarkComplete(msg.exitCode, msg.DeletedCount)
 				repo.Activity = pruning
 			} else {
@@ -220,25 +215,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmds []tea.Cmd
 		for i := range m.Repositories {
 			switch activity := m.Repositories[i].Activity.(type) {
-			case domain.RefreshingActivity:
+			case *domain.RefreshingActivity:
 				if !activity.Complete {
 					var cmd tea.Cmd
 					activity.Spinner, cmd = activity.Spinner.Update(msg)
-					m.Repositories[i].Activity = activity
 					cmds = append(cmds, cmd)
 				}
-			case domain.PullingActivity:
+			case *domain.PullingActivity:
 				if !activity.Complete {
 					var cmd tea.Cmd
 					activity.Spinner, cmd = activity.Spinner.Update(msg)
-					m.Repositories[i].Activity = activity
 					cmds = append(cmds, cmd)
 				}
-			case domain.PruningActivity:
+			case *domain.PruningActivity:
 				if !activity.Complete {
 					var cmd tea.Cmd
 					activity.Spinner, cmd = activity.Spinner.Update(msg)
-					m.Repositories[i].Activity = activity
 					cmds = append(cmds, cmd)
 				}
 			}
@@ -286,13 +278,13 @@ func buildFooter() string {
 
 func isBusy(repo domain.Repository) bool {
 	switch a := repo.Activity.(type) {
-	case domain.IdleActivity:
+	case *domain.IdleActivity:
 		return false
-	case domain.RefreshingActivity:
+	case *domain.RefreshingActivity:
 		return !a.Complete
-	case domain.PullingActivity:
+	case *domain.PullingActivity:
 		return !a.Complete
-	case domain.PruningActivity:
+	case *domain.PruningActivity:
 		return !a.Complete
 	default:
 		return false
