@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -19,22 +20,46 @@ func createCommand(timeout time.Duration, name string, args ...string) *exec.Cmd
 	return exec.CommandContext(ctx, name, args...)
 }
 
+func Parallel(fns ...func()) {
+	var wg sync.WaitGroup
+	for _, fn := range fns {
+		wg.Add(1)
+		go func(f func()) {
+			defer wg.Done()
+			f()
+		}(fn)
+	}
+	wg.Wait()
+}
+
 func BuildRepository(path string, cfg *config.Config) domain.Repository {
 	repoName := filepath.Base(path)
-	localState := GetLocalState(path)
-	remoteState := GetRemoteState(path)
-	lastCommitTime := GetLastCommitTime(path)
-	remoteURL := GetRemoteURL(path)
-	branches := BuildBranches(path, cfg.ProtectedBranches)
+
+	type result struct {
+		localState     domain.LocalState
+		remoteState    domain.RemoteState
+		lastCommitTime time.Time
+		remoteURL      string
+		branches       domain.Branches
+	}
+
+	var res result
+	Parallel(
+		func() { res.localState = GetLocalState(path) },
+		func() { res.remoteState = GetRemoteState(path) },
+		func() { res.lastCommitTime = GetLastCommitTime(path) },
+		func() { res.remoteURL = GetRemoteURL(path) },
+		func() { res.branches = BuildBranches(path, cfg.ProtectedBranches) },
+	)
 
 	return domain.Repository{
 		Name:           repoName,
 		Path:           path,
-		Branches:       branches,
-		LocalState:     localState,
-		LastCommitTime: lastCommitTime,
-		RemoteURL:      remoteURL,
-		RemoteState:    remoteState,
+		Branches:       res.branches,
+		LocalState:     res.localState,
+		LastCommitTime: res.lastCommitTime,
+		RemoteURL:      res.remoteURL,
+		RemoteState:    res.remoteState,
 	}
 }
 
@@ -402,7 +427,6 @@ func DeleteBranches(repoPath string, branches []string, lineCallback func(string
 		if lineCallback != nil {
 			lineCallback(fmt.Sprintf("Deleted: %s", branch))
 		}
-		_ = outputStr
 	}
 
 	return 0, deletedCount
