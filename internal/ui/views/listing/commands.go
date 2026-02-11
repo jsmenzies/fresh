@@ -6,6 +6,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+var ProtectedBranches = []string{"main", "master", "develop", "dev", "production", "staging", "release"}
+
 func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
 		repo := git.BuildRepository(repoPath)
@@ -62,6 +64,80 @@ func listenForPullProgress(state pullWorkState) tea.Cmd {
 		case line, ok := <-state.lineChan:
 			if ok {
 				return pullLineMsg{
+					Index: state.Index,
+					line:  line,
+					state: &state,
+				}
+			}
+			return <-state.doneChan
+		case complete := <-state.doneChan:
+			return complete
+		}
+	}
+}
+
+func performPrune(index int, repoPath string) tea.Cmd {
+	return func() tea.Msg {
+		branches, err := git.GetMergedBranches(repoPath, ProtectedBranches)
+		if err != nil {
+			return pruneCompleteMsg{
+				Index:        index,
+				exitCode:     1,
+				Repo:         git.BuildRepository(repoPath),
+				DeletedCount: 0,
+			}
+		}
+
+		if len(branches) == 0 {
+			return pruneCompleteMsg{
+				Index:        index,
+				exitCode:     0,
+				Repo:         git.BuildRepository(repoPath),
+				DeletedCount: 0,
+			}
+		}
+
+		lineChan := make(chan string, 10)
+		doneChan := make(chan pruneCompleteMsg, 1)
+
+		go func() {
+			deletedCount := 0
+			lineCallback := func(line string) {
+				lineChan <- line
+				if len(line) > 9 && line[:9] == "Deleted: " {
+					deletedCount++
+				}
+			}
+
+			_, deleted := git.DeleteBranches(repoPath, branches, lineCallback)
+
+			close(lineChan)
+
+			repo := git.BuildRepository(repoPath)
+
+			doneChan <- pruneCompleteMsg{
+				Index:        index,
+				exitCode:     0,
+				Repo:         repo,
+				DeletedCount: deleted,
+			}
+			close(doneChan)
+		}()
+
+		return pruneWorkState{
+			Index:    index,
+			lineChan: lineChan,
+			doneChan: doneChan,
+		}
+	}
+}
+
+func listenForPruneProgress(state pruneWorkState) tea.Cmd {
+	return func() tea.Msg {
+		select {
+		case line, ok := <-state.lineChan:
+			if ok {
+				return pruneLineMsg{
 					Index: state.Index,
 					line:  line,
 					state: &state,

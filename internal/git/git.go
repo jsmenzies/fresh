@@ -298,3 +298,60 @@ func splitOnCROrLF(data []byte, atEOF bool) (advance int, token []byte, err erro
 
 	return 0, nil, nil
 }
+
+func GetMergedBranches(repoPath string, excludedBranches []string) ([]string, error) {
+	cmd := exec.Command("git", "branch", "--merged", "HEAD", "--format=%(refname:short)")
+	cmd.Dir = repoPath
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	currentBranch := ""
+	if branch, ok := GetCurrentBranch(repoPath).(domain.OnBranch); ok {
+		currentBranch = branch.Name
+	}
+
+	excludedMap := make(map[string]bool)
+	for _, branch := range excludedBranches {
+		excludedMap[branch] = true
+	}
+
+	var mergedBranches []string
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		branch := strings.TrimSpace(scanner.Text())
+		if branch != "" && branch != currentBranch && !excludedMap[branch] {
+			mergedBranches = append(mergedBranches, branch)
+		}
+	}
+
+	return mergedBranches, scanner.Err()
+}
+
+func DeleteBranches(repoPath string, branches []string, lineCallback func(string)) (exitCode int, deletedCount int) {
+	deletedCount = 0
+
+	for _, branch := range branches {
+		cmd := exec.Command("git", "branch", "-d", branch)
+		cmd.Dir = repoPath
+		output, err := cmd.CombinedOutput()
+		outputStr := strings.TrimSpace(string(output))
+
+		if err != nil {
+			// Branch not fully merged (e.g., squashed) - skip it
+			if lineCallback != nil {
+				lineCallback(fmt.Sprintf("Skipped: %s (not merged)", branch))
+			}
+			continue
+		}
+
+		deletedCount++
+		if lineCallback != nil {
+			lineCallback(fmt.Sprintf("Deleted: %s", branch))
+		}
+		_ = outputStr
+	}
+
+	return 0, deletedCount
+}

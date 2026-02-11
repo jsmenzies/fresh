@@ -57,3 +57,43 @@ func (p *PullingActivity) GetAllOutput() string {
 	}
 	return result
 }
+
+type PruningActivity struct {
+	Spinner      spinner.Model
+	Lines        []string
+	DeletedCount int
+	TotalCount   int
+	ExitCode     int
+	Complete     bool
+}
+
+func (PruningActivity) isActivity() {}
+
+func (p *PruningActivity) AddLine(line string) {
+	p.Lines = append(p.Lines, line)
+}
+
+func (p *PruningActivity) GetLastLine() string {
+	if len(p.Lines) == 0 {
+		return ""
+	}
+	return p.Lines[len(p.Lines)-1]
+}
+
+func (p *PruningActivity) MarkComplete(exitCode int, deletedCount int) {
+	p.Complete = true
+	p.ExitCode = exitCode
+	p.DeletedCount = deletedCount
+}
+
+func (p *PruningActivity) GetAllOutput() string {
+	if len(p.Lines) == 0 {
+		return ""
+	}
+
+	var result string
+	for _, line := range p.Lines {
+		result += line + "\n"
+	}
+	return result
+}

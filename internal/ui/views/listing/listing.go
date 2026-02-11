@@ -16,6 +16,8 @@ type listKeyMap struct {
 	updateAll    key.Binding
 	pull         key.Binding
 	pullAll      key.Binding
+	prune        key.Binding
+	pruneAll     key.Binding
 	toggleLegend key.Binding
 }
 
@@ -36,6 +38,14 @@ func newListKeyMap() *listKeyMap {
 		pullAll: key.NewBinding(
 			key.WithKeys("ctrl+p"),
 			key.WithHelp("ctrl+p", "pull all"),
+		),
+		prune: key.NewBinding(
+			key.WithKeys("b"),
+			key.WithHelp("b", "prune merged"),
+		),
+		pruneAll: key.NewBinding(
+			key.WithKeys("ctrl+b"),
+			key.WithHelp("ctrl+b", "prune all"),
 		),
 		toggleLegend: key.NewBinding(
 			key.WithKeys("?"),
@@ -152,6 +162,38 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tea.Batch(cmds...)
 
+		case key.Matches(msg, m.Keys.prune):
+			if m.Cursor < len(m.Repositories) {
+				repo := &m.Repositories[m.Cursor]
+				if !isBusy(*repo) && canPrune(*repo) {
+					pruning := domain.PruningActivity{
+						Spinner: common.NewPullSpinner(),
+						Lines:   make([]string, 0),
+					}
+					repo.Activity = pruning
+					return m, tea.Batch(
+						performPrune(m.Cursor, repo.Path),
+						pruning.Spinner.Tick,
+					)
+				}
+			}
+
+		case key.Matches(msg, m.Keys.pruneAll):
+			var cmds []tea.Cmd
+			for i := range m.Repositories {
+				repo := &m.Repositories[i]
+				if !isBusy(*repo) && canPrune(*repo) {
+					pruning := domain.PruningActivity{
+						Spinner: common.NewPullSpinner(),
+						Lines:   make([]string, 0),
+					}
+					repo.Activity = pruning
+					cmds = append(cmds, performPrune(i, repo.Path))
+					cmds = append(cmds, pruning.Spinner.Tick)
+				}
+			}
+			return m, tea.Batch(cmds...)
+
 		case key.Matches(msg, m.Keys.toggleLegend):
 			m.ShowLegend = !m.ShowLegend
 			return m, nil
@@ -209,6 +251,34 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case pruneWorkState:
+		return m, listenForPruneProgress(msg)
+
+	case pruneLineMsg:
+		if msg.Index < len(m.Repositories) {
+			repo := &m.Repositories[msg.Index]
+			if pruning, ok := repo.Activity.(domain.PruningActivity); ok {
+				pruning.AddLine(msg.line)
+				repo.Activity = pruning
+			}
+		}
+		if msg.state != nil {
+			return m, listenForPruneProgress(*msg.state)
+		}
+
+	case pruneCompleteMsg:
+		if msg.Index < len(m.Repositories) {
+			repo := &m.Repositories[msg.Index]
+			activity := repo.Activity
+			*repo = msg.Repo
+			if pruning, ok := activity.(domain.PruningActivity); ok {
+				pruning.MarkComplete(msg.exitCode, msg.DeletedCount)
+				repo.Activity = pruning
+			} else {
+				repo.Activity = activity
+			}
+		}
+
 	case spinner.TickMsg:
 		var cmds []tea.Cmd
 		for i := range m.Repositories {
@@ -221,6 +291,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					cmds = append(cmds, cmd)
 				}
 			case domain.PullingActivity:
+				if !activity.Complete {
+					var cmd tea.Cmd
+					activity.Spinner, cmd = activity.Spinner.Update(msg)
+					m.Repositories[i].Activity = activity
+					cmds = append(cmds, cmd)
+				}
+			case domain.PruningActivity:
 				if !activity.Complete {
 					var cmd tea.Cmd
 					activity.Spinner, cmd = activity.Spinner.Update(msg)
@@ -264,6 +341,8 @@ func buildFooter() string {
 		"ctrl+r refresh all",
 		"p pull",
 		"ctrl+p pull all",
+		"b prune",
+		"ctrl+b prune all",
 		"? toggle legend",
 		"q quit",
 	}
@@ -279,6 +358,8 @@ func isBusy(repo domain.Repository) bool {
 		return !a.Complete
 	case domain.PullingActivity:
 		return !a.Complete
+	case domain.PruningActivity:
+		return !a.Complete
 	default:
 		return false
 	}
@@ -291,6 +372,14 @@ func canPull(repo domain.Repository) bool {
 	default:
 		return true
 	}
+}
+
+func canPrune(repo domain.Repository) bool {
+	// Only prune if on a proper branch (not detached HEAD)
+	if _, ok := repo.Branch.(domain.OnBranch); !ok {
+		return false
+	}
+	return true
 }
 
 func shouldPull(repo domain.Repository) bool {

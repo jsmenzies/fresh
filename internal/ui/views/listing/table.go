@@ -160,6 +160,18 @@ func buildInfo(repo domain.Repository) string {
 		if !activity.Complete {
 			content = ""
 		}
+	case domain.PruningActivity:
+		if !activity.Complete {
+			lastLine := activity.GetLastLine()
+			truncated := common.TruncateWithEllipsis(lastLine, common.InfoWidth-3)
+			content = common.FormatPullProgress(activity.Spinner.View(), truncated)
+		} else {
+			if activity.DeletedCount == 0 {
+				content = common.PullOutputWarn.Render("No branches to prune")
+			} else {
+				content = common.PullOutputSuccess.Render(fmt.Sprintf("Deleted %d branches", activity.DeletedCount))
+			}
+		}
 	}
 
 	if content == "" {
