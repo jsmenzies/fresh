@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+var ProtectedBranches = []string{"main", "master", "develop", "dev", "production", "staging", "release"}
+
 func BuildRepository(path string) domain.Repository {
 	repoName := filepath.Base(path)
 	branch := GetCurrentBranch(path)
@@ -18,6 +20,7 @@ func BuildRepository(path string) domain.Repository {
 	remoteState := GetStatus(path)
 	lastCommitTime := GetLastCommitTime(path)
 	remoteURL := GetRemoteURL(path)
+	mergedBranches, _ := GetMergedBranches(path, ProtectedBranches)
 
 	return domain.Repository{
 		Name:           repoName,
@@ -27,6 +30,7 @@ func BuildRepository(path string) domain.Repository {
 		LastCommitTime: lastCommitTime,
 		RemoteURL:      remoteURL,
 		RemoteState:    remoteState,
+		MergedBranches: mergedBranches,
 	}
 }
 
@@ -36,6 +40,7 @@ func RefreshRepositoryState(repo *domain.Repository) {
 	repo.RemoteState = GetStatus(repo.Path)
 	repo.LastCommitTime = GetLastCommitTime(repo.Path)
 	repo.RemoteURL = GetRemoteURL(repo.Path)
+	repo.MergedBranches, _ = GetMergedBranches(repo.Path, ProtectedBranches)
 }
 
 func IsGitInstalled() bool {

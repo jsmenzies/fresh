@@ -165,14 +165,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.Keys.prune):
 			if m.Cursor < len(m.Repositories) {
 				repo := &m.Repositories[m.Cursor]
-				if !isBusy(*repo) && canPrune(*repo) {
+				if !isBusy(*repo) && canPrune(*repo) && len(repo.MergedBranches) > 0 {
 					pruning := domain.PruningActivity{
 						Spinner: common.NewPullSpinner(),
 						Lines:   make([]string, 0),
 					}
 					repo.Activity = pruning
 					return m, tea.Batch(
-						performPrune(m.Cursor, repo.Path),
+						performPrune(m.Cursor, repo.Path, repo.MergedBranches),
 						pruning.Spinner.Tick,
 					)
 				}
@@ -182,13 +182,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmds []tea.Cmd
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
-				if !isBusy(*repo) && canPrune(*repo) {
+				if !isBusy(*repo) && canPrune(*repo) && len(repo.MergedBranches) > 0 {
 					pruning := domain.PruningActivity{
 						Spinner: common.NewPullSpinner(),
 						Lines:   make([]string, 0),
 					}
 					repo.Activity = pruning
-					cmds = append(cmds, performPrune(i, repo.Path))
+					cmds = append(cmds, performPrune(i, repo.Path, repo.MergedBranches))
 					cmds = append(cmds, pruning.Spinner.Tick)
 				}
 			}

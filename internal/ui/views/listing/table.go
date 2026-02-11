@@ -175,15 +175,24 @@ func buildInfo(repo domain.Repository) string {
 	}
 
 	if content == "" {
-		switch s := repo.RemoteState.(type) {
-		case domain.NoUpstream:
-			content = common.RenderStatusMessage(common.MsgNoUpstream, common.InfoWidth)
-		case domain.DetachedRemote:
-			content = common.RenderStatusMessage(common.MsgDetached, common.InfoWidth)
-		case domain.RemoteError:
-			content = common.RemoteStatusErrorText.Render(common.TruncateWithEllipsis(s.Message, common.InfoWidth))
-		case domain.Diverged:
-			content = common.RenderStatusMessage(common.MsgDiverged, common.InfoWidth)
+		// Check for merged branches first
+		if len(repo.MergedBranches) > 0 {
+			branchText := "branch(es)"
+			if len(repo.MergedBranches) == 1 {
+				branchText = "branch"
+			}
+			content = common.TextBlue.Render(fmt.Sprintf("%d merged %s can be cleaned", len(repo.MergedBranches), branchText))
+		} else {
+			switch s := repo.RemoteState.(type) {
+			case domain.NoUpstream:
+				content = common.RenderStatusMessage(common.MsgNoUpstream, common.InfoWidth)
+			case domain.DetachedRemote:
+				content = common.RenderStatusMessage(common.MsgDetached, common.InfoWidth)
+			case domain.RemoteError:
+				content = common.RemoteStatusErrorText.Render(common.TruncateWithEllipsis(s.Message, common.InfoWidth))
+			case domain.Diverged:
+				content = common.RenderStatusMessage(common.MsgDiverged, common.InfoWidth)
+			}
 		}
 	}
 

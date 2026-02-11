@@ -6,8 +6,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-var ProtectedBranches = []string{"main", "master", "develop", "dev", "production", "staging", "release"}
-
 func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
 		repo := git.BuildRepository(repoPath)
@@ -76,26 +74,9 @@ func listenForPullProgress(state pullWorkState) tea.Cmd {
 	}
 }
 
-func performPrune(index int, repoPath string) tea.Cmd {
+func performPrune(index int, repoPath string, branches []string) tea.Cmd {
 	return func() tea.Msg {
-		branches, err := git.GetMergedBranches(repoPath, ProtectedBranches)
-		if err != nil {
-			return pruneCompleteMsg{
-				Index:        index,
-				exitCode:     1,
-				Repo:         git.BuildRepository(repoPath),
-				DeletedCount: 0,
-			}
-		}
-
-		if len(branches) == 0 {
-			return pruneCompleteMsg{
-				Index:        index,
-				exitCode:     0,
-				Repo:         git.BuildRepository(repoPath),
-				DeletedCount: 0,
-			}
-		}
+		// Note: branches are pre-fetched and passed in
 
 		lineChan := make(chan string, 10)
 		doneChan := make(chan pruneCompleteMsg, 1)

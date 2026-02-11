@@ -12,4 +12,5 @@ type Repository struct {
 	LastCommitTime time.Time
 	Activity       Activity
 	ErrorMessage   string
+	MergedBranches []string
 }
