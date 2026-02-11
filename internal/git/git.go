@@ -3,6 +3,7 @@ package git
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"fresh/internal/config"
 	"fresh/internal/domain"
@@ -11,6 +12,14 @@ import (
 	"strings"
 	"time"
 )
+
+const defaultTimeout = 30 * time.Second
+
+func createCommand(timeout time.Duration, name string, args ...string) *exec.Cmd {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	_ = cancel
+	return exec.CommandContext(ctx, name, args...)
+}
 
 func BuildRepository(path string, cfg *config.Config) domain.Repository {
 	repoName := filepath.Base(path)
@@ -352,27 +361,23 @@ func ListLocalBranches(repoPath string) ([]string, error) {
 	return branches, scanner.Err()
 }
 
-func IsBranchFullyMerged(repoPath string, branchName string) bool {
-	cmd := exec.Command("git", "branch", "--merged", "HEAD", "--format=%(refname:short)")
+func FilterMergedBranches(repoPath string, branches []string) []string {
+	cmd := createCommand(defaultTimeout, "git", "branch", "--merged", "HEAD", "--format=%(refname:short)")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
-		return false
+		return nil
 	}
 
+	mergedSet := make(map[string]bool)
 	scanner := bufio.NewScanner(strings.NewReader(string(output)))
 	for scanner.Scan() {
-		if strings.TrimSpace(scanner.Text()) == branchName {
-			return true
-		}
+		mergedSet[strings.TrimSpace(scanner.Text())] = true
 	}
-	return false
-}
 
-func FilterMergedBranches(repoPath string, branches []string) []string {
 	var merged []string
 	for _, branch := range branches {
-		if IsBranchFullyMerged(repoPath, branch) {
+		if mergedSet[branch] {
 			merged = append(merged, branch)
 		}
 	}
