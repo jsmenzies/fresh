@@ -2,6 +2,7 @@ package scanning
 
 import (
 	"fmt"
+	"fresh/internal/config"
 	"fresh/internal/domain"
 	"fresh/internal/git"
 	"fresh/internal/scanner"
@@ -11,6 +12,8 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+var cfg = config.DefaultConfig()
 
 type Model struct {
 	Repositories  []domain.Repository
@@ -45,7 +48,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case repoFoundMsg:
 		path := string(msg)
-		repo := git.BuildRepository(path)
+		repo := git.BuildRepository(path, cfg)
 		m.Repositories = append(m.Repositories, repo)
 		return m, waitForRepo(m.scanner.GetRepoChannel())
 

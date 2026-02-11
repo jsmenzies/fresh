@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"fresh/internal/config"
 	"fresh/internal/domain"
 	"os/exec"
 	"path/filepath"
@@ -11,15 +12,13 @@ import (
 	"time"
 )
 
-var ProtectedBranches = []string{"main", "master", "develop", "dev", "production", "staging", "release"}
-
-func BuildRepository(path string) domain.Repository {
+func BuildRepository(path string, cfg *config.Config) domain.Repository {
 	repoName := filepath.Base(path)
 	localState := HasModifiedFiles(path)
 	remoteState := GetStatus(path)
 	lastCommitTime := GetLastCommitTime(path)
 	remoteURL := GetRemoteURL(path)
-	branches := BuildBranches(path, ProtectedBranches)
+	branches := BuildBranches(path, cfg.ProtectedBranches)
 
 	return domain.Repository{
 		Name:           repoName,

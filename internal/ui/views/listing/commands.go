@@ -1,16 +1,19 @@
 package listing
 
 import (
+	"fresh/internal/config"
 	"fresh/internal/git"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+var cfg = config.DefaultConfig()
+
 func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
 		// Fetch first, then build the repo to get fresh status (avoids 3x GetStatus calls)
 		git.Fetch(repoPath)
-		repo := git.BuildRepository(repoPath)
+		repo := git.BuildRepository(repoPath, cfg)
 
 		return RepoUpdatedMsg{
 			Repo:  repo,
@@ -31,7 +34,7 @@ func performPull(index int, repoPath string) tea.Cmd {
 
 			close(lineChan)
 
-			repo := git.BuildRepository(repoPath)
+			repo := git.BuildRepository(repoPath, cfg)
 
 			doneChan <- pullCompleteMsg{
 				Index:    index,
@@ -87,7 +90,7 @@ func performPrune(index int, repoPath string, branches []string) tea.Cmd {
 
 			close(lineChan)
 
-			repo := git.BuildRepository(repoPath)
+			repo := git.BuildRepository(repoPath, cfg)
 
 			doneChan <- pruneCompleteMsg{
 				Index:        index,
