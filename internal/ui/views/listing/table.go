@@ -11,14 +11,23 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 )
 
-func GenerateTable(repositories []domain.Repository, cursor int) string {
+const (
+	MaxProjectWidth = 50
+	MaxBranchWidth  = 30
+	MinProjectWidth = 22
+	MinBranchWidth  = 8
+)
+
+func GenerateTable(repositories []domain.Repository, cursor int, terminalWidth int) string {
+	projectWidth, branchWidth := calculateColumnWidths(repositories, terminalWidth)
+
 	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "", "LAST COMMIT", "LINKS"}
 
 	rows := make([][]string, len(repositories))
 	for i, repo := range repositories {
 		isSelected := i == cursor
 
-		rows[i] = repositoryToRow(repo, isSelected)
+		rows[i] = repositoryToRow(repo, isSelected, projectWidth, branchWidth)
 	}
 
 	t := table.New().
@@ -36,10 +45,82 @@ func GenerateTable(repositories []domain.Repository, cursor int) string {
 	return t.Render()
 }
 
-func repositoryToRow(repo domain.Repository, isSelected bool) []string {
+func calculateColumnWidths(repositories []domain.Repository, terminalWidth int) (projectWidth, branchWidth int) {
+	// Calculate max content length
+	maxProjectLen := 0
+	maxBranchLen := 0
+
+	for _, repo := range repositories {
+		if len(repo.Name) > maxProjectLen {
+			maxProjectLen = len(repo.Name)
+		}
+
+		if branch, ok := repo.Branches.Current.(domain.OnBranch); ok {
+			if len(branch.Name) > maxBranchLen {
+				maxBranchLen = len(branch.Name)
+			}
+		}
+	}
+
+	// Apply minimums
+	if maxProjectLen < MinProjectWidth {
+		maxProjectLen = MinProjectWidth
+	}
+	if maxBranchLen < MinBranchWidth {
+		maxBranchLen = MinBranchWidth
+	}
+
+	// Apply maximums
+	if maxProjectLen > MaxProjectWidth {
+		maxProjectLen = MaxProjectWidth
+	}
+	if maxBranchLen > MaxBranchWidth {
+		maxBranchLen = MaxBranchWidth
+	}
+
+	// If terminal width is known, ensure we don't exceed it
+	if terminalWidth > 0 {
+		// Fixed columns: selector(2) + local(15) + remote(11) + info(42) + last commit(?) + links(8) + padding
+		fixedWidth := 2 + 15 + 11 + 42 + 20 + 8 + 10 // approximate
+		availableWidth := terminalWidth - fixedWidth
+
+		if availableWidth > 0 {
+			totalContentWidth := maxProjectLen + maxBranchLen
+			if totalContentWidth > availableWidth {
+				// Proportionally reduce both columns
+				ratio := float64(maxProjectLen) / float64(totalContentWidth)
+				projectWidth = int(float64(availableWidth) * ratio)
+				branchWidth = availableWidth - projectWidth
+
+				// Ensure minimums are still met
+				if projectWidth < MinProjectWidth {
+					projectWidth = MinProjectWidth
+					branchWidth = availableWidth - projectWidth
+				}
+				if branchWidth < MinBranchWidth {
+					branchWidth = MinBranchWidth
+					projectWidth = availableWidth - branchWidth
+				}
+			} else {
+				projectWidth = maxProjectLen
+				branchWidth = maxBranchLen
+			}
+		} else {
+			projectWidth = maxProjectLen
+			branchWidth = maxBranchLen
+		}
+	} else {
+		projectWidth = maxProjectLen
+		branchWidth = maxBranchLen
+	}
+
+	return projectWidth, branchWidth
+}
+
+func repositoryToRow(repo domain.Repository, isSelected bool, projectWidth, branchWidth int) []string {
 	selector := buildSelector(isSelected)
-	projectName := buildProjectName(repo.Name, isSelected)
-	branchName := buildBranchName(repo.Branches.Current)
+	projectName := buildProjectName(repo.Name, isSelected, projectWidth)
+	branchName := buildBranchName(repo.Branches.Current, branchWidth)
 	localCol := buildLocalStatus(repo.LocalState)
 	remoteCol := buildRemoteStatus(repo)
 	linksCol := buildLinks(repo.RemoteURL, repo.Branches.Current)
@@ -65,23 +146,43 @@ func buildSelector(isSelected bool) string {
 	return common.SelectorStyle.Render(" ")
 }
 
-func buildProjectName(name string, isSelected bool) string {
+func buildProjectName(name string, isSelected bool, width int) string {
+	style := lipgloss.NewStyle().
+		Foreground(common.TextPrimary).
+		Align(lipgloss.Left).
+		Width(width).
+		MaxWidth(width).
+		AlignHorizontal(lipgloss.Left)
+
 	if isSelected {
-		return common.ProjectNameStyle.Bold(true).Render(name)
+		style = style.Bold(true)
 	}
-	return common.ProjectNameStyle.Render(name)
+
+	return style.Render(name)
 }
 
-func buildBranchName(branch domain.Branch) string {
+func buildBranchName(branch domain.Branch, width int) string {
+	style := lipgloss.NewStyle().
+		Align(lipgloss.Left).
+		Width(width).
+		MaxWidth(width).
+		Height(1).
+		MaxHeight(1).
+		AlignHorizontal(lipgloss.Left).
+		Foreground(common.TextBranch)
+
 	switch s := branch.(type) {
 	case domain.NoBranch:
-		return common.BranchNameEmpty
+		emptyStyle := style.Foreground(common.SubtleGray)
+		return emptyStyle.Render("")
 	case domain.DetachedHead:
-		return common.BranchNameHead
+		headStyle := style.Foreground(common.SubtleGray)
+		return headStyle.Render(common.BranchHead)
 	case domain.OnBranch:
-		return common.BranchNameStyle.Render(s.Name)
+		return style.Render(s.Name)
 	default:
-		return common.BranchNameEmpty
+		emptyStyle := style.Foreground(common.SubtleGray)
+		return emptyStyle.Render("")
 	}
 }
 
