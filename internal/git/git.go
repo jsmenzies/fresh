@@ -301,37 +301,28 @@ func splitOnCROrLF(data []byte, atEOF bool) (advance int, token []byte, err erro
 	return 0, nil, nil
 }
 
-// Branch operations - composable functions
-
-// BuildBranches composes all branch operations into a single Branches object.
-// Each operation can fail independently - failures don't stop other operations.
 func BuildBranches(repoPath string, excludedBranches []string) domain.Branches {
 	branches := domain.Branches{}
 
-	// Get current branch
 	branches.Current = GetCurrentBranch(repoPath)
 
-	// Get list of all local branches once
 	allBranches, err := ListLocalBranches(repoPath)
 	if err != nil {
 		// If we can't list branches, return with just current
 		return branches
 	}
 
-	// Get current branch name for exclusion
 	currentBranchName := ""
 	if branch, ok := branches.Current.(domain.OnBranch); ok {
 		currentBranchName = branch.Name
 	}
 
-	// Build excluded map
 	excludedMap := make(map[string]bool)
 	for _, branch := range excludedBranches {
 		excludedMap[branch] = true
 	}
 	excludedMap[currentBranchName] = true
 
-	// Filter candidates (excluding current and protected)
 	var candidates []string
 	for _, branch := range allBranches {
 		if !excludedMap[branch] {
@@ -339,16 +330,11 @@ func BuildBranches(repoPath string, excludedBranches []string) domain.Branches {
 		}
 	}
 
-	// Get merged branches from the pre-fetched list
 	branches.Merged = FilterMergedBranches(repoPath, candidates)
-
-	// Get squashed branches (those not merged but candidates for cleanup)
 	branches.Squashed = FilterSquashedBranches(candidates, branches.Merged)
-
 	return branches
 }
 
-// ListLocalBranches returns all local branch names
 func ListLocalBranches(repoPath string) ([]string, error) {
 	cmd := exec.Command("git", "branch", "--format=%(refname:short)")
 	cmd.Dir = repoPath
@@ -369,7 +355,6 @@ func ListLocalBranches(repoPath string) ([]string, error) {
 	return branches, scanner.Err()
 }
 
-// IsBranchFullyMerged checks if a branch is fully merged into HEAD using merge-base
 func IsBranchFullyMerged(repoPath string, branchName string) bool {
 	cmd := exec.Command("git", "merge-base", "--is-ancestor", branchName, "HEAD")
 	cmd.Dir = repoPath
@@ -377,7 +362,6 @@ func IsBranchFullyMerged(repoPath string, branchName string) bool {
 	return err == nil
 }
 
-// FilterMergedBranches filters a list of branches to return only fully merged ones
 func FilterMergedBranches(repoPath string, branches []string) []string {
 	var merged []string
 	for _, branch := range branches {
@@ -388,16 +372,12 @@ func FilterMergedBranches(repoPath string, branches []string) []string {
 	return merged
 }
 
-// FilterSquashedBranches returns branches that aren't in the merged list
-// These are candidates for squashed merge cleanup
 func FilterSquashedBranches(branches []string, mergedBranches []string) []string {
-	// Build set of merged branches for quick lookup
 	mergedMap := make(map[string]bool)
 	for _, b := range mergedBranches {
 		mergedMap[b] = true
 	}
 
-	// Squashed branches are those not in the merged list
 	var squashed []string
 	for _, branch := range branches {
 		if !mergedMap[branch] {
@@ -408,7 +388,6 @@ func FilterSquashedBranches(branches []string, mergedBranches []string) []string
 	return squashed
 }
 
-// DeleteBranches deletes branches with line-by-line progress reporting
 func DeleteBranches(repoPath string, branches []string, lineCallback func(string)) (exitCode int, deletedCount int) {
 	deletedCount = 0
 
