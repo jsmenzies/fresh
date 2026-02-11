@@ -22,14 +22,7 @@ const (
 	Blue   = lipgloss.Color("#52A2FF")
 
 	DividerColor = lipgloss.Color("#414868")
-	InfoWidth    = 42
 	Padding      = 2
-
-	RowHeight         = 1
-	BranchWidth       = 8
-	MaxBranchWidth    = 12
-	LocalStatusWidth  = 15
-	RemoteStatusWidth = 11
 )
 
 var TableBorderStyle = lipgloss.NewStyle().Foreground(DividerColor)
@@ -60,50 +53,10 @@ var TableHeaderStyle = lipgloss.NewStyle().
 	Bold(true).
 	Align(lipgloss.Left)
 
-var ProjectNameStyle = lipgloss.NewStyle().
-	Foreground(TextPrimary).
-	Align(lipgloss.Left).
-	Width(22).
-	MaxWidth(30).
-	AlignHorizontal(lipgloss.Left)
-
-var branchBaseStyle = lipgloss.NewStyle().
-	Align(lipgloss.Left).
-	Width(BranchWidth).
-	MaxWidth(MaxBranchWidth).
-	Height(RowHeight).
-	MaxHeight(RowHeight).
-	AlignHorizontal(lipgloss.Left)
-
-var BranchNameStyle = branchBaseStyle.
-	Foreground(TextBranch)
-
-var BranchNameEmpty = branchBaseStyle.
-	Foreground(SubtleGray).
-	Render("")
-
-var BranchNameHead = branchBaseStyle.
-	Foreground(SubtleGray).
-	Render(BranchHead)
-
 var LocalStatusBaseStyle = lipgloss.NewStyle().
-	Width(LocalStatusWidth).
-	MaxWidth(LocalStatusWidth).
-	Height(RowHeight).
-	MaxHeight(RowHeight).
+	Height(1).
+	MaxHeight(1).
 	AlignHorizontal(lipgloss.Left)
-
-var LocalStatusClean = LocalStatusBaseStyle.
-	Foreground(Green).
-	Render(IconClean)
-
-//Render(IconClean + " " + StatusClean)
-
-var LocalStatusDirtyStyle = LocalStatusBaseStyle.
-	Foreground(Yellow)
-
-var LocalStatusDirty = LocalStatusDirtyStyle.
-	Render(IconDirty + " " + StatusDirty)
 
 var LocalStatusUntrackedItem = lipgloss.NewStyle().Foreground(Red)
 var LocalStatusDirtyItem = lipgloss.NewStyle().Foreground(Yellow)
@@ -112,35 +65,15 @@ var TextSubtleGreen = lipgloss.NewStyle().Foreground(SubtleGreen)
 var TextBlue = lipgloss.NewStyle().Foreground(Blue)
 var TextGrey = lipgloss.NewStyle().Foreground(SubtleGray)
 
-var LocalStatusUntracked = LocalStatusBaseStyle.
-	Foreground(Yellow).
-	Render(IconUntracked + " " + StatusUntracked)
-
-var LocalStatusError = LocalStatusBaseStyle.
-	Render("")
-
-var remoteStatusBaseStyle = lipgloss.NewStyle().
-	Width(RemoteStatusWidth).
-	MaxWidth(RemoteStatusWidth).
-	Height(RowHeight).
-	MaxHeight(RowHeight).
+var RemoteStatusBaseStyle = lipgloss.NewStyle().
+	Height(1).
+	MaxHeight(1).
 	AlignHorizontal(lipgloss.Left)
 
-var RemoteStatusSynced = remoteStatusBaseStyle.
-	Foreground(SubtleGreen).
-	Render(IconSynced)
-
-var RemoteStatusError = remoteStatusBaseStyle.
-	Foreground(SubtleRed).
-	Render(IconRemoteError)
-
-var RemoteStatusCountsStyle = remoteStatusBaseStyle.
+var RemoteStatusCountsStyle = RemoteStatusBaseStyle.
 	Foreground(Blue)
 
-var RemoteStatusUpdating = remoteStatusBaseStyle.
-	Align(lipgloss.Left)
-
-func RemoteStatusCounts(behind int, ahead int) string {
+func RemoteStatusCounts(behind int, ahead int, width int) string {
 	content := ""
 	if behind > 0 && ahead > 0 {
 		content = fmt.Sprintf(IconAhead+" %d / "+IconBehind+" %d", ahead, behind)
@@ -150,7 +83,10 @@ func RemoteStatusCounts(behind int, ahead int) string {
 		content = fmt.Sprintf(IconAhead+" %d", ahead)
 	}
 
-	return RemoteStatusCountsStyle.Render(content)
+	return RemoteStatusCountsStyle.
+		Width(width).
+		MaxWidth(width).
+		Render(content)
 }
 
 var RemoteStatusErrorText = lipgloss.NewStyle().
@@ -167,11 +103,9 @@ var LinkStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).
 	Bold(true)
 
-var LinksStyle = lipgloss.NewStyle().
-	Width(8)
+var LinksStyle = lipgloss.NewStyle()
 
 var BadgeStyle = lipgloss.NewStyle().
-	Width(8).
 	Inline(true).
 	MarginLeft(2)
 
@@ -180,38 +114,32 @@ var TimeAgoStyle = lipgloss.NewStyle().
 
 var PullOutputSuccess = lipgloss.NewStyle().
 	Foreground(Green).
-	Width(InfoWidth).
 	Height(1).
 	MaxHeight(1).
 	Inline(true)
 
 var PullOutputUpToDate = lipgloss.NewStyle().
 	Foreground(TextPrimary).
-	Width(InfoWidth).
 	Height(1).
 	MaxHeight(1).
 	Inline(true)
 
 var PullOutputWarn = lipgloss.NewStyle().
 	Foreground(Yellow).
-	Width(InfoWidth).
 	Height(1).
 	MaxHeight(1).
 	Inline(true)
 
 var PullOutputError = lipgloss.NewStyle().
 	Foreground(Red).
-	Width(InfoWidth).
 	Height(1).
 	MaxHeight(1).
 	Inline(true)
 
-var PullProgressStyle = lipgloss.NewStyle().
-	Width(InfoWidth - 2)
+var PullProgressStyle = lipgloss.NewStyle()
 
 var InfoStyle = lipgloss.NewStyle().
-	Width(InfoWidth).
-	MaxWidth(InfoWidth).MaxHeight(1)
+	MaxHeight(1)
 
 const (
 	LabelNoUpstream = "No upstream "
@@ -253,8 +181,8 @@ func TruncateWithEllipsis(text string, maxWidth int) string {
 	return string(runes[:maxWidth-3]) + "..."
 }
 
-func FormatPullProgress(spinnerView string, lastLine string) string {
-	return spinnerView + " " + PullProgressStyle.Render(lastLine)
+func FormatPullProgress(spinnerView string, lastLine string, width int) string {
+	return spinnerView + " " + PullProgressStyle.Width(width).Render(lastLine)
 }
 
 const (
@@ -302,7 +230,6 @@ const (
 
 var SelectorStyle = lipgloss.NewStyle().
 	Foreground(Blue).
-	Width(2).
 	Bold(true)
 
 var HeaderStyle = lipgloss.NewStyle().

@@ -47,7 +47,7 @@ func RenderLegend(show bool) string {
 	col2 := lipgloss.JoinVertical(lipgloss.Left, process(c2)...)
 	col3 := lipgloss.JoinVertical(lipgloss.Left, process(c3)...)
 
-	colStyle := lipgloss.NewStyle().Width(20)
+	colStyle := lipgloss.NewStyle().Width(LegendColWidth)
 
 	grid := lipgloss.JoinHorizontal(lipgloss.Top, colStyle.Render(col1), colStyle.Render(col2), colStyle.Render(col3))
 
