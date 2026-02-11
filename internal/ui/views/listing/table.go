@@ -167,7 +167,19 @@ func buildInfo(repo domain.Repository) string {
 			content = common.FormatPullProgress(activity.Spinner.View(), truncated)
 		} else {
 			if activity.DeletedCount == 0 {
-				content = common.PullOutputWarn.Render("No branches to prune")
+				// Check for error messages in the output lines
+				var firstError string
+				for _, line := range activity.Lines {
+					if strings.HasPrefix(line, "Failed: ") {
+						firstError = strings.TrimPrefix(line, "Failed: ")
+						break
+					}
+				}
+				if firstError != "" {
+					content = common.PullOutputError.Render(common.TruncateWithEllipsis(firstError, common.InfoWidth))
+				} else {
+					content = common.PullOutputWarn.Render("No branches to prune")
+				}
 			} else {
 				content = common.PullOutputSuccess.Render(fmt.Sprintf("Deleted %d branches", activity.DeletedCount))
 			}
@@ -175,35 +187,24 @@ func buildInfo(repo domain.Repository) string {
 	}
 
 	if content == "" {
-		mergedCount := len(repo.Branches.Merged)
-		squashedCount := len(repo.Branches.Squashed)
-
-		if mergedCount > 0 || squashedCount > 0 {
-			var parts []string
+		// Check for remote errors first
+		switch s := repo.RemoteState.(type) {
+		case domain.RemoteError:
+			content = common.RemoteStatusErrorText.Render(common.TruncateWithEllipsis(s.Message, common.InfoWidth))
+		default:
+			// No error, check for prunable branches
+			mergedCount := len(repo.Branches.Merged)
 			if mergedCount > 0 {
-				branchText := "branches"
+				mergedText := "branches"
 				if mergedCount == 1 {
-					branchText = "branch"
+					mergedText = "branch"
 				}
-				parts = append(parts, common.TextBlue.Render(fmt.Sprintf("%d merged %s", mergedCount, branchText)))
-			}
-			if squashedCount > 0 {
-				branchText := "branches"
-				if squashedCount == 1 {
-					branchText = "branch"
-				}
-				parts = append(parts, common.LocalStatusDirtyStyle.Render(fmt.Sprintf("%d squashed %s", squashedCount, branchText)))
-			}
-			content = strings.Join(parts, ", ") + " can be cleaned"
-		} else {
-			switch s := repo.RemoteState.(type) {
-			case domain.NoUpstream:
+				content = common.TextGrey.Render(fmt.Sprintf("%d prunable %s", mergedCount, mergedText))
+			} else if _, ok := repo.RemoteState.(domain.NoUpstream); ok {
 				content = common.RenderStatusMessage(common.MsgNoUpstream, common.InfoWidth)
-			case domain.DetachedRemote:
+			} else if _, ok := repo.RemoteState.(domain.DetachedRemote); ok {
 				content = common.RenderStatusMessage(common.MsgDetached, common.InfoWidth)
-			case domain.RemoteError:
-				content = common.RemoteStatusErrorText.Render(common.TruncateWithEllipsis(s.Message, common.InfoWidth))
-			case domain.Diverged:
+			} else if _, ok := repo.RemoteState.(domain.Diverged); ok {
 				content = common.RenderStatusMessage(common.MsgDiverged, common.InfoWidth)
 			}
 		}
