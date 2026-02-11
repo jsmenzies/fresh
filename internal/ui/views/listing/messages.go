@@ -24,3 +24,22 @@ type pullWorkState struct {
 	lineChan chan string
 	doneChan chan pullCompleteMsg
 }
+
+type pruneWorkState struct {
+	Index    int
+	lineChan chan string
+	doneChan chan pruneCompleteMsg
+}
+
+type pruneLineMsg struct {
+	Index int
+	line  string
+	state *pruneWorkState
+}
+
+type pruneCompleteMsg struct {
+	Index        int
+	exitCode     int
+	Repo         domain.Repository
+	DeletedCount int
+}
