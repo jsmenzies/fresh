@@ -11,5 +11,4 @@ type Repository struct {
 	RemoteState    RemoteState
 	LastCommitTime time.Time
 	Activity       Activity
-	ErrorMessage   string
 }

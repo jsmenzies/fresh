@@ -108,7 +108,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if !isBusy(*repo) && shouldPull(*repo) {
 					pulling := domain.PullingActivity{
 						Spinner: common.NewPullSpinner(),
-						Lines:   make([]string, 0),
 					}
 					repo.Activity = pulling
 					cmds = append(cmds, performPull(i, repo.Path))
@@ -124,7 +123,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if !isBusy(*repo) && len(repo.Branches.Merged) > 0 {
 					pruning := domain.PruningActivity{
 						Spinner: common.NewPullSpinner(),
-						Lines:   make([]string, 0),
 					}
 					repo.Activity = pruning
 					cmds = append(cmds, performPrune(i, repo.Path, repo.Branches.Merged))

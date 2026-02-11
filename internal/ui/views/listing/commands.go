@@ -10,13 +10,7 @@ func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
 		repo := git.BuildRepository(repoPath)
 
-		err := git.RefreshRemoteStatusWithFetch(&repo)
-		if err != nil {
-			repo.ErrorMessage = err.Error()
-		} else {
-			repo.ErrorMessage = ""
-		}
-
+		git.RefreshRemoteStatusWithFetch(&repo)
 		repo.RemoteState = git.GetStatus(repoPath)
 
 		return RepoUpdatedMsg{
