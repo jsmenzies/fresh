@@ -191,6 +191,13 @@ func GetLastCommitTime(repoPath string) time.Time {
 	return time.Unix(timestamp, 0)
 }
 
+func Fetch(repoPath string) error {
+	cmd := exec.Command("git", "fetch", "--quiet")
+	cmd.Dir = repoPath
+	_, err := cmd.CombinedOutput()
+	return err
+}
+
 func RefreshRemoteStatusWithFetch(repo *domain.Repository) error {
 	cmd := exec.Command("git", "fetch", "--quiet")
 	cmd.Dir = repo.Path

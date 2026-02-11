@@ -8,10 +8,9 @@ import (
 
 func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
+		// Fetch first, then build the repo to get fresh status (avoids 3x GetStatus calls)
+		git.Fetch(repoPath)
 		repo := git.BuildRepository(repoPath)
-
-		git.RefreshRemoteStatusWithFetch(&repo)
-		repo.RemoteState = git.GetStatus(repoPath)
 
 		return RepoUpdatedMsg{
 			Repo:  repo,

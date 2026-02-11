@@ -15,7 +15,7 @@ type RefreshingActivity struct {
 	Complete bool
 }
 
-func (RefreshingActivity) isActivity() {}
+func (*RefreshingActivity) isActivity() {}
 
 func (r *RefreshingActivity) MarkComplete() {
 	r.Complete = true
@@ -43,7 +43,7 @@ type PullingActivity struct {
 	Complete bool
 }
 
-func (PullingActivity) isActivity() {}
+func (*PullingActivity) isActivity() {}
 
 func (p *PullingActivity) MarkComplete(exitCode int) {
 	p.Complete = true
@@ -58,7 +58,7 @@ type PruningActivity struct {
 	Complete     bool
 }
 
-func (PruningActivity) isActivity() {}
+func (*PruningActivity) isActivity() {}
 
 func (p *PruningActivity) MarkComplete(exitCode int, deletedCount int) {
 	p.Complete = true
