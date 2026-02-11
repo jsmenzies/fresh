@@ -259,7 +259,7 @@ func (m *Model) View() string {
 		return s.String()
 	}
 
-	s.WriteString(GenerateTable(m.Repositories, m.Cursor))
+	s.WriteString(GenerateTable(m.Repositories, m.Cursor, m.width))
 	s.WriteString("\n\n")
 
 	s.WriteString(buildFooter())
