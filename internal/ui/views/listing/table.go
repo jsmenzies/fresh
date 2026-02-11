@@ -39,10 +39,10 @@ func GenerateTable(repositories []domain.Repository, cursor int) string {
 func repositoryToRow(repo domain.Repository, isSelected bool) []string {
 	selector := buildSelector(isSelected)
 	projectName := buildProjectName(repo.Name, isSelected)
-	branchName := buildBranchName(repo.Branch)
+	branchName := buildBranchName(repo.Branches.Current)
 	localCol := buildLocalStatus(repo.LocalState)
 	remoteCol := buildRemoteStatus(repo)
-	linksCol := buildLinks(repo.RemoteURL, repo.Branch)
+	linksCol := buildLinks(repo.RemoteURL, repo.Branches.Current)
 	lastUpdateCol := buildLastUpdate(repo)
 	info := buildInfo(repo)
 
@@ -167,7 +167,19 @@ func buildInfo(repo domain.Repository) string {
 			content = common.FormatPullProgress(activity.Spinner.View(), truncated)
 		} else {
 			if activity.DeletedCount == 0 {
-				content = common.PullOutputWarn.Render("No branches to prune")
+				// Check for error messages in the output lines
+				var firstError string
+				for _, line := range activity.Lines {
+					if strings.HasPrefix(line, "Failed: ") {
+						firstError = strings.TrimPrefix(line, "Failed: ")
+						break
+					}
+				}
+				if firstError != "" {
+					content = common.PullOutputError.Render(common.TruncateWithEllipsis(firstError, common.InfoWidth))
+				} else {
+					content = common.PullOutputWarn.Render("No branches to prune")
+				}
 			} else {
 				content = common.PullOutputSuccess.Render(fmt.Sprintf("Deleted %d branches", activity.DeletedCount))
 			}
@@ -175,15 +187,26 @@ func buildInfo(repo domain.Repository) string {
 	}
 
 	if content == "" {
+		// Check for remote errors first
 		switch s := repo.RemoteState.(type) {
-		case domain.NoUpstream:
-			content = common.RenderStatusMessage(common.MsgNoUpstream, common.InfoWidth)
-		case domain.DetachedRemote:
-			content = common.RenderStatusMessage(common.MsgDetached, common.InfoWidth)
 		case domain.RemoteError:
 			content = common.RemoteStatusErrorText.Render(common.TruncateWithEllipsis(s.Message, common.InfoWidth))
-		case domain.Diverged:
-			content = common.RenderStatusMessage(common.MsgDiverged, common.InfoWidth)
+		default:
+			// No error, check for prunable branches
+			mergedCount := len(repo.Branches.Merged)
+			if mergedCount > 0 {
+				mergedText := "branches"
+				if mergedCount == 1 {
+					mergedText = "branch"
+				}
+				content = common.TextGrey.Render(fmt.Sprintf("%d prunable %s", mergedCount, mergedText))
+			} else if _, ok := repo.RemoteState.(domain.NoUpstream); ok {
+				content = common.RenderStatusMessage(common.MsgNoUpstream, common.InfoWidth)
+			} else if _, ok := repo.RemoteState.(domain.DetachedRemote); ok {
+				content = common.RenderStatusMessage(common.MsgDetached, common.InfoWidth)
+			} else if _, ok := repo.RemoteState.(domain.Diverged); ok {
+				content = common.RenderStatusMessage(common.MsgDiverged, common.InfoWidth)
+			}
 		}
 	}
 

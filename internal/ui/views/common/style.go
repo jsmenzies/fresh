@@ -110,6 +110,7 @@ var LocalStatusDirtyItem = lipgloss.NewStyle().Foreground(Yellow)
 var TextGreen = lipgloss.NewStyle().Foreground(Green)
 var TextSubtleGreen = lipgloss.NewStyle().Foreground(SubtleGreen)
 var TextBlue = lipgloss.NewStyle().Foreground(Blue)
+var TextGrey = lipgloss.NewStyle().Foreground(SubtleGray)
 
 var LocalStatusUntracked = LocalStatusBaseStyle.
 	Foreground(Yellow).

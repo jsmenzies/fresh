@@ -6,10 +6,9 @@ type Repository struct {
 	Name           string
 	Path           string
 	RemoteURL      string
-	Branch         Branch
+	Branches       Branches
 	LocalState     LocalState
 	RemoteState    RemoteState
 	LastCommitTime time.Time
 	Activity       Activity
-	ErrorMessage   string
 }
