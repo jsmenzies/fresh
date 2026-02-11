@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.11.0](https://github.com/jsmenzies/fresh/compare/v1.10.0...v1.11.0) (2026-02-11)
+
+
+### Features
+
+* dynamic column sizing for repo and branch names ([1e45d77](https://github.com/jsmenzies/fresh/commit/1e45d77cde65b167013f3bd7cce6f243e8e9f66c))
+* dynamic column sizing for repo and branch names ([cd427fc](https://github.com/jsmenzies/fresh/commit/cd427fc7c21dc0728e1c610e09de4b94d259d5ee))
+* dynamic column sizing for repo and branch names ([ffa391b](https://github.com/jsmenzies/fresh/commit/ffa391b05d06c229ba0e2f790d1f3a15795f74ff))
+
+
+### Bug Fixes
+
+* improve validateScanDir error handling ([ac83ed8](https://github.com/jsmenzies/fresh/commit/ac83ed8cedd9c9f9f8c246b773dbb04f20e7b0e9))
+
+
+### Code Refactoring
+
+* extract layout constants and pointer-based activities ([b7e321f](https://github.com/jsmenzies/fresh/commit/b7e321fe3a4aabed9489fb516bd561e5949ee550))
+* extract layout constants from styles into dedicated layout module ([dd8521d](https://github.com/jsmenzies/fresh/commit/dd8521d70d9ab7d06e7009fbf814a55e3cd89a83))
+* **git:** optimize FilterMergedBranches and add command timeouts ([5c6f2b5](https://github.com/jsmenzies/fresh/commit/5c6f2b5deb411f47222296af50d1ebabad1c5dd1))
+* improve dynamic column sizing with centralized widths and helpers ([a3bfeba](https://github.com/jsmenzies/fresh/commit/a3bfebababdb00957162350ae42256fcff0bb077))
+* improve dynamic column sizing with centralized widths and helpers ([5b2db66](https://github.com/jsmenzies/fresh/commit/5b2db66557c620062103f1fd4f5ef21dd8fbf328))
+* move git operation timeouts to config ([c0770d7](https://github.com/jsmenzies/fresh/commit/c0770d79d7dbfc249947d765e68550e13b10c285))
+* move git operation timeouts to config ([e25d78c](https://github.com/jsmenzies/fresh/commit/e25d78cad4c31f96b19e6c83f85d4bc4f5a38944))
+* move git operation timeouts to config ([17afc89](https://github.com/jsmenzies/fresh/commit/17afc89bf5ef33bc33787f59a082eaba499b399f))
+* move GitHub URL logic from UI to git package ([374ecb5](https://github.com/jsmenzies/fresh/commit/374ecb5dddf2027e98d80629e7a4acb2900dc707))
+* use pointer-based activities to eliminate fragile copy-mutation pattern ([065d7ab](https://github.com/jsmenzies/fresh/commit/065d7ab9e790da8ed3d283a15b08c7d861c20fb8))
+* use pointer-based activities to eliminate fragile copy-mutation pattern ([2ce3db2](https://github.com/jsmenzies/fresh/commit/2ce3db23d2793d957cb73ab4ab3530ca15d1ebbb))
+
 ## [1.10.0](https://github.com/jsmenzies/fresh/compare/v1.9.5...v1.10.0) (2026-02-11)
 
 
