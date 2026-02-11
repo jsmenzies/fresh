@@ -13,8 +13,6 @@ import (
 	"time"
 )
 
-const defaultTimeout = 30 * time.Second
-
 func createCommand(timeout time.Duration, name string, args ...string) *exec.Cmd {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	_ = cancel
@@ -23,8 +21,8 @@ func createCommand(timeout time.Duration, name string, args ...string) *exec.Cmd
 
 func BuildRepository(path string, cfg *config.Config) domain.Repository {
 	repoName := filepath.Base(path)
-	localState := HasModifiedFiles(path)
-	remoteState := GetStatus(path)
+	localState := GetLocalState(path)
+	remoteState := GetRemoteState(path)
 	lastCommitTime := GetLastCommitTime(path)
 	remoteURL := GetRemoteURL(path)
 	branches := BuildBranches(path, cfg.ProtectedBranches)
@@ -41,20 +39,20 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 }
 
 func IsGitInstalled() bool {
-	cmd := exec.Command("git", "--version")
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "--version")
 	err := cmd.Run()
 	return err == nil
 }
 
 func IsRepository(path string) bool {
-	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "rev-parse", "--is-inside-work-tree")
 	cmd.Dir = path
 	err := cmd.Run()
 	return err == nil
 }
 
 func GetRemoteURL(repoPath string) string {
-	cmd := exec.Command("git", "remote", "get-url", "origin")
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "remote", "get-url", "origin")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -65,7 +63,7 @@ func GetRemoteURL(repoPath string) string {
 }
 
 func GetCurrentBranch(repoPath string) domain.Branch {
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	cmd.Dir = repoPath
 	branch, err := cmd.Output()
 	if err != nil {
@@ -83,8 +81,8 @@ func GetCurrentBranch(repoPath string) domain.Branch {
 	}
 }
 
-func HasModifiedFiles(repoPath string) domain.LocalState {
-	cmd := exec.Command("git", "status", "--porcelain=v2")
+func GetLocalState(repoPath string) domain.LocalState {
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "status", "--porcelain=v2")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 
@@ -135,8 +133,8 @@ func HasModifiedFiles(repoPath string) domain.LocalState {
 	}
 }
 
-func GetStatus(repoPath string) domain.RemoteState {
-	cmd := exec.Command("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
+func GetRemoteState(repoPath string) domain.RemoteState {
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 
@@ -179,7 +177,7 @@ func GetStatus(repoPath string) domain.RemoteState {
 }
 
 func GetLastCommitTime(repoPath string) time.Time {
-	cmd := exec.Command("git", "log", "-1", "--format=%ct")
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "log", "-1", "--format=%ct")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -200,14 +198,14 @@ func GetLastCommitTime(repoPath string) time.Time {
 }
 
 func Fetch(repoPath string) error {
-	cmd := exec.Command("git", "fetch", "--quiet")
+	cmd := createCommand(config.DefaultConfig().Timeout.Fetch, "git", "fetch", "--quiet")
 	cmd.Dir = repoPath
 	_, err := cmd.CombinedOutput()
 	return err
 }
 
 func RefreshRemoteStatusWithFetch(repo *domain.Repository) error {
-	cmd := exec.Command("git", "fetch", "--quiet")
+	cmd := createCommand(config.DefaultConfig().Timeout.Fetch, "git", "fetch", "--quiet")
 	cmd.Dir = repo.Path
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -219,12 +217,12 @@ func RefreshRemoteStatusWithFetch(repo *domain.Repository) error {
 		return fmt.Errorf("fetch failed: %s", errMsg)
 	}
 
-	repo.RemoteState = GetStatus(repo.Path)
+	repo.RemoteState = GetRemoteState(repo.Path)
 	return nil
 }
 
 func Pull(repoPath string, lineCallback func(string)) int {
-	cmd := exec.Command("git", "pull", "--rebase", "--progress")
+	cmd := createCommand(config.DefaultConfig().Timeout.Pull, "git", "pull", "--rebase", "--progress")
 	cmd.Dir = repoPath
 
 	stderrPipe, err := cmd.StderrPipe()
@@ -342,7 +340,7 @@ func BuildBranches(repoPath string, excludedBranches []string) domain.Branches {
 }
 
 func ListLocalBranches(repoPath string) ([]string, error) {
-	cmd := exec.Command("git", "branch", "--format=%(refname:short)")
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "branch", "--format=%(refname:short)")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -362,7 +360,7 @@ func ListLocalBranches(repoPath string) ([]string, error) {
 }
 
 func FilterMergedBranches(repoPath string, branches []string) []string {
-	cmd := createCommand(defaultTimeout, "git", "branch", "--merged", "HEAD", "--format=%(refname:short)")
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "branch", "--merged", "HEAD", "--format=%(refname:short)")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -388,7 +386,7 @@ func DeleteBranches(repoPath string, branches []string, lineCallback func(string
 	deletedCount = 0
 
 	for _, branch := range branches {
-		cmd := exec.Command("git", "branch", "-d", branch)
+		cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "branch", "-d", branch)
 		cmd.Dir = repoPath
 		output, err := cmd.CombinedOutput()
 		outputStr := strings.TrimSpace(string(output))
