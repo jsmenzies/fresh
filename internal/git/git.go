@@ -3,6 +3,7 @@ package git
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"fresh/internal/domain"
 	"os/exec"
@@ -12,6 +13,14 @@ import (
 )
 
 var ProtectedBranches = []string{"main", "master", "develop", "dev", "production", "staging", "release"}
+
+const defaultTimeout = 30 * time.Second
+
+func createCommand(timeout time.Duration, name string, args ...string) *exec.Cmd {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	_ = cancel // explicitly ignore the cancel function to suppress the warning
+	return exec.CommandContext(ctx, name, args...)
+}
 
 func BuildRepository(path string) domain.Repository {
 	repoName := filepath.Base(path)
@@ -33,20 +42,20 @@ func BuildRepository(path string) domain.Repository {
 }
 
 func IsGitInstalled() bool {
-	cmd := exec.Command("git", "--version")
+	cmd := createCommand(defaultTimeout, "git", "--version")
 	err := cmd.Run()
 	return err == nil
 }
 
 func IsRepository(path string) bool {
-	cmd := exec.Command("git", "rev-parse", "--is-inside-work-tree")
+	cmd := createCommand(defaultTimeout, "git", "rev-parse", "--is-inside-work-tree")
 	cmd.Dir = path
 	err := cmd.Run()
 	return err == nil
 }
 
 func GetRemoteURL(repoPath string) string {
-	cmd := exec.Command("git", "remote", "get-url", "origin")
+	cmd := createCommand(defaultTimeout, "git", "remote", "get-url", "origin")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -57,7 +66,7 @@ func GetRemoteURL(repoPath string) string {
 }
 
 func GetCurrentBranch(repoPath string) domain.Branch {
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd := createCommand(defaultTimeout, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	cmd.Dir = repoPath
 	branch, err := cmd.Output()
 	if err != nil {
@@ -76,7 +85,7 @@ func GetCurrentBranch(repoPath string) domain.Branch {
 }
 
 func HasModifiedFiles(repoPath string) domain.LocalState {
-	cmd := exec.Command("git", "status", "--porcelain=v2")
+	cmd := createCommand(defaultTimeout, "git", "status", "--porcelain=v2")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 
@@ -128,26 +137,20 @@ func HasModifiedFiles(repoPath string) domain.LocalState {
 }
 
 func GetStatus(repoPath string) domain.RemoteState {
-	cmd := exec.Command("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
+	cmd := createCommand(defaultTimeout, "git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 
 	if err != nil {
 		errStr := string(err.(*exec.ExitError).Stderr)
-
-		if strings.Contains(errStr, "no upstream") {
+		switch {
+		case strings.Contains(errStr, "no upstream"), strings.Contains(errStr, "bad revision"):
 			return domain.NoUpstream{}
-		}
-		if strings.Contains(errStr, "does not point to a branch") {
+		case strings.Contains(errStr, "does not point to a branch"), strings.Contains(errStr, "no such branch:"):
 			return domain.DetachedRemote{}
+		default:
+			return domain.RemoteError{Message: errStr}
 		}
-		if strings.Contains(errStr, "bad revision") {
-			return domain.NoUpstream{}
-		}
-		if strings.Contains(errStr, "no such branch:") {
-			return domain.DetachedRemote{}
-		}
-		return domain.RemoteError{Message: errStr}
 	}
 
 	var ahead, behind int
@@ -171,7 +174,7 @@ func GetStatus(repoPath string) domain.RemoteState {
 }
 
 func GetLastCommitTime(repoPath string) time.Time {
-	cmd := exec.Command("git", "log", "-1", "--format=%ct")
+	cmd := createCommand(defaultTimeout, "git", "log", "-1", "--format=%ct")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -192,7 +195,7 @@ func GetLastCommitTime(repoPath string) time.Time {
 }
 
 func RefreshRemoteStatusWithFetch(repo *domain.Repository) error {
-	cmd := exec.Command("git", "fetch", "--quiet")
+	cmd := createCommand(60*time.Second, "git", "fetch", "--quiet")
 	cmd.Dir = repo.Path
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -209,7 +212,7 @@ func RefreshRemoteStatusWithFetch(repo *domain.Repository) error {
 }
 
 func Pull(repoPath string, lineCallback func(string)) int {
-	cmd := exec.Command("git", "pull", "--rebase", "--progress")
+	cmd := createCommand(120*time.Second, "git", "pull", "--rebase", "--progress")
 	cmd.Dir = repoPath
 
 	stderrPipe, err := cmd.StderrPipe()
@@ -327,7 +330,7 @@ func BuildBranches(repoPath string, excludedBranches []string) domain.Branches {
 }
 
 func ListLocalBranches(repoPath string) ([]string, error) {
-	cmd := exec.Command("git", "branch", "--format=%(refname:short)")
+	cmd := createCommand(defaultTimeout, "git", "branch", "--format=%(refname:short)")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -346,27 +349,23 @@ func ListLocalBranches(repoPath string) ([]string, error) {
 	return branches, scanner.Err()
 }
 
-func IsBranchFullyMerged(repoPath string, branchName string) bool {
-	cmd := exec.Command("git", "branch", "--merged", "HEAD", "--format=%(refname:short)")
+func FilterMergedBranches(repoPath string, branches []string) []string {
+	cmd := createCommand(defaultTimeout, "git", "branch", "--merged", "HEAD", "--format=%(refname:short)")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
-		return false
+		return nil
 	}
 
+	mergedSet := make(map[string]bool)
 	scanner := bufio.NewScanner(strings.NewReader(string(output)))
 	for scanner.Scan() {
-		if strings.TrimSpace(scanner.Text()) == branchName {
-			return true
-		}
+		mergedSet[strings.TrimSpace(scanner.Text())] = true
 	}
-	return false
-}
 
-func FilterMergedBranches(repoPath string, branches []string) []string {
 	var merged []string
 	for _, branch := range branches {
-		if IsBranchFullyMerged(repoPath, branch) {
+		if mergedSet[branch] {
 			merged = append(merged, branch)
 		}
 	}
@@ -377,7 +376,7 @@ func DeleteBranches(repoPath string, branches []string, lineCallback func(string
 	deletedCount = 0
 
 	for _, branch := range branches {
-		cmd := exec.Command("git", "branch", "-d", branch)
+		cmd := createCommand(defaultTimeout, "git", "branch", "-d", branch)
 		cmd.Dir = repoPath
 		output, err := cmd.CombinedOutput()
 		outputStr := strings.TrimSpace(string(output))

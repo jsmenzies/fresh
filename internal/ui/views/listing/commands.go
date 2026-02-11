@@ -9,9 +9,7 @@ import (
 func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
 		repo := git.BuildRepository(repoPath)
-
 		git.RefreshRemoteStatusWithFetch(&repo)
-		repo.RemoteState = git.GetStatus(repoPath)
 
 		return RepoUpdatedMsg{
 			Repo:  repo,
