@@ -13,10 +13,7 @@ import (
 
 type listKeyMap struct {
 	refresh      key.Binding
-	updateAll    key.Binding
-	pull         key.Binding
 	pullAll      key.Binding
-	prune        key.Binding
 	pruneAll     key.Binding
 	toggleLegend key.Binding
 }
@@ -25,27 +22,15 @@ func newListKeyMap() *listKeyMap {
 	return &listKeyMap{
 		refresh: key.NewBinding(
 			key.WithKeys("r"),
-			key.WithHelp("r", "refresh remote"),
-		),
-		updateAll: key.NewBinding(
-			key.WithKeys("ctrl+r"),
-			key.WithHelp("ctrl+r", "refresh all"),
-		),
-		pull: key.NewBinding(
-			key.WithKeys("p"),
-			key.WithHelp("p", "pull"),
+			key.WithHelp("r", "refresh"),
 		),
 		pullAll: key.NewBinding(
-			key.WithKeys("ctrl+p"),
-			key.WithHelp("ctrl+p", "pull all"),
-		),
-		prune: key.NewBinding(
-			key.WithKeys("b"),
-			key.WithHelp("b", "prune prunable"),
+			key.WithKeys("p"),
+			key.WithHelp("p", "pull all updates"),
 		),
 		pruneAll: key.NewBinding(
-			key.WithKeys("ctrl+b"),
-			key.WithHelp("ctrl+b", "prune all"),
+			key.WithKeys("b"),
+			key.WithHelp("b", "prune merged branches"),
 		),
 		toggleLegend: key.NewBinding(
 			key.WithKeys("?"),
@@ -102,21 +87,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.Keys.refresh):
-			if m.Cursor < len(m.Repositories) {
-				repo := &m.Repositories[m.Cursor]
-				if !isBusy(*repo) {
-					refreshing := domain.RefreshingActivity{
-						Spinner: common.NewRefreshSpinner(),
-					}
-					repo.Activity = refreshing
-					return m, tea.Batch(
-						performRefresh(m.Cursor, repo.Path),
-						refreshing.Spinner.Tick,
-					)
-				}
-			}
-
-		case key.Matches(msg, m.Keys.updateAll):
 			var cmds []tea.Cmd
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
@@ -131,21 +101,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tea.Batch(cmds...)
 
-		case key.Matches(msg, m.Keys.pull):
-			if m.Cursor < len(m.Repositories) {
-				repo := &m.Repositories[m.Cursor]
-				if !isBusy(*repo) && canPull(*repo) {
-					pulling := domain.PullingActivity{
-						Spinner: common.NewPullSpinner(),
-						Lines:   make([]string, 0),
-					}
-					repo.Activity = pulling
-					return m, tea.Batch(
-						performPull(m.Cursor, repo.Path),
-						pulling.Spinner.Tick,
-					)
-				}
-			}
 		case key.Matches(msg, m.Keys.pullAll):
 			var cmds []tea.Cmd
 			for i := range m.Repositories {
@@ -162,27 +117,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tea.Batch(cmds...)
 
-		case key.Matches(msg, m.Keys.prune):
-			if m.Cursor < len(m.Repositories) {
-				repo := &m.Repositories[m.Cursor]
-				if !isBusy(*repo) && canPrune(*repo) && len(repo.Branches.Merged) > 0 {
-					pruning := domain.PruningActivity{
-						Spinner: common.NewPullSpinner(),
-						Lines:   make([]string, 0),
-					}
-					repo.Activity = pruning
-					return m, tea.Batch(
-						performPrune(m.Cursor, repo.Path, repo.Branches.Merged),
-						pruning.Spinner.Tick,
-					)
-				}
-			}
-
 		case key.Matches(msg, m.Keys.pruneAll):
 			var cmds []tea.Cmd
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
-				if !isBusy(*repo) && canPrune(*repo) && len(repo.Branches.Merged) > 0 {
+				if !isBusy(*repo) && len(repo.Branches.Merged) > 0 {
 					pruning := domain.PruningActivity{
 						Spinner: common.NewPullSpinner(),
 						Lines:   make([]string, 0),
@@ -338,11 +277,8 @@ func buildFooter() string {
 	hotkeys := []string{
 		"↑/↓ navigate",
 		"r refresh",
-		"ctrl+r refresh all",
-		"p pull",
-		"ctrl+p pull all",
-		"b prune prunable",
-		"ctrl+b prune prunable all",
+		"p pull all updates",
+		"b prune merged branches",
 		"? toggle legend",
 		"q quit",
 	}
@@ -363,23 +299,6 @@ func isBusy(repo domain.Repository) bool {
 	default:
 		return false
 	}
-}
-
-func canPull(repo domain.Repository) bool {
-	switch repo.RemoteState.(type) {
-	case domain.NoUpstream, domain.DetachedRemote, domain.RemoteError:
-		return false
-	default:
-		return true
-	}
-}
-
-func canPrune(repo domain.Repository) bool {
-	// Only prune if on a proper branch (not detached HEAD)
-	if _, ok := repo.Branches.Current.(domain.OnBranch); !ok {
-		return false
-	}
-	return true
 }
 
 func shouldPull(repo domain.Repository) bool {
