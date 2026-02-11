@@ -115,8 +115,15 @@ func runApp(cfg *Config) {
 }
 
 func validateScanDir(dir string) error {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return fmt.Errorf("directory does not exist: %s", dir)
+	info, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("directory does not exist: %s", dir)
+		}
+		return fmt.Errorf("cannot access directory %s: %w", dir, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("path is not a directory: %s", dir)
 	}
 	return nil
 }
