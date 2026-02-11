@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"fresh/internal/domain"
+	"fresh/internal/git"
 	"fresh/internal/ui/views/common"
 
 	"github.com/charmbracelet/lipgloss"
@@ -279,13 +280,13 @@ func buildLastUpdate(repo domain.Repository) string {
 func buildLinks(url string, branch domain.Branch) string {
 	var branchName string
 	if url != "" {
-		if common.IsGitHubRepository(url) {
+		if git.IsGitHubRepository(url) {
 			if _, ok := branch.(domain.OnBranch); !ok {
 				branchName = ""
 			} else {
 				branchName = branch.(domain.OnBranch).Name
 			}
-			githubURLs := common.BuildGitHubURLs(url, branchName)
+			githubURLs := git.BuildGitHubURLs(url, branchName)
 			if githubURLs != nil {
 				var shortcuts []string
 
