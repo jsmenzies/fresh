@@ -18,6 +18,23 @@ const (
 	MinBranchWidth  = 8
 )
 
+// Column width constants - centralized to avoid magic numbers
+const (
+	SelectorWidth   = 2
+	LocalWidth      = 15
+	RemoteWidth     = 11
+	InfoWidth       = 42
+	LastCommitWidth = 20
+	LinksWidth      = 8
+	InterColumnGap  = 2 // spacing between columns
+)
+
+// Total fixed width (non-project/branch columns)
+func totalFixedWidth() int {
+	return SelectorWidth + LocalWidth + RemoteWidth + InfoWidth +
+		LastCommitWidth + LinksWidth + (6 * InterColumnGap)
+}
+
 func GenerateTable(repositories []domain.Repository, cursor int, terminalWidth int) string {
 	projectWidth, branchWidth := calculateColumnWidths(repositories, terminalWidth)
 
@@ -26,7 +43,6 @@ func GenerateTable(repositories []domain.Repository, cursor int, terminalWidth i
 	rows := make([][]string, len(repositories))
 	for i, repo := range repositories {
 		isSelected := i == cursor
-
 		rows[i] = repositoryToRow(repo, isSelected, projectWidth, branchWidth)
 	}
 
@@ -46,7 +62,12 @@ func GenerateTable(repositories []domain.Repository, cursor int, terminalWidth i
 }
 
 func calculateColumnWidths(repositories []domain.Repository, terminalWidth int) (projectWidth, branchWidth int) {
-	// Calculate max content length
+	// Empty repos edge case: return minimum widths
+	if len(repositories) == 0 {
+		return MinProjectWidth, MinBranchWidth
+	}
+
+	// Find max content length (including detached HEAD label)
 	maxProjectLen := 0
 	maxBranchLen := 0
 
@@ -55,66 +76,86 @@ func calculateColumnWidths(repositories []domain.Repository, terminalWidth int) 
 			maxProjectLen = len(repo.Name)
 		}
 
-		if branch, ok := repo.Branches.Current.(domain.OnBranch); ok {
+		switch branch := repo.Branches.Current.(type) {
+		case domain.OnBranch:
 			if len(branch.Name) > maxBranchLen {
 				maxBranchLen = len(branch.Name)
 			}
-		}
-	}
-
-	// Apply minimums
-	if maxProjectLen < MinProjectWidth {
-		maxProjectLen = MinProjectWidth
-	}
-	if maxBranchLen < MinBranchWidth {
-		maxBranchLen = MinBranchWidth
-	}
-
-	// Apply maximums
-	if maxProjectLen > MaxProjectWidth {
-		maxProjectLen = MaxProjectWidth
-	}
-	if maxBranchLen > MaxBranchWidth {
-		maxBranchLen = MaxBranchWidth
-	}
-
-	// If terminal width is known, ensure we don't exceed it
-	if terminalWidth > 0 {
-		// Fixed columns: selector(2) + local(15) + remote(11) + info(42) + last commit(?) + links(8) + padding
-		fixedWidth := 2 + 15 + 11 + 42 + 20 + 8 + 10 // approximate
-		availableWidth := terminalWidth - fixedWidth
-
-		if availableWidth > 0 {
-			totalContentWidth := maxProjectLen + maxBranchLen
-			if totalContentWidth > availableWidth {
-				// Proportionally reduce both columns
-				ratio := float64(maxProjectLen) / float64(totalContentWidth)
-				projectWidth = int(float64(availableWidth) * ratio)
-				branchWidth = availableWidth - projectWidth
-
-				// Ensure minimums are still met
-				if projectWidth < MinProjectWidth {
-					projectWidth = MinProjectWidth
-					branchWidth = availableWidth - projectWidth
-				}
-				if branchWidth < MinBranchWidth {
-					branchWidth = MinBranchWidth
-					projectWidth = availableWidth - branchWidth
-				}
-			} else {
-				projectWidth = maxProjectLen
-				branchWidth = maxBranchLen
+		case domain.DetachedHead:
+			if len(common.BranchHead) > maxBranchLen {
+				maxBranchLen = len(common.BranchHead)
 			}
-		} else {
-			projectWidth = maxProjectLen
-			branchWidth = maxBranchLen
 		}
-	} else {
-		projectWidth = maxProjectLen
-		branchWidth = maxBranchLen
 	}
 
-	return projectWidth, branchWidth
+	// Clamp to min/max immediately
+	projectWidth = clamp(maxProjectLen, MinProjectWidth, MaxProjectWidth)
+	branchWidth = clamp(maxBranchLen, MinBranchWidth, MaxBranchWidth)
+
+	// If no terminal width provided, use content-based widths
+	if terminalWidth <= 0 {
+		return projectWidth, branchWidth
+	}
+
+	// Check if we need to shrink to fit terminal
+	availableWidth := terminalWidth - totalFixedWidth()
+	if availableWidth <= 0 {
+		// Terminal too narrow: use minimums and let truncation handle it
+		return MinProjectWidth, MinBranchWidth
+	}
+
+	totalDesired := projectWidth + branchWidth
+	if totalDesired <= availableWidth {
+		// We fit! Use the content-based widths
+		return projectWidth, branchWidth
+	}
+
+	// Need to shrink proportionally
+	return distributeWidth(projectWidth, branchWidth, availableWidth)
+}
+
+// clamp restricts value to [min, max] range
+func clamp(value, min, max int) int {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
+// distributeWidth proportionally allocates availableWidth between project and branch
+func distributeWidth(projectDesired, branchDesired, available int) (project, branch int) {
+	if available <= 0 {
+		return MinProjectWidth, MinBranchWidth
+	}
+
+	totalDesired := projectDesired + branchDesired
+	if totalDesired == 0 {
+		return MinProjectWidth, MinBranchWidth
+	}
+
+	// Calculate proportional distribution
+	projectRatio := float64(projectDesired) / float64(totalDesired)
+	project = int(float64(available) * projectRatio)
+	branch = available - project
+
+	// Enforce minimums (this may cause total to exceed available)
+	if project < MinProjectWidth {
+		project = MinProjectWidth
+		branch = available - project
+	}
+	if branch < MinBranchWidth {
+		branch = MinBranchWidth
+		project = available - branch
+	}
+
+	// Final clamp to maxes
+	project = clamp(project, MinProjectWidth, MaxProjectWidth)
+	branch = clamp(branch, MinBranchWidth, MaxBranchWidth)
+
+	return project, branch
 }
 
 func repositoryToRow(repo domain.Repository, isSelected bool, projectWidth, branchWidth int) []string {
