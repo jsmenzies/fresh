@@ -29,8 +29,7 @@ Fresh uses [Nerd Fonts](https://www.nerdfonts.com/) to render icons. We specific
 ### Homebrew (macOS / Linux)
 
 ```bash
-brew tap jsmenzies/fresh
-brew install fresh
+brew install jsmenzies/tap/fresh
 ```
 
 ### Scoop (Windows)
