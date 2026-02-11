@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.9.5](https://github.com/jsmenzies/fresh/compare/v1.9.4...v1.9.5) (2026-02-11)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/charmbracelet/bubbles to v1 ([2956881](https://github.com/jsmenzies/fresh/commit/295688123788ec502a433409d147a0334dd794bc))
+* **deps:** update module github.com/charmbracelet/bubbles to v1 ([3437d1a](https://github.com/jsmenzies/fresh/commit/3437d1a38800c13813aae563af74b476ebd97f36))
+
+
+### Documentation
+
+* fix homebrew install command ([4506229](https://github.com/jsmenzies/fresh/commit/450622981a5c921a639e91fbd7d41c9efefb2144))
+* update homebrew install command to use correct tap path ([3edb517](https://github.com/jsmenzies/fresh/commit/3edb5172bb9fb00c71fd346c8aa2e5e6a2a5b7bf))
+
 ## [1.9.4](https://github.com/jsmenzies/fresh/compare/v1.9.3...v1.9.4) (2026-02-03)
 
 
