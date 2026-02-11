@@ -175,13 +175,26 @@ func buildInfo(repo domain.Repository) string {
 	}
 
 	if content == "" {
-		// Check for merged branches first
-		if len(repo.MergedBranches) > 0 {
-			branchText := "branch(es)"
-			if len(repo.MergedBranches) == 1 {
-				branchText = "branch"
+		mergedCount := len(repo.MergedBranches)
+		squashedCount := len(repo.SquashedBranches)
+
+		if mergedCount > 0 || squashedCount > 0 {
+			var parts []string
+			if mergedCount > 0 {
+				branchText := "branches"
+				if mergedCount == 1 {
+					branchText = "branch"
+				}
+				parts = append(parts, common.TextBlue.Render(fmt.Sprintf("%d merged %s", mergedCount, branchText)))
 			}
-			content = common.TextBlue.Render(fmt.Sprintf("%d merged %s can be cleaned", len(repo.MergedBranches), branchText))
+			if squashedCount > 0 {
+				branchText := "branches"
+				if squashedCount == 1 {
+					branchText = "branch"
+				}
+				parts = append(parts, common.LocalStatusDirtyStyle.Render(fmt.Sprintf("%d squashed %s", squashedCount, branchText)))
+			}
+			content = strings.Join(parts, ", ") + " can be cleaned"
 		} else {
 			switch s := repo.RemoteState.(type) {
 			case domain.NoUpstream:

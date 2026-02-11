@@ -12,13 +12,15 @@ import (
 )
 
 type listKeyMap struct {
-	refresh      key.Binding
-	updateAll    key.Binding
-	pull         key.Binding
-	pullAll      key.Binding
-	prune        key.Binding
-	pruneAll     key.Binding
-	toggleLegend key.Binding
+	refresh          key.Binding
+	updateAll        key.Binding
+	pull             key.Binding
+	pullAll          key.Binding
+	prune            key.Binding
+	pruneAll         key.Binding
+	pruneSquashed    key.Binding
+	pruneSquashedAll key.Binding
+	toggleLegend     key.Binding
 }
 
 func newListKeyMap() *listKeyMap {
@@ -46,6 +48,14 @@ func newListKeyMap() *listKeyMap {
 		pruneAll: key.NewBinding(
 			key.WithKeys("ctrl+b"),
 			key.WithHelp("ctrl+b", "prune all"),
+		),
+		pruneSquashed: key.NewBinding(
+			key.WithKeys("B"),
+			key.WithHelp("shift+b", "prune squashed"),
+		),
+		pruneSquashedAll: key.NewBinding(
+			key.WithKeys("ctrl+B"),
+			key.WithHelp("ctrl+shift+b", "prune squashed all"),
 		),
 		toggleLegend: key.NewBinding(
 			key.WithKeys("?"),
@@ -189,6 +199,38 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					repo.Activity = pruning
 					cmds = append(cmds, performPrune(i, repo.Path, repo.MergedBranches))
+					cmds = append(cmds, pruning.Spinner.Tick)
+				}
+			}
+			return m, tea.Batch(cmds...)
+
+		case key.Matches(msg, m.Keys.pruneSquashed):
+			if m.Cursor < len(m.Repositories) {
+				repo := &m.Repositories[m.Cursor]
+				if !isBusy(*repo) && canPrune(*repo) && len(repo.SquashedBranches) > 0 {
+					pruning := domain.PruningActivity{
+						Spinner: common.NewPullSpinner(),
+						Lines:   make([]string, 0),
+					}
+					repo.Activity = pruning
+					return m, tea.Batch(
+						performPruneSquashed(m.Cursor, repo.Path, repo.SquashedBranches),
+						pruning.Spinner.Tick,
+					)
+				}
+			}
+
+		case key.Matches(msg, m.Keys.pruneSquashedAll):
+			var cmds []tea.Cmd
+			for i := range m.Repositories {
+				repo := &m.Repositories[i]
+				if !isBusy(*repo) && canPrune(*repo) && len(repo.SquashedBranches) > 0 {
+					pruning := domain.PruningActivity{
+						Spinner: common.NewPullSpinner(),
+						Lines:   make([]string, 0),
+					}
+					repo.Activity = pruning
+					cmds = append(cmds, performPruneSquashed(i, repo.Path, repo.SquashedBranches))
 					cmds = append(cmds, pruning.Spinner.Tick)
 				}
 			}
@@ -341,8 +383,10 @@ func buildFooter() string {
 		"ctrl+r refresh all",
 		"p pull",
 		"ctrl+p pull all",
-		"b prune",
-		"ctrl+b prune all",
+		"b prune merged",
+		"ctrl+b prune merged all",
+		"shift+b prune squashed",
+		"ctrl+shift+b prune squashed all",
 		"? toggle legend",
 		"q quit",
 	}
