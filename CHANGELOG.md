@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.11.1](https://github.com/jsmenzies/fresh/compare/v1.11.0...v1.11.1) (2026-02-11)
+
+
+### Performance Improvements
+
+* parallelize BuildRepository and remove dead code ([e5adaf2](https://github.com/jsmenzies/fresh/commit/e5adaf26bfa7d74ea1a0533347ca810b85cb8219))
+* parallelize BuildRepository and remove dead code ([793793e](https://github.com/jsmenzies/fresh/commit/793793ef939c6f81f5c899b62dc67114d58e9a94))
+* parallelize BuildRepository and remove dead code ([90e5816](https://github.com/jsmenzies/fresh/commit/90e5816e9fca8204f796f22ca77945f83e75c39c))
+
 ## [1.11.0](https://github.com/jsmenzies/fresh/compare/v1.10.0...v1.11.0) (2026-02-11)
 
 
