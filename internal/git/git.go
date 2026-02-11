@@ -32,14 +32,6 @@ func BuildRepository(path string) domain.Repository {
 	}
 }
 
-func RefreshRepositoryState(repo *domain.Repository) {
-	repo.Branches = BuildBranches(repo.Path, ProtectedBranches)
-	repo.LocalState = HasModifiedFiles(repo.Path)
-	repo.RemoteState = GetStatus(repo.Path)
-	repo.LastCommitTime = GetLastCommitTime(repo.Path)
-	repo.RemoteURL = GetRemoteURL(repo.Path)
-}
-
 func IsGitInstalled() bool {
 	cmd := exec.Command("git", "--version")
 	err := cmd.Run()
