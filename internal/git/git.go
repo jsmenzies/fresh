@@ -331,7 +331,6 @@ func BuildBranches(repoPath string, excludedBranches []string) domain.Branches {
 	}
 
 	branches.Merged = FilterMergedBranches(repoPath, candidates)
-	branches.Squashed = FilterSquashedBranches(candidates, branches.Merged)
 	return branches
 }
 
@@ -356,10 +355,20 @@ func ListLocalBranches(repoPath string) ([]string, error) {
 }
 
 func IsBranchFullyMerged(repoPath string, branchName string) bool {
-	cmd := exec.Command("git", "merge-base", "--is-ancestor", branchName, "HEAD")
+	cmd := exec.Command("git", "branch", "--merged", "HEAD", "--format=%(refname:short)")
 	cmd.Dir = repoPath
-	err := cmd.Run()
-	return err == nil
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		if strings.TrimSpace(scanner.Text()) == branchName {
+			return true
+		}
+	}
+	return false
 }
 
 func FilterMergedBranches(repoPath string, branches []string) []string {
@@ -372,55 +381,11 @@ func FilterMergedBranches(repoPath string, branches []string) []string {
 	return merged
 }
 
-func FilterSquashedBranches(branches []string, mergedBranches []string) []string {
-	mergedMap := make(map[string]bool)
-	for _, b := range mergedBranches {
-		mergedMap[b] = true
-	}
-
-	var squashed []string
-	for _, branch := range branches {
-		if !mergedMap[branch] {
-			squashed = append(squashed, branch)
-		}
-	}
-
-	return squashed
-}
-
 func DeleteBranches(repoPath string, branches []string, lineCallback func(string)) (exitCode int, deletedCount int) {
 	deletedCount = 0
 
 	for _, branch := range branches {
 		cmd := exec.Command("git", "branch", "-d", branch)
-		cmd.Dir = repoPath
-		output, err := cmd.CombinedOutput()
-		outputStr := strings.TrimSpace(string(output))
-
-		if err != nil {
-			// Branch not fully merged (e.g., squashed) - skip it
-			if lineCallback != nil {
-				lineCallback(fmt.Sprintf("Skipped: %s (not merged)", branch))
-			}
-			continue
-		}
-
-		deletedCount++
-		if lineCallback != nil {
-			lineCallback(fmt.Sprintf("Deleted: %s", branch))
-		}
-		_ = outputStr
-	}
-
-	return 0, deletedCount
-}
-
-// DeleteSquashedBranches deletes squashed branches using force delete
-func DeleteSquashedBranches(repoPath string, branches []string, lineCallback func(string)) (exitCode int, deletedCount int) {
-	deletedCount = 0
-
-	for _, branch := range branches {
-		cmd := exec.Command("git", "branch", "-D", branch)
 		cmd.Dir = repoPath
 		output, err := cmd.CombinedOutput()
 		outputStr := strings.TrimSpace(string(output))
