@@ -67,7 +67,3 @@ func (s *Scanner) Scan() {
 	}()
 	s.wg.Wait()
 }
-
-func (s *Scanner) Wait() {
-	s.wg.Wait()
-}

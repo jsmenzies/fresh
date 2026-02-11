@@ -92,10 +92,6 @@ func RemoteStatusCounts(behind int, ahead int, width int) string {
 var RemoteStatusErrorText = lipgloss.NewStyle().
 	Foreground(SubtleRed)
 
-var RemoteStatusDivergedText = lipgloss.NewStyle().
-	Foreground(Yellow).
-	Render(StatusDiverged)
-
 var RemoteStatusErrorHelpText = lipgloss.NewStyle().
 	Foreground(SubtleGray)
 
@@ -161,13 +157,7 @@ var (
 )
 
 func RenderStatusMessage(msg StatusMessage, maxWidth int) string {
-	available := maxWidth - len(msg.Label)
-	if available < 0 {
-		available = 0
-	}
-	//truncatedHelp := TruncateWithEllipsis(msg.Help, available)
 	return RemoteStatusErrorText.Render(msg.Label)
-	//+ RemoteStatusErrorHelpText.Render(truncatedHelp)
 }
 
 func TruncateWithEllipsis(text string, maxWidth int) string {
@@ -186,18 +176,16 @@ func FormatPullProgress(spinnerView string, lastLine string, width int) string {
 }
 
 const (
-	IconGit       = "\uF115"
-	IconClock     = "\uF017"
-	IconClean     = "\uF00C"
-	IconDirty     = "\uF071"
-	IconWarning   = "\uF071"
-	IconUntracked = "?"
-	IconDiverged  = "⊘"
-	//IconDiverged       = "\U000F0A39"
-	IconRemoteError    = "\U000F04E7"
-	IconRemoteQuestion = "\U000F0A39"
-	IconBehind         = "\uF063"
-	IconAhead          = "\uF062"
+	IconGit         = "\uF115"
+	IconClock       = "\uF017"
+	IconClean       = "\uF00C"
+	IconDirty       = "\uF071"
+	IconWarning     = "\uF071"
+	IconUntracked   = "?"
+	IconDiverged    = "⊘"
+	IconRemoteError = "\U000F04E7"
+	IconBehind      = "\uF063"
+	IconAhead       = "\uF062"
 	//IconPullRequests = "\uE726"
 	IconPullRequests = "\uF03A"
 	IconCode         = "\uF09B"
@@ -209,23 +197,8 @@ const (
 )
 
 const (
-	BranchHead      = "HEAD"
-	StatusClean     = "Clean"
-	StatusDirty     = "Dirty"
-	StatusUntracked = "Untracked"
-	StatusSynced    = "Synced"
-	StatusBehind    = "Behind"
-	StatusAhead     = "Ahead"
-	StatusDiverged  = "Diverged"
-	StatusUpToDate  = "up to date"
-
-	ActionUpdating = "updating"
-	ActionPulling  = "pulling..."
-
-	BadgeManual = "MANUAL"
-	BadgeReady  = "READY"
-	TimeJustNow = "just now"
-	TimeUnknown = "unknown"
+	BranchHead     = "HEAD"
+	StatusDiverged = "Diverged"
 )
 
 var SelectorStyle = lipgloss.NewStyle().
