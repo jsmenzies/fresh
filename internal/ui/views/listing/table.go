@@ -11,6 +11,30 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 )
 
+const (
+	MaxProjectWidth = 50
+	MaxBranchWidth  = 30
+	MinProjectWidth = 22
+	MinBranchWidth  = 8
+)
+
+// Column width constants - centralized to avoid magic numbers
+const (
+	SelectorWidth   = 2
+	LocalWidth      = 15
+	RemoteWidth     = 11
+	InfoWidth       = 42
+	LastCommitWidth = 20
+	LinksWidth      = 8
+	InterColumnGap  = 2 // spacing between columns
+)
+
+// Total fixed width (non-project/branch columns)
+func totalFixedWidth() int {
+	return SelectorWidth + LocalWidth + RemoteWidth + InfoWidth +
+		LastCommitWidth + LinksWidth + (6 * InterColumnGap)
+}
+
 func GenerateTable(repositories []domain.Repository, cursor int, terminalWidth int) string {
 	projectWidth, branchWidth := calculateColumnWidths(repositories, terminalWidth)
 
@@ -37,6 +61,103 @@ func GenerateTable(repositories []domain.Repository, cursor int, terminalWidth i
 	return t.Render()
 }
 
+func calculateColumnWidths(repositories []domain.Repository, terminalWidth int) (projectWidth, branchWidth int) {
+	// Empty repos edge case: return minimum widths
+	if len(repositories) == 0 {
+		return MinProjectWidth, MinBranchWidth
+	}
+
+	// Find max content length (including detached HEAD label)
+	maxProjectLen := 0
+	maxBranchLen := 0
+
+	for _, repo := range repositories {
+		if len(repo.Name) > maxProjectLen {
+			maxProjectLen = len(repo.Name)
+		}
+
+		switch branch := repo.Branches.Current.(type) {
+		case domain.OnBranch:
+			if len(branch.Name) > maxBranchLen {
+				maxBranchLen = len(branch.Name)
+			}
+		case domain.DetachedHead:
+			if len(common.BranchHead) > maxBranchLen {
+				maxBranchLen = len(common.BranchHead)
+			}
+		}
+	}
+
+	// Clamp to min/max immediately
+	projectWidth = clamp(maxProjectLen, MinProjectWidth, MaxProjectWidth)
+	branchWidth = clamp(maxBranchLen, MinBranchWidth, MaxBranchWidth)
+
+	// If no terminal width provided, use content-based widths
+	if terminalWidth <= 0 {
+		return projectWidth, branchWidth
+	}
+
+	// Check if we need to shrink to fit terminal
+	availableWidth := terminalWidth - totalFixedWidth()
+	if availableWidth <= 0 {
+		// Terminal too narrow: use minimums and let truncation handle it
+		return MinProjectWidth, MinBranchWidth
+	}
+
+	totalDesired := projectWidth + branchWidth
+	if totalDesired <= availableWidth {
+		// We fit! Use the content-based widths
+		return projectWidth, branchWidth
+	}
+
+	// Need to shrink proportionally
+	return distributeWidth(projectWidth, branchWidth, availableWidth)
+}
+
+// clamp restricts value to [min, max] range
+func clamp(value, min, max int) int {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
+// distributeWidth proportionally allocates availableWidth between project and branch
+func distributeWidth(projectDesired, branchDesired, available int) (project, branch int) {
+	if available <= 0 {
+		return MinProjectWidth, MinBranchWidth
+	}
+
+	totalDesired := projectDesired + branchDesired
+	if totalDesired == 0 {
+		return MinProjectWidth, MinBranchWidth
+	}
+
+	// Calculate proportional distribution
+	projectRatio := float64(projectDesired) / float64(totalDesired)
+	project = int(float64(available) * projectRatio)
+	branch = available - project
+
+	// Enforce minimums (this may cause total to exceed available)
+	if project < MinProjectWidth {
+		project = MinProjectWidth
+		branch = available - project
+	}
+	if branch < MinBranchWidth {
+		branch = MinBranchWidth
+		project = available - branch
+	}
+
+	// Final clamp to maxes
+	project = clamp(project, MinProjectWidth, MaxProjectWidth)
+	branch = clamp(branch, MinBranchWidth, MaxBranchWidth)
+
+	return project, branch
+}
+
 func repositoryToRow(repo domain.Repository, isSelected bool, projectWidth, branchWidth int) []string {
 	selector := buildSelector(isSelected)
 	projectName := buildProjectName(repo.Name, isSelected, projectWidth)
@@ -60,11 +181,10 @@ func repositoryToRow(repo domain.Repository, isSelected bool, projectWidth, bran
 }
 
 func buildSelector(isSelected bool) string {
-	style := common.SelectorStyle.Width(SelectorWidth)
 	if isSelected {
-		return style.Render(common.IconSelector)
+		return common.SelectorStyle.Render(common.IconSelector)
 	}
-	return style.Render(" ")
+	return common.SelectorStyle.Render(" ")
 }
 
 func buildProjectName(name string, isSelected bool, width int) string {
@@ -108,10 +228,6 @@ func buildBranchName(branch domain.Branch, width int) string {
 }
 
 func buildLocalStatus(state domain.LocalState) string {
-	baseStyle := common.LocalStatusBaseStyle.
-		Width(LocalWidth).
-		MaxWidth(LocalWidth)
-
 	switch s := state.(type) {
 	case domain.DirtyLocalState:
 		var parts []string
@@ -136,56 +252,48 @@ func buildLocalStatus(state domain.LocalState) string {
 		}
 
 		text := strings.Join(parts, " ")
-		return baseStyle.Render(text)
+		return common.LocalStatusBaseStyle.Render(text)
 	case domain.LocalStateError:
-		return baseStyle.Render("")
+		return common.LocalStatusError
 	default:
-		return baseStyle.Foreground(common.Green).Render(common.IconClean)
+		return common.LocalStatusClean
 	}
 }
 
 func buildRemoteStatus(repo domain.Repository) string {
-	baseStyle := common.RemoteStatusBaseStyle.
-		Width(RemoteWidth).
-		MaxWidth(RemoteWidth)
-
 	switch activity := repo.Activity.(type) {
 	case *domain.RefreshingActivity:
 		if !activity.Complete {
-			return baseStyle.Align(lipgloss.Left).Render(activity.Spinner.View())
+			return common.RemoteStatusUpdating.Render(activity.Spinner.View())
 		}
 	}
 
 	switch s := repo.RemoteState.(type) {
 	case domain.NoUpstream:
-		return baseStyle.Foreground(common.SubtleRed).Render(common.IconRemoteError)
+		return common.RemoteStatusError
 	case domain.DetachedRemote:
-		return baseStyle.Foreground(common.SubtleRed).Render(common.IconRemoteError)
+		return common.RemoteStatusError
 	case domain.RemoteError:
-		return baseStyle.Foreground(common.SubtleRed).Render(common.IconRemoteError)
+		return common.RemoteStatusError
 	case domain.Diverged:
-		return common.RemoteStatusCounts(s.BehindCount, s.AheadCount, RemoteWidth)
+		return common.RemoteStatusCounts(s.BehindCount, s.AheadCount)
 	case domain.Behind:
-		return common.RemoteStatusCounts(s.Count, 0, RemoteWidth)
+		return common.RemoteStatusCounts(s.Count, 0)
 	case domain.Ahead:
-		return common.RemoteStatusCounts(0, s.Count, RemoteWidth)
+		return common.RemoteStatusCounts(0, s.Count)
 	default:
-		return baseStyle.Foreground(common.SubtleGreen).Render(common.IconSynced)
+		return common.RemoteStatusSynced
 	}
 }
 
 func buildInfo(repo domain.Repository) string {
-	infoStyle := common.InfoStyle.
-		Width(InfoWidth).
-		MaxWidth(InfoWidth)
-
 	var content string
 	switch activity := repo.Activity.(type) {
 	case *domain.PullingActivity:
 		if !activity.Complete {
 			lastLine := activity.GetLastLine()
-			truncated := common.TruncateWithEllipsis(lastLine, InfoWidth-3)
-			content = common.FormatPullProgress(activity.Spinner.View(), truncated, InfoWidth-2)
+			truncated := common.TruncateWithEllipsis(lastLine, common.InfoWidth-3)
+			content = common.FormatPullProgress(activity.Spinner.View(), truncated)
 		} else {
 			lastLine := activity.GetLastLine()
 			content = stylePullOutput(lastLine, activity.ExitCode)
@@ -197,8 +305,8 @@ func buildInfo(repo domain.Repository) string {
 	case *domain.PruningActivity:
 		if !activity.Complete {
 			lastLine := activity.GetLastLine()
-			truncated := common.TruncateWithEllipsis(lastLine, InfoWidth-3)
-			content = common.FormatPullProgress(activity.Spinner.View(), truncated, InfoWidth-2)
+			truncated := common.TruncateWithEllipsis(lastLine, common.InfoWidth-3)
+			content = common.FormatPullProgress(activity.Spinner.View(), truncated)
 		} else {
 			if activity.DeletedCount == 0 {
 				// Check for error messages in the output lines
@@ -210,12 +318,12 @@ func buildInfo(repo domain.Repository) string {
 					}
 				}
 				if firstError != "" {
-					content = common.PullOutputError.Width(InfoWidth).Render(common.TruncateWithEllipsis(firstError, InfoWidth))
+					content = common.PullOutputError.Render(common.TruncateWithEllipsis(firstError, common.InfoWidth))
 				} else {
-					content = common.PullOutputWarn.Width(InfoWidth).Render("No branches to prune")
+					content = common.PullOutputWarn.Render("No branches to prune")
 				}
 			} else {
-				content = common.PullOutputSuccess.Width(InfoWidth).Render(fmt.Sprintf("Deleted %d branches", activity.DeletedCount))
+				content = common.PullOutputSuccess.Render(fmt.Sprintf("Deleted %d branches", activity.DeletedCount))
 			}
 		}
 	}
@@ -224,7 +332,7 @@ func buildInfo(repo domain.Repository) string {
 		// Check for remote errors first
 		switch s := repo.RemoteState.(type) {
 		case domain.RemoteError:
-			content = common.RemoteStatusErrorText.Render(common.TruncateWithEllipsis(s.Message, InfoWidth))
+			content = common.RemoteStatusErrorText.Render(common.TruncateWithEllipsis(s.Message, common.InfoWidth))
 		default:
 			// No error, check for prunable branches
 			mergedCount := len(repo.Branches.Merged)
@@ -235,37 +343,37 @@ func buildInfo(repo domain.Repository) string {
 				}
 				content = common.TextGrey.Render(fmt.Sprintf("%d prunable %s", mergedCount, mergedText))
 			} else if _, ok := repo.RemoteState.(domain.NoUpstream); ok {
-				content = common.RenderStatusMessage(common.MsgNoUpstream, InfoWidth)
+				content = common.RenderStatusMessage(common.MsgNoUpstream, common.InfoWidth)
 			} else if _, ok := repo.RemoteState.(domain.DetachedRemote); ok {
-				content = common.RenderStatusMessage(common.MsgDetached, InfoWidth)
+				content = common.RenderStatusMessage(common.MsgDetached, common.InfoWidth)
 			} else if _, ok := repo.RemoteState.(domain.Diverged); ok {
-				content = common.RenderStatusMessage(common.MsgDiverged, InfoWidth)
+				content = common.RenderStatusMessage(common.MsgDiverged, common.InfoWidth)
 			}
 		}
 	}
 
-	return infoStyle.Render(content)
+	return common.InfoStyle.Render(content)
 }
 
 func stylePullOutput(lastLine string, exitCode int) string {
 	lowerLine := strings.ToLower(lastLine)
-	truncated := common.TruncateWithEllipsis(lastLine, InfoWidth)
+	truncated := common.TruncateWithEllipsis(lastLine, common.InfoWidth)
 
 	if strings.Contains(lowerLine, "error") || strings.Contains(lowerLine, "fatal") {
-		return common.PullOutputError.Width(InfoWidth).Render(truncated)
+		return common.PullOutputError.Render(truncated)
 	}
 
 	if exitCode == 0 {
 		if strings.Contains(lowerLine, "up to date") || strings.Contains(lowerLine, "up-to-date") {
-			return common.PullOutputUpToDate.Width(InfoWidth).Render(truncated)
+			return common.PullOutputUpToDate.Render(truncated)
 		}
 		if strings.Contains(lowerLine, "done") ||
 			(strings.Contains(lowerLine, "file") && strings.Contains(lowerLine, "changed")) {
-			return common.PullOutputSuccess.Width(InfoWidth).Render(truncated)
+			return common.PullOutputSuccess.Render(truncated)
 		}
 	}
 
-	return common.PullOutputWarn.Width(InfoWidth).Render(truncated)
+	return common.PullOutputWarn.Render(truncated)
 }
 
 func buildLastUpdate(repo domain.Repository) string {
@@ -299,7 +407,7 @@ func buildLinks(url string, branch domain.Branch) string {
 				shortcuts = append(shortcuts, common.LinkStyle.Render(openPRLink))
 
 				shortcutsDisplay := fmt.Sprintf("%s", strings.Join(shortcuts, " "))
-				return common.LinksStyle.Width(LinksWidth).Render(shortcutsDisplay)
+				return common.LinksStyle.Render(shortcutsDisplay)
 			}
 		}
 	}
