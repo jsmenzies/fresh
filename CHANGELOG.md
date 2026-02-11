@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.10.0](https://github.com/jsmenzies/fresh/compare/v1.9.5...v1.10.0) (2026-02-11)
+
+
+### Features
+
+* add prune merged branches functionality ([ed15174](https://github.com/jsmenzies/fresh/commit/ed1517459f39c3c2f9a961e177cf6807bb309447))
+* add prune merged branches functionality ([ea38d0b](https://github.com/jsmenzies/fresh/commit/ea38d0b238fd72df3f5c0ceaf321b895a4781bd6))
+* consolidate keyboard shortcuts to single-key operations ([be641c3](https://github.com/jsmenzies/fresh/commit/be641c36f67cbc9d48f21dd51c427570d53ecfb1))
+* consolidate keyboard shortcuts to single-key operations ([d8a6cde](https://github.com/jsmenzies/fresh/commit/d8a6cde6bf2dfea227c9f3e65fe64744aa0f21e1))
+* separate regular merged and squashed branches with different keys ([75acc77](https://github.com/jsmenzies/fresh/commit/75acc77841c489957ed14ecb6db61635a009988c))
+* separate regular merged and squashed branches with different keys ([8386906](https://github.com/jsmenzies/fresh/commit/83869063ade56414ee515362ec503b5626a9bdd0))
+* show merged branches count in INFO column ([17d10be](https://github.com/jsmenzies/fresh/commit/17d10bef952ceb58638c41ea02fca90cf12e4b10))
+* show merged branches count in INFO column ([a37987c](https://github.com/jsmenzies/fresh/commit/a37987cf68a66abaeb8b0385c1f5c1f08409c886))
+* simplify branch pruning by removing squashed functionality ([75ea584](https://github.com/jsmenzies/fresh/commit/75ea584391a30e0a80a7561de591fd1e9bab098d))
+
+
+### Bug Fixes
+
+* **internal/git/git.go:** remove unused branch operations ([74b3503](https://github.com/jsmenzies/fresh/commit/74b35033d04d66b298bfb4d2b632904eeb28f521))
+
+
+### Documentation
+
+* **Release Process:** update release workflow to use Homebrew tap and GoReleaser configuration ([b9b392e](https://github.com/jsmenzies/fresh/commit/b9b392eef41f1c68c9b85432f3c983a4bb8b23e4))
+
+
+### Code Refactoring
+
+* add context timeouts to git commands and optimize branch filtering ([98d3819](https://github.com/jsmenzies/fresh/commit/98d38194cb69305eb43022feb10a062aabd9ca44))
+* add context timeouts to git commands and optimize branch filtering ([bf3eebd](https://github.com/jsmenzies/fresh/commit/bf3eebdac650ea56eeb82cfe4adc1f27329b3e2e))
+* group branch fields into Branches object ([a86103d](https://github.com/jsmenzies/fresh/commit/a86103dc09c15bef4d2e23763f90ed58fb8571e6))
+* group branch fields into Branches object ([54b345a](https://github.com/jsmenzies/fresh/commit/54b345a4467db75ca086c248a3364a0ba584c590))
+* remove unused code and extract shared LineBuffer ([f9c93b4](https://github.com/jsmenzies/fresh/commit/f9c93b477388c56fe7d7eb5bc4d575e0344b8d5d))
+
 ## [1.9.5](https://github.com/jsmenzies/fresh/compare/v1.9.4...v1.9.5) (2026-02-11)
 
 
