@@ -1,19 +1,14 @@
 package listing
 
 import (
-	"fresh/internal/config"
-	"fresh/internal/git"
-
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-var cfg = config.DefaultConfig()
-
-func performRefresh(index int, repoPath string) tea.Cmd {
+func performRefresh(m *Model, index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
 		// Fetch first, then build the repo to get fresh status (avoids 3x GetStatus calls)
-		git.Fetch(repoPath)
-		repo := git.BuildRepository(repoPath, cfg)
+		_ = m.GitClient.Fetch(repoPath)
+		repo := m.GitClient.BuildRepository(repoPath)
 
 		return RepoUpdatedMsg{
 			Repo:  repo,
@@ -22,19 +17,19 @@ func performRefresh(index int, repoPath string) tea.Cmd {
 	}
 }
 
-func performPull(index int, repoPath string) tea.Cmd {
+func performPull(m *Model, index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
 		lineChan := make(chan string, 10)
 		doneChan := make(chan pullCompleteMsg, 1)
 
 		go func() {
-			exitCode := git.Pull(repoPath, func(line string) {
+			exitCode := m.GitClient.Pull(repoPath, func(line string) {
 				lineChan <- line
 			})
 
 			close(lineChan)
 
-			repo := git.BuildRepository(repoPath, cfg)
+			repo := m.GitClient.BuildRepository(repoPath)
 
 			doneChan <- pullCompleteMsg{
 				Index:    index,
@@ -70,7 +65,7 @@ func listenForPullProgress(state pullWorkState) tea.Cmd {
 	}
 }
 
-func performPrune(index int, repoPath string, branches []string) tea.Cmd {
+func performPrune(m *Model, index int, repoPath string, branches []string) tea.Cmd {
 	return func() tea.Msg {
 		// Note: branches are pre-fetched and passed in
 
@@ -82,11 +77,11 @@ func performPrune(index int, repoPath string, branches []string) tea.Cmd {
 				lineChan <- line
 			}
 
-			_, deleted := git.DeleteBranches(repoPath, branches, lineCallback)
+			_, deleted := m.GitClient.DeleteBranches(repoPath, branches, lineCallback)
 
 			close(lineChan)
 
-			repo := git.BuildRepository(repoPath, cfg)
+			repo := m.GitClient.BuildRepository(repoPath)
 
 			doneChan <- pruneCompleteMsg{
 				Index:        index,

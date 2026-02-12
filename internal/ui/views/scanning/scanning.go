@@ -13,20 +13,35 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-var cfg = config.DefaultConfig()
-
 type Model struct {
 	Repositories  []domain.Repository
-	scanner       *scanner.Scanner
+	scanner       scanner.RepositoryScanner
+	gitClient     git.Client
 	Spinner       spinner.Model
 	width, height int
 }
 
 func New(scanDir string) *Model {
+	cfg := config.DefaultConfig()
+	return NewWithDependencies(
+		git.NewExecClient(cfg),
+		scanner.New(scanDir),
+	)
+}
+
+func NewWithDependencies(gitClient git.Client, repoScanner scanner.RepositoryScanner) *Model {
+	if gitClient == nil {
+		panic("scanning.NewWithDependencies requires non-nil git client")
+	}
+	if repoScanner == nil {
+		panic("scanning.NewWithDependencies requires non-nil repository scanner")
+	}
+
 	s := common.NewGreenDotSpinner()
 	return &Model{
 		Repositories: make([]domain.Repository, 0),
-		scanner:      scanner.New(scanDir),
+		scanner:      repoScanner,
+		gitClient:    gitClient,
 		Spinner:      s,
 	}
 }
@@ -48,7 +63,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case repoFoundMsg:
 		path := string(msg)
-		repo := git.BuildRepository(path, cfg)
+		repo := m.gitClient.BuildRepository(path)
 		m.Repositories = append(m.Repositories, repo)
 		return m, waitForRepo(m.scanner.GetRepoChannel())
 

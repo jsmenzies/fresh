@@ -2,6 +2,7 @@ package listing
 
 import (
 	"fresh/internal/domain"
+	"fresh/internal/git"
 	"fresh/internal/ui/views/common"
 	"sort"
 	"strings"
@@ -41,13 +42,18 @@ func newListKeyMap() *listKeyMap {
 
 type Model struct {
 	Repositories  []domain.Repository
+	GitClient     git.Client
 	Cursor        int
 	Keys          *listKeyMap
 	width, height int
 	ShowLegend    bool
 }
 
-func New(repos []domain.Repository) *Model {
+func New(repos []domain.Repository, gitClient git.Client) *Model {
+	if gitClient == nil {
+		panic("listing.New requires non-nil git client")
+	}
+
 	sort.Slice(repos, func(i, j int) bool {
 		return strings.ToLower(repos[i].Name) < strings.ToLower(repos[j].Name)
 	})
@@ -58,6 +64,7 @@ func New(repos []domain.Repository) *Model {
 
 	return &Model{
 		Repositories: repos,
+		GitClient:    gitClient,
 		Cursor:       0,
 		Keys:         newListKeyMap(),
 		ShowLegend:   false,
@@ -71,7 +78,7 @@ func (m *Model) Init() tea.Cmd {
 		repo.Activity = &domain.RefreshingActivity{
 			Spinner: common.NewRefreshSpinner(),
 		}
-		cmds = append(cmds, performRefresh(i, repo.Path))
+		cmds = append(cmds, performRefresh(m, i, repo.Path))
 		cmds = append(cmds, repo.Activity.(*domain.RefreshingActivity).Spinner.Tick)
 	}
 	return tea.Batch(cmds...)
@@ -94,7 +101,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					repo.Activity = &domain.RefreshingActivity{
 						Spinner: common.NewRefreshSpinner(),
 					}
-					cmds = append(cmds, performRefresh(i, repo.Path))
+					cmds = append(cmds, performRefresh(m, i, repo.Path))
 					cmds = append(cmds, repo.Activity.(*domain.RefreshingActivity).Spinner.Tick)
 				}
 			}
@@ -108,7 +115,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					repo.Activity = &domain.PullingActivity{
 						Spinner: common.NewPullSpinner(),
 					}
-					cmds = append(cmds, performPull(i, repo.Path))
+					cmds = append(cmds, performPull(m, i, repo.Path))
 					cmds = append(cmds, repo.Activity.(*domain.PullingActivity).Spinner.Tick)
 				}
 			}
@@ -122,7 +129,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					repo.Activity = &domain.PruningActivity{
 						Spinner: common.NewPullSpinner(),
 					}
-					cmds = append(cmds, performPrune(i, repo.Path, repo.Branches.Merged))
+					cmds = append(cmds, performPrune(m, i, repo.Path, repo.Branches.Merged))
 					cmds = append(cmds, repo.Activity.(*domain.PruningActivity).Spinner.Tick)
 				}
 			}

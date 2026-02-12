@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"fresh/internal/config"
+	"fresh/internal/git"
+	"fresh/internal/scanner"
 	"fresh/internal/ui/views/listing"
 	"fresh/internal/ui/views/scanning"
 
@@ -15,16 +18,20 @@ const (
 )
 
 type MainModel struct {
-	currentView  CurrentView
-	scanningView *scanning.Model
-	listingView  *listing.Model
+	currentView   CurrentView
+	scanningView  *scanning.Model
+	listingView   *listing.Model
+	gitClient     git.Client
 	width, height int
 }
 
 func New(scanDir string) *MainModel {
+	gitClient := git.NewExecClient(config.DefaultConfig())
+
 	return &MainModel{
 		currentView:  ScanningView,
-		scanningView: scanning.New(scanDir),
+		scanningView: scanning.NewWithDependencies(gitClient, scanner.New(scanDir)),
+		gitClient:    gitClient,
 	}
 }
 
@@ -53,7 +60,7 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case scanning.ScanFinishedMsg:
 		m.currentView = RepoListView
-		m.listingView = listing.New(msg.Repos)
+		m.listingView = listing.New(msg.Repos, m.gitClient)
 		return m, m.listingView.Init()
 	}
 

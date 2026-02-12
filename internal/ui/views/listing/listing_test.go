@@ -28,7 +28,7 @@ func newTestRepos(count int) []domain.Repository {
 	return repos
 }
 
-// --- New() constructor tests ---
+// --- newTestModel() constructor tests ---
 
 func TestNew_SortsReposAlphabetically(t *testing.T) {
 	t.Parallel()
@@ -39,7 +39,7 @@ func TestNew_SortsReposAlphabetically(t *testing.T) {
 		{Name: "middle", Path: "/tmp/middle", Activity: domain.IdleActivity{}, LocalState: domain.CleanLocalState{}, RemoteState: domain.Synced{}, Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}}},
 	}
 
-	m := New(repos)
+	m := newTestModel(repos)
 
 	if m.Repositories[0].Name != "Alpha" {
 		t.Errorf("expected first repo to be 'Alpha', got %q", m.Repositories[0].Name)
@@ -60,7 +60,7 @@ func TestNew_SetsAllActivitiesToIdle(t *testing.T) {
 		{Name: "b", Path: "/b", Activity: &domain.PullingActivity{}, LocalState: domain.CleanLocalState{}, RemoteState: domain.Synced{}, Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}}},
 	}
 
-	m := New(repos)
+	m := newTestModel(repos)
 
 	for i, repo := range m.Repositories {
 		if _, ok := repo.Activity.(*domain.IdleActivity); !ok {
@@ -72,7 +72,7 @@ func TestNew_SetsAllActivitiesToIdle(t *testing.T) {
 func TestNew_InitialCursorAtZero(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	if m.Cursor != 0 {
 		t.Errorf("initial cursor = %d, want 0", m.Cursor)
 	}
@@ -81,10 +81,22 @@ func TestNew_InitialCursorAtZero(t *testing.T) {
 func TestNew_LegendOffByDefault(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	if m.ShowLegend {
 		t.Error("expected ShowLegend to be false by default")
 	}
+}
+
+func TestNew_PanicsOnNilGitClient(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic when git client is nil")
+		}
+	}()
+
+	New(newTestRepos(1), nil)
 }
 
 // --- Cursor movement tests ---
@@ -92,7 +104,7 @@ func TestNew_LegendOffByDefault(t *testing.T) {
 func TestUpdate_CursorDown_J(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
 
 	result, _ := m.Update(msg)
@@ -106,7 +118,7 @@ func TestUpdate_CursorDown_J(t *testing.T) {
 func TestUpdate_CursorDown_ArrowKey(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	msg := tea.KeyMsg{Type: tea.KeyDown}
 
 	result, _ := m.Update(msg)
@@ -120,7 +132,7 @@ func TestUpdate_CursorDown_ArrowKey(t *testing.T) {
 func TestUpdate_CursorUp_K(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	m.Cursor = 2
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
 
@@ -135,7 +147,7 @@ func TestUpdate_CursorUp_K(t *testing.T) {
 func TestUpdate_CursorUp_ArrowKey(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	m.Cursor = 2
 	msg := tea.KeyMsg{Type: tea.KeyUp}
 
@@ -150,7 +162,7 @@ func TestUpdate_CursorUp_ArrowKey(t *testing.T) {
 func TestUpdate_CursorStopsAtBottom(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	m.Cursor = 2 // last index
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
 
@@ -165,7 +177,7 @@ func TestUpdate_CursorStopsAtBottom(t *testing.T) {
 func TestUpdate_CursorStopsAtTop(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	m.Cursor = 0
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
 
@@ -180,7 +192,7 @@ func TestUpdate_CursorStopsAtTop(t *testing.T) {
 func TestUpdate_CursorMultipleSteps(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(5))
+	m := newTestModel(newTestRepos(5))
 
 	// Move down 3 times
 	for i := 0; i < 3; i++ {
@@ -206,7 +218,7 @@ func TestUpdate_CursorMultipleSteps(t *testing.T) {
 func TestUpdate_ToggleLegendOn(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
 
 	result, _ := m.Update(msg)
@@ -220,7 +232,7 @@ func TestUpdate_ToggleLegendOn(t *testing.T) {
 func TestUpdate_ToggleLegendOff(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	m.ShowLegend = true
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
 
@@ -235,7 +247,7 @@ func TestUpdate_ToggleLegendOff(t *testing.T) {
 func TestUpdate_ToggleLegendReturnsNilCmd(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
 
 	_, cmd := m.Update(msg)
@@ -250,7 +262,7 @@ func TestUpdate_ToggleLegendReturnsNilCmd(t *testing.T) {
 func TestUpdate_WindowSizeMsg(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
 
 	result, cmd := m.Update(msg)
@@ -272,7 +284,7 @@ func TestUpdate_WindowSizeMsg(t *testing.T) {
 func TestUpdate_RepoUpdatedMsg_UpdatesRepo(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	// Set initial activity to refreshing
 	m.Repositories[1].Activity = &domain.RefreshingActivity{
 		Spinner: common.NewRefreshSpinner(),
@@ -311,7 +323,7 @@ func TestUpdate_RepoUpdatedMsg_UpdatesRepo(t *testing.T) {
 func TestUpdate_RepoUpdatedMsg_OutOfBoundsIgnored(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	msg := RepoUpdatedMsg{Index: 99, Repo: domain.Repository{Name: "oob"}}
 
 	result, _ := m.Update(msg)
@@ -326,7 +338,7 @@ func TestUpdate_RepoUpdatedMsg_OutOfBoundsIgnored(t *testing.T) {
 func TestUpdate_RepoUpdatedMsg_NonRefreshingActivityPreserved(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	pulling := &domain.PullingActivity{
 		Spinner: common.NewPullSpinner(),
 	}
@@ -357,7 +369,7 @@ func TestUpdate_RepoUpdatedMsg_NonRefreshingActivityPreserved(t *testing.T) {
 func TestUpdate_RefreshKey_SetsIdleReposToRefreshing(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
 
 	result, cmd := m.Update(msg)
@@ -377,7 +389,7 @@ func TestUpdate_RefreshKey_SetsIdleReposToRefreshing(t *testing.T) {
 func TestUpdate_RefreshKey_SkipsBusyRepos(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	// Make repo[1] busy with a pull
 	m.Repositories[1].Activity = &domain.PullingActivity{
 		Spinner: common.NewPullSpinner(),
@@ -406,7 +418,7 @@ func TestUpdate_RefreshKey_SkipsBusyRepos(t *testing.T) {
 func TestUpdate_PullKey_PullsReposBehind(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	m.Repositories[0].RemoteState = domain.Behind{Count: 2}
 	m.Repositories[1].RemoteState = domain.Synced{}
 	m.Repositories[2].RemoteState = domain.Behind{Count: 5}
@@ -436,7 +448,7 @@ func TestUpdate_PullKey_PullsReposBehind(t *testing.T) {
 func TestUpdate_PullKey_SkipsBusyRepos(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	m.Repositories[0].RemoteState = domain.Behind{Count: 1}
 	m.Repositories[0].Activity = &domain.RefreshingActivity{
 		Spinner: common.NewRefreshSpinner(),
@@ -461,7 +473,7 @@ func TestUpdate_PullKey_SkipsBusyRepos(t *testing.T) {
 func TestUpdate_PullKey_NoPullableRepos_NilCmd(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2)) // All synced
+	m := newTestModel(newTestRepos(2)) // All synced
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}}
 
 	_, cmd := m.Update(msg)
@@ -476,7 +488,7 @@ func TestUpdate_PullKey_NoPullableRepos_NilCmd(t *testing.T) {
 func TestUpdate_PullKey_DivergedRepoCanPull(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(1))
+	m := newTestModel(newTestRepos(1))
 	m.Repositories[0].RemoteState = domain.Diverged{AheadCount: 1, BehindCount: 3}
 
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}}
@@ -493,7 +505,7 @@ func TestUpdate_PullKey_DivergedRepoCanPull(t *testing.T) {
 func TestUpdate_PruneKey_PrunesReposWithMergedBranches(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	m.Repositories[0].Branches.Merged = []string{"feature-done"}
 	m.Repositories[1].Branches.Merged = nil
 	m.Repositories[2].Branches.Merged = []string{"old-branch", "stale"}
@@ -523,7 +535,7 @@ func TestUpdate_PruneKey_PrunesReposWithMergedBranches(t *testing.T) {
 func TestUpdate_PruneKey_SkipsBusyRepos(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	m.Repositories[0].Branches.Merged = []string{"done"}
 	m.Repositories[0].Activity = &domain.PullingActivity{Spinner: common.NewPullSpinner()}
 	m.Repositories[1].Branches.Merged = []string{"done"}
@@ -546,7 +558,7 @@ func TestUpdate_PruneKey_SkipsBusyRepos(t *testing.T) {
 func TestUpdate_PruneKey_NoMergedBranches_NilCmd(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2)) // No merged branches
+	m := newTestModel(newTestRepos(2)) // No merged branches
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}}
 
 	_, cmd := m.Update(msg)
@@ -561,7 +573,7 @@ func TestUpdate_PruneKey_NoMergedBranches_NilCmd(t *testing.T) {
 func TestUpdate_PullLineMsg_AppendsToBuffer(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	pulling := &domain.PullingActivity{Spinner: common.NewPullSpinner()}
 	m.Repositories[0].Activity = pulling
 
@@ -579,7 +591,7 @@ func TestUpdate_PullLineMsg_AppendsToBuffer(t *testing.T) {
 func TestUpdate_PullLineMsg_MultipleLines(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(1))
+	m := newTestModel(newTestRepos(1))
 	pulling := &domain.PullingActivity{Spinner: common.NewPullSpinner()}
 	m.Repositories[0].Activity = pulling
 
@@ -599,7 +611,7 @@ func TestUpdate_PullLineMsg_MultipleLines(t *testing.T) {
 func TestUpdate_PullLineMsg_IgnoresNonPullingRepo(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(1))
+	m := newTestModel(newTestRepos(1))
 	// Activity is idle, not pulling
 
 	msg := pullLineMsg{Index: 0, line: "should be ignored", state: nil}
@@ -615,7 +627,7 @@ func TestUpdate_PullLineMsg_IgnoresNonPullingRepo(t *testing.T) {
 func TestUpdate_PullLineMsg_OutOfBoundsIgnored(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(1))
+	m := newTestModel(newTestRepos(1))
 	msg := pullLineMsg{Index: 99, line: "oob", state: nil}
 
 	// Should not panic
@@ -632,7 +644,7 @@ func TestUpdate_PullLineMsg_OutOfBoundsIgnored(t *testing.T) {
 func TestUpdate_PullCompleteMsg_UpdatesRepoAndMarksComplete(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	pulling := &domain.PullingActivity{Spinner: common.NewPullSpinner()}
 	m.Repositories[0].Activity = pulling
 
@@ -665,7 +677,7 @@ func TestUpdate_PullCompleteMsg_UpdatesRepoAndMarksComplete(t *testing.T) {
 func TestUpdate_PullCompleteMsg_PreservesExitCode(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(1))
+	m := newTestModel(newTestRepos(1))
 	pulling := &domain.PullingActivity{Spinner: common.NewPullSpinner()}
 	m.Repositories[0].Activity = pulling
 
@@ -694,7 +706,7 @@ func TestUpdate_PullCompleteMsg_PreservesExitCode(t *testing.T) {
 func TestUpdate_PruneLineMsg_AppendsToBuffer(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(1))
+	m := newTestModel(newTestRepos(1))
 	pruning := &domain.PruningActivity{Spinner: common.NewPullSpinner()}
 	m.Repositories[0].Activity = pruning
 
@@ -714,7 +726,7 @@ func TestUpdate_PruneLineMsg_AppendsToBuffer(t *testing.T) {
 func TestUpdate_PruneCompleteMsg_UpdatesRepoAndMarksComplete(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(1))
+	m := newTestModel(newTestRepos(1))
 	pruning := &domain.PruningActivity{Spinner: common.NewPullSpinner()}
 	m.Repositories[0].Activity = pruning
 
@@ -752,7 +764,7 @@ func TestUpdate_PruneCompleteMsg_UpdatesRepoAndMarksComplete(t *testing.T) {
 func TestView_EmptyRepos(t *testing.T) {
 	t.Parallel()
 
-	m := New([]domain.Repository{})
+	m := newTestModel([]domain.Repository{})
 	m.width = 120
 	m.height = 40
 
@@ -765,7 +777,7 @@ func TestView_EmptyRepos(t *testing.T) {
 func TestView_ContainsFooterHotkeys(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(2))
+	m := newTestModel(newTestRepos(2))
 	m.width = 120
 	m.height = 40
 
@@ -782,7 +794,7 @@ func TestView_ContainsFooterHotkeys(t *testing.T) {
 func TestView_ContainsRepoCount(t *testing.T) {
 	t.Parallel()
 
-	m := New(newTestRepos(3))
+	m := newTestModel(newTestRepos(3))
 	m.width = 120
 	m.height = 40
 
