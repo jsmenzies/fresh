@@ -50,12 +50,6 @@ The `spinner.TickMsg` handler has three nearly identical case branches for `Refr
 
 This function handles activity display, remote status display, branch metadata, and error message parsing all in one. Decompose into `buildActivityInfo()` and `buildRemoteInfo()`.
 
-### 3.5 Dead code throughout (NOT DONE)
-- `style.go`: ~15 unused constants (`StatusClean`, `StatusDirty`, `StatusUntracked`, `StatusSynced`, `StatusBehind`, `StatusAhead`, `ActionUpdating`, `ActionPulling`, `BadgeManual`, `BadgeReady`, `TimeJustNow`, `TimeUnknown`, `IconRemoteQuestion`, and the pre-rendered `RemoteStatusDivergedText`)
-- `style.go:163-171`: `RenderStatusMessage` has commented-out logic, unused `available` variable
-- `scanner.go:71-73`: `Wait()` method is never called and is semantically redundant
-- `git.go:396`: `_ = outputStr` suppresses unused variable
-
 ### 3.6 `NoIcons` flag parsed but never used (NOT DONE)
 **File:** `cmd/fresh/main.go`
 
@@ -92,23 +86,12 @@ No git operations or scanning can be cancelled. If the user quits mid-operation,
 ### 5.3 No scrolling/viewport for the repository table (NOT DONE)
 The table renders all repositories. With more repos than terminal lines, content overflows. A viewport bubble or manual windowing is needed.
 
-### 5.4 Sequential subprocess calls in `BuildRepository` (NOT DONE)
-`BuildRepository` runs 5+ git commands sequentially. These are independent and could run concurrently.
-
 ### 5.5 Scanner's `git.IsRepository` check is redundant (NOT DONE)
 The walker already found a `.git` directory. The subsequent `git rev-parse --is-inside-work-tree` subprocess per repo is almost always redundant and adds significant overhead.
 
 ---
 
 ## Priority 6: Testing & Documentation
-
-### 6.1 Near-zero test coverage (NOT DONE)
-Only 1 test file exists (`main_test.go` with 1 test). The most testable code has no tests:
-- Git output parsing (`HasModifiedFiles`, `GetStatus`, `GetLastCommitTime`)
-- URL parsing (`ConvertGitURLToBrowser`, `ExtractGitHubRepoInfo`)
-- Layout math (`calculateColumnWidths`, `distributeWidth`)
-- Domain helpers (`LineBuffer`, `FormatTimeAgo`, `TruncateWithEllipsis`)
-- Business logic (`isBusy`, `shouldPull`)
 
 ### 6.2 No doc comments on any exported types or functions (NOT DONE)
 The entire domain package lacks Go doc comments. This makes the sealed sum type pattern harder to discover for new contributors.
@@ -120,11 +103,10 @@ All git functions directly call `exec.Command`, making the package untestable wi
 
 ## Unit Testing Strategy & Recommendations
 
-### Current State
-
-The project has exactly **one test file** (`cmd/fresh/main_test.go`) with a single test (`TestParseCLIConfigWithDirFlag`). There are no testing frameworks, no mocks, no test helpers, and no test infrastructure. The `go.mod` has zero testing dependencies beyond the standard `testing` package.
-
-The codebase has significant untested surface area across pure functions, model state transitions, and view rendering — all of which can be tested with low-level, low-complexity unit tests.
+**Remaining approaches:**
+- Approach C: View output substring tests
+- Approach E: Domain type tests
+- Approach F: teatest integration (requires refactoring)
 
 ### Testing Approaches (Ranked by Effort vs Value)
 
@@ -165,22 +147,6 @@ func TestViewShowsRepoName(t *testing.T) {
     }
 }
 ```
-
----
-
-#### Approach D: Table Cell Builder Tests (RECOMMENDED, Part of A)
-**Effort: Low | Value: Medium-High | Dependencies: None**
-
-The individual `build*` functions in `table.go` each take domain types and return strings. They are essentially pure functions and highly testable:
-
-| Function | Input | Tests |
-|---|---|---|
-| `buildSelector(cursor, idx)` | two ints | Returns cursor icon when equal, space otherwise |
-| `buildLocalStatus(state)` | `domain.LocalState` | Clean -> check icon, Dirty -> counts, Error -> error icon |
-| `buildRemoteStatus(state)` | `domain.RemoteState` | Synced/Ahead/Behind/Diverged/NoUpstream/Error -> correct icons and counts |
-| `buildInfo(repo)` | `domain.Repository` | Different output per activity type and remote state |
-| `stylePullOutput(exitCode, text)` | `int, string` | Green on success (0), red on failure |
-
 ---
 
 #### Approach E: Domain Type Tests (OPTIONAL, Low Priority)
@@ -219,14 +185,14 @@ Charm provides `github.com/charmbracelet/x/exp/teatest` which can run a full `te
 
 ### Recommended Implementation Order
 
-| Step | Approach | Files to Create | Estimated Test Count |
-|---|---|---|---|
-| 1 | **A: Pure functions** | `layout_test.go`, `formatting_test.go`, `urls_test.go` | ~30 tests |
-| 2 | **D: Table cell builders** | `table_test.go` | ~15 tests |
-| 3 | **B: Model state transitions** | `listing_test.go`, `tui_test.go` | ~20 tests |
-| 4 | **C: View output assertions** | Extend `listing_test.go` | ~10 tests |
-| 5 | **E: Domain types** | `activity_test.go`, `repository_test.go` | ~10 tests |
-| 6 | **F: teatest integration** | Requires refactoring first | Future |
+| Step | Approach | Status | Files Created | Test Count |
+|---|---|---|---|---|
+| 1 | **A: Pure functions** | ✅ Done | `layout_test.go`, `formatting_test.go`, `urls_test.go`, `style_test.go` | ~35 tests |
+| 2 | **D: Table cell builders** | ✅ Done | `table_test.go` | ~30 tests |
+| 3 | **B: Model state transitions** | ✅ Done | `listing_test.go`, `tui_test.go` | ~30 tests |
+| 4 | **C: View output assertions** | ⏭️ Next | Extend `listing_test.go` | ~10 tests |
+| 5 | **E: Domain types** | Pending | `activity_test.go`, `repository_test.go` | ~10 tests |
+| 6 | **F: teatest integration** | Future | Requires refactoring first | TBD |
 
 ### Prerequisites / Refactoring That Unlocks Deeper Testing
 
@@ -258,3 +224,110 @@ Recommended implementation order:
 8. **Add tests** (6.1) -- start with pure functions (Approach A), then model tests (Approach B)
 9. **Add `context.Context`** (5.2) and **concurrency limiting** (5.1) -- robustness
 10. **Extract `GitOperations` interface** (6.3) -- unlocks command testing and `teatest` integration
+
+---
+
+## Detailed Refactoring: GitOperations Interface
+
+### Overview
+Extract an interface from the git package to decouple the UI layer from concrete git implementations. This enables dependency injection, testing with mocks, and future backend flexibility.
+
+### Naming Scheme
+- **Interface:** `git.Operations` - Clean, package context provides clarity
+- **Implementation:** `git.ShellOperations` - Explicit about shell/subprocess implementation
+- **Constructor:** `git.NewShellOperations(cfg *config.Config)` - Returns concrete type that implements interface
+
+### Implementation Details
+
+#### 1. New File: `internal/git/operations.go`
+```go
+package git
+
+type Operations interface {
+    BuildRepository(path string, cfg *config.Config) domain.Repository
+    Fetch(repoPath string) error
+    Pull(repoPath string, lineCallback func(string)) int
+    DeleteBranches(repoPath string, branches []string, lineCallback func(string)) (exitCode int, deletedCount int)
+}
+
+type ShellOperations struct{
+    cfg *config.Config
+}
+
+var _ Operations = (*ShellOperations)(nil)
+
+func NewShellOperations(cfg *config.Config) *ShellOperations {
+    return &ShellOperations{cfg: cfg}
+}
+
+func (s *ShellOperations) BuildRepository(path string) domain.Repository {
+    return BuildRepository(path, s.cfg)
+}
+// ... other methods delegate to existing package functions
+```
+
+#### 2. Modified: `internal/ui/views/listing/listing.go`
+- Add `GitOps git.Operations` field to `Model` struct
+- Update `New()` signature: `func New(repos []domain.Repository, gitOps git.Operations) *Model`
+- Pass `m` (Model) to command functions so they can access `m.GitOps`
+
+#### 3. Modified: `internal/ui/views/listing/commands.go`
+- Remove `var cfg = config.DefaultConfig()` package-level var
+- Update command functions to accept `*Model` parameter: `performRefresh(m *Model, index int, repoPath string)`
+- Replace direct `git.Xxx()` calls with `m.GitOps.Xxx()`
+
+#### 4. Modified: `internal/ui/tui.go`
+- Create `ShellOperations` instance in `ScanFinishedMsg` handler
+- Pass to `listing.New()`: `listing.New(msg.Repos, gitOps)`
+
+#### 5. Modified: `internal/ui/tui_test.go`
+- Update test to pass nil or mock implementation
+
+### Benefits
+
+1. **Testing (Primary)**
+   - Commands can be tested without real git repos
+   - Mock implementation can simulate success/failure scenarios
+   - Enables Approach F (`teatest` integration testing)
+
+2. **Dependency Inversion**
+   - UI depends on abstraction (`Operations`), not concrete implementation
+   - Follows SOLID principles, cleaner architecture
+
+3. **Future Flexibility**
+   - Could implement `LibGitOperations` using libgit2 for better performance
+   - Could implement `CachedOperations` wrapper for repos that don't change often
+   - Could implement `MetricsOperations` decorator for observability
+
+4. **Configuration Isolation**
+   - Config injected at construction, not global state
+   - Different repos could theoretically have different configs
+   - Easier to support config hot-reloading in future
+
+### Drawbacks
+
+1. **Indirection**
+   - New developers must understand interface → implementation relationship
+   - Slightly more complex mental model
+
+2. **Breaking Changes**
+   - Changing function signatures requires updating interface + implementation + mocks
+   - Use parameter structs if methods need to evolve frequently
+
+3. **Initialization Complexity**
+   - Must create operations instance before creating listing model
+   - Slightly more verbose initialization in `tui.go`
+
+### Decision: Config Storage
+**Selected:** Store `cfg` in `ShellOperations` struct
+- Pros: Self-contained, clean interface methods
+- Cons: Need to change `BuildRepository` signature (remove cfg param from interface)
+- Alternative considered: Pass cfg through every method call (too verbose)
+
+### Verification Checklist
+- [ ] App builds without errors: `go build ./...`
+- [ ] Scanning completes and shows repos
+- [ ] Press 'r' refreshes selected repo
+- [ ] Press 'p' pulls updates (if behind)
+- [ ] Press 'b' prunes merged branches
+- [ ] All existing tests pass: `go test ./...`
