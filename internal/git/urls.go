@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func ConvertGitURLToBrowser(gitURL string) string {
+func convertGitURLToBrowser(gitURL string) string {
 	if strings.HasPrefix(gitURL, "git@") {
 		parts := strings.SplitN(gitURL, ":", 2)
 		if len(parts) != 2 {
@@ -34,12 +34,12 @@ func IsGitHubRepository(remoteURL string) bool {
 	return strings.Contains(remoteURL, "github.com")
 }
 
-func ExtractGitHubRepoInfo(remoteURL string) (owner, repo string) {
+func extractGitHubRepoInfo(remoteURL string) (owner, repo string) {
 	if !IsGitHubRepository(remoteURL) {
 		return "", ""
 	}
 
-	browserURL := ConvertGitURLToBrowser(remoteURL)
+	browserURL := convertGitURLToBrowser(remoteURL)
 
 	if strings.HasPrefix(browserURL, "https://github.com/") {
 		path := strings.TrimPrefix(browserURL, "https://github.com/")
@@ -57,7 +57,7 @@ func BuildGitHubURLs(remoteURL, branch string) map[string]string {
 		return nil
 	}
 
-	owner, repo := ExtractGitHubRepoInfo(remoteURL)
+	owner, repo := extractGitHubRepoInfo(remoteURL)
 	if owner == "" || repo == "" {
 		return nil
 	}

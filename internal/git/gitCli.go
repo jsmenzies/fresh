@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-func createCommand(timeout time.Duration, name string, args ...string) *exec.Cmd {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+func createCommand(name string, args ...string) *exec.Cmd {
+	ctx, cancel := context.WithTimeout(context.Background(), config.DefaultConfig().Timeout.Default)
 	_ = cancel
 	return exec.CommandContext(ctx, name, args...)
 }
@@ -64,13 +64,13 @@ func buildRepository(path string, cfg *config.Config) domain.Repository {
 }
 
 func IsGitInstalled() bool {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "--version")
+	cmd := createCommand("git", "--version")
 	err := cmd.Run()
 	return err == nil
 }
 
 func getRemoteURL(repoPath string) string {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "remote", "get-url", "origin")
+	cmd := createCommand("git", "remote", "get-url", "origin")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -81,7 +81,7 @@ func getRemoteURL(repoPath string) string {
 }
 
 func getCurrentBranch(repoPath string) domain.Branch {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd := createCommand("git", "rev-parse", "--abbrev-ref", "HEAD")
 	cmd.Dir = repoPath
 	branch, err := cmd.Output()
 	if err != nil {
@@ -100,7 +100,7 @@ func getCurrentBranch(repoPath string) domain.Branch {
 }
 
 func getLocalState(repoPath string) domain.LocalState {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "status", "--porcelain=v2")
+	cmd := createCommand("git", "status", "--porcelain=v2")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 
@@ -152,7 +152,7 @@ func getLocalState(repoPath string) domain.LocalState {
 }
 
 func getRemoteState(repoPath string) domain.RemoteState {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
+	cmd := createCommand("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 
@@ -195,7 +195,7 @@ func getRemoteState(repoPath string) domain.RemoteState {
 }
 
 func getLastCommitTime(repoPath string) time.Time {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "log", "-1", "--format=%ct")
+	cmd := createCommand("git", "log", "-1", "--format=%ct")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -216,14 +216,14 @@ func getLastCommitTime(repoPath string) time.Time {
 }
 
 func fetch(repoPath string) error {
-	cmd := createCommand(config.DefaultConfig().Timeout.Fetch, "git", "fetch", "--quiet")
+	cmd := createCommand("git", "fetch", "--quiet")
 	cmd.Dir = repoPath
 	_, err := cmd.CombinedOutput()
 	return err
 }
 
 func pull(repoPath string, lineCallback func(string)) int {
-	cmd := createCommand(config.DefaultConfig().Timeout.Pull, "git", "pull", "--rebase", "--progress")
+	cmd := createCommand("git", "pull", "--rebase", "--progress")
 	cmd.Dir = repoPath
 
 	stderrPipe, err := cmd.StderrPipe()
@@ -341,7 +341,7 @@ func buildBranches(repoPath string, excludedBranches []string) domain.Branches {
 }
 
 func listLocalBranches(repoPath string) ([]string, error) {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "branch", "--format=%(refname:short)")
+	cmd := createCommand("git", "branch", "--format=%(refname:short)")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -361,7 +361,7 @@ func listLocalBranches(repoPath string) ([]string, error) {
 }
 
 func filterMergedBranches(repoPath string, branches []string) []string {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "branch", "--merged", "HEAD", "--format=%(refname:short)")
+	cmd := createCommand("git", "branch", "--merged", "HEAD", "--format=%(refname:short)")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -387,7 +387,7 @@ func deleteBranches(repoPath string, branches []string, lineCallback func(string
 	deletedCount = 0
 
 	for _, branch := range branches {
-		cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "branch", "-d", branch)
+		cmd := createCommand("git", "branch", "-d", branch)
 		cmd.Dir = repoPath
 		output, err := cmd.CombinedOutput()
 		outputStr := strings.TrimSpace(string(output))

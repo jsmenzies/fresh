@@ -1,12 +1,12 @@
 package listing
 
 import (
-	"fresh/internal/ui/views/common"
+	"fresh/internal/ui/common"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
-func RenderLegend(show bool) string {
+func renderLegend(show bool) string {
 	if !show {
 		return ""
 	}

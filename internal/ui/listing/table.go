@@ -6,13 +6,13 @@ import (
 
 	"fresh/internal/domain"
 	"fresh/internal/git"
-	"fresh/internal/ui/views/common"
+	"fresh/internal/ui/common"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 )
 
-func GenerateTable(repositories []domain.Repository, cursor int, terminalWidth int) string {
+func generateTable(repositories []domain.Repository, cursor int, terminalWidth int) string {
 	projectWidth, branchWidth := calculateColumnWidths(repositories, terminalWidth)
 
 	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "", "LAST COMMIT", "LINKS"}
@@ -290,13 +290,13 @@ func buildLinks(url string, branch domain.Branch) string {
 			if githubURLs != nil {
 				var shortcuts []string
 
-				codeLink := MakeClickableURL(githubURLs["code"], common.IconCode)
+				codeLink := makeClickableURL(githubURLs["code"], common.IconCode)
 				shortcuts = append(shortcuts, common.LinkStyle.Render(codeLink))
 
-				prsLink := MakeClickableURL(githubURLs["prs"], common.IconPullRequests)
+				prsLink := makeClickableURL(githubURLs["prs"], common.IconPullRequests)
 				shortcuts = append(shortcuts, common.LinkStyle.Render(prsLink))
 
-				openPRLink := MakeClickableURL(githubURLs["openpr"], common.IconOpenPR)
+				openPRLink := makeClickableURL(githubURLs["openpr"], common.IconOpenPR)
 				shortcuts = append(shortcuts, common.LinkStyle.Render(openPRLink))
 
 				shortcutsDisplay := fmt.Sprintf("%s", strings.Join(shortcuts, " "))
@@ -307,7 +307,7 @@ func buildLinks(url string, branch domain.Branch) string {
 	return ""
 }
 
-func MakeClickableURL(url string, displayText string) string {
+func makeClickableURL(url string, displayText string) string {
 	if url == "" {
 		return displayText
 	}

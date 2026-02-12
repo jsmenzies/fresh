@@ -6,7 +6,7 @@ import (
 	"fresh/internal/domain"
 	"fresh/internal/git"
 	"fresh/internal/scanner"
-	"fresh/internal/ui/views/common"
+	"fresh/internal/ui/common"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -23,18 +23,18 @@ type Model struct {
 
 func New(scanDir string) *Model {
 	cfg := config.DefaultConfig()
-	return NewWithDependencies(
+	return newWithDependencies(
 		git.NewExecClient(cfg),
 		scanner.New(scanDir),
 	)
 }
 
-func NewWithDependencies(gitClient git.Client, repoScanner scanner.RepositoryScanner) *Model {
+func newWithDependencies(gitClient git.Client, repoScanner scanner.RepositoryScanner) *Model {
 	if gitClient == nil {
-		panic("scanning.NewWithDependencies requires non-nil git client")
+		panic("scanning.newWithDependencies requires non-nil git client")
 	}
 	if repoScanner == nil {
-		panic("scanning.NewWithDependencies requires non-nil repository scanner")
+		panic("scanning.newWithDependencies requires non-nil repository scanner")
 	}
 
 	s := common.NewGreenDotSpinner()

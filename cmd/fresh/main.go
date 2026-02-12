@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"fresh/internal/cli"
 	"fresh/internal/git"
 	"fresh/internal/ui"
 	"os"
@@ -17,22 +18,9 @@ var (
 	builtBy = "unknown"
 )
 
-type Config struct {
-	ScanDir string
-	NoIcons bool
-}
-
-type Action int
-
-const (
-	ActionRun Action = iota
-	ActionVersion
-	ActionHelp
-)
-
 func main() {
 	formatUsageOutput()
-	action, cfg, err := parseCliFlags()
+	action, cfg, err := cli.ParseFlags(os.Args[1:])
 
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -40,13 +28,13 @@ func main() {
 	}
 
 	switch action {
-	case ActionVersion:
+	case cli.ActionVersion:
 		printVersion()
 		os.Exit(0)
-	case ActionRun:
+	case cli.ActionRun:
 		runApp(cfg)
 		os.Exit(0)
-	case ActionHelp:
+	case cli.ActionHelp:
 		flag.Usage()
 		os.Exit(0)
 	default:
@@ -55,52 +43,7 @@ func main() {
 	}
 }
 
-func parseCliFlags() (Action, *Config, error) {
-	var showVersion bool
-	var showHelp bool
-	var dirPath string
-	var noIcons bool
-
-	var defaultDir, _ = os.Getwd()
-
-	flag.BoolVar(&showVersion, "version", false, "Print version information")
-	flag.BoolVar(&showVersion, "v", false, "Print version information (shorthand)")
-	flag.BoolVar(&showHelp, "help", false, "Show help message")
-	flag.BoolVar(&showHelp, "h", false, "Show help message (shorthand)")
-	flag.StringVar(&dirPath, "dir", defaultDir, "Specify the directory to scan (shorthand: -d)")
-	flag.StringVar(&dirPath, "d", defaultDir, "Specify the directory to scan (shorthand for --dir)")
-	flag.BoolVar(&noIcons, "no-icons", false, "Disable icon display")
-
-	flag.Parse()
-
-	if len(flag.Args()) > 0 {
-		return ActionRun, nil, fmt.Errorf("unexpected arguments: %v\nUse --dir to specify a directory", flag.Args())
-	}
-
-	switch {
-	case showVersion:
-		return ActionVersion, nil, nil
-	case showHelp:
-		return ActionHelp, nil, nil
-	default:
-		cfg, err := buildConfig(dirPath, noIcons)
-		return ActionRun, cfg, err
-	}
-}
-
-func buildConfig(dirPath string, noIcons bool) (*Config, error) {
-	if err := validateScanDir(dirPath); err != nil {
-		return nil, err
-	}
-
-	cfg := &Config{
-		ScanDir: dirPath,
-		NoIcons: noIcons,
-	}
-	return cfg, nil
-}
-
-func runApp(cfg *Config) {
+func runApp(cfg *cli.Config) {
 	if git.IsGitInstalled() == false {
 		fmt.Println("Git is not installed or not found in PATH.")
 		os.Exit(1)
@@ -112,20 +55,6 @@ func runApp(cfg *Config) {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
-}
-
-func validateScanDir(dir string) error {
-	info, err := os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("directory does not exist: %s", dir)
-		}
-		return fmt.Errorf("cannot access directory %s: %w", dir, err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("path is not a directory: %s", dir)
-	}
-	return nil
 }
 
 func formatUsageOutput() {

@@ -26,8 +26,6 @@ func DefaultConfig() *Config {
 		},
 		Timeout: TimeoutConfig{
 			Default: 30 * time.Second,
-			Pull:    2 * time.Minute,
-			Fetch:   1 * time.Minute,
 		},
 	}
 }

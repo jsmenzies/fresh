@@ -3,7 +3,7 @@ package listing
 import (
 	"fresh/internal/domain"
 	"fresh/internal/git"
-	"fresh/internal/ui/views/common"
+	"fresh/internal/ui/common"
 	"sort"
 	"strings"
 
@@ -258,12 +258,12 @@ func (m *Model) View() string {
 		return s.String()
 	}
 
-	s.WriteString(GenerateTable(m.Repositories, m.Cursor, m.width))
+	s.WriteString(generateTable(m.Repositories, m.Cursor, m.width))
 	s.WriteString("\n\n")
 
 	s.WriteString(buildFooter())
 
-	legend := RenderLegend(m.ShowLegend)
+	legend := renderLegend(m.ShowLegend)
 	s.WriteString("\n\n")
 	s.WriteString(legend)
 

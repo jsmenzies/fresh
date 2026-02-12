@@ -1,32 +1,24 @@
 package main
 
 import (
-	"flag"
-	"os"
 	"testing"
+
+	"fresh/internal/cli"
 )
 
-func TestParseCLIConfigWithDirFlag(t *testing.T) {
+func TestParseFlagsWithDirFlag(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	originalArgs := os.Args
-	t.Cleanup(func() {
-		os.Args = originalArgs
-	})
-
-	os.Args = []string{"fresh", "--dir", tmpDir}
-
-	action, cfg, err := parseCliFlags()
+	action, cfg, err := cli.ParseFlags([]string{"--dir", tmpDir})
 	if err != nil {
-		t.Fatalf("parseCliFlags() unexpected error: %v", err)
+		t.Fatalf("ParseFlags() unexpected error: %v", err)
 	}
 
-	if action != ActionRun {
-		t.Errorf("parseCliFlags() action = %v, want ActionRun", action)
+	if action != cli.ActionRun {
+		t.Errorf("ParseFlags() action = %v, want ActionRun", action)
 	}
 
 	if cfg.ScanDir != tmpDir {
-		t.Errorf("parseCliFlags() ScanDir = %v, want %v", cfg.ScanDir, tmpDir)
+		t.Errorf("ParseFlags() ScanDir = %v, want %v", cfg.ScanDir, tmpDir)
 	}
 }

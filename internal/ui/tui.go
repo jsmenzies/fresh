@@ -3,9 +3,8 @@ package ui
 import (
 	"fresh/internal/config"
 	"fresh/internal/git"
-	"fresh/internal/scanner"
-	"fresh/internal/ui/views/listing"
-	"fresh/internal/ui/views/scanning"
+	"fresh/internal/ui/listing"
+	"fresh/internal/ui/scanning"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -30,7 +29,7 @@ func New(scanDir string) *MainModel {
 
 	return &MainModel{
 		currentView:  ScanningView,
-		scanningView: scanning.NewWithDependencies(gitClient, scanner.New(scanDir)),
+		scanningView: scanning.New(scanDir),
 		gitClient:    gitClient,
 	}
 }
