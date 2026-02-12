@@ -118,6 +118,135 @@ All git functions directly call `exec.Command`, making the package untestable wi
 
 ---
 
+## Unit Testing Strategy & Recommendations
+
+### Current State
+
+The project has exactly **one test file** (`cmd/fresh/main_test.go`) with a single test (`TestParseCLIConfigWithDirFlag`). There are no testing frameworks, no mocks, no test helpers, and no test infrastructure. The `go.mod` has zero testing dependencies beyond the standard `testing` package.
+
+The codebase has significant untested surface area across pure functions, model state transitions, and view rendering — all of which can be tested with low-level, low-complexity unit tests.
+
+### Testing Approaches (Ranked by Effort vs Value)
+
+---
+
+#### Approach C: View Output Substring Tests (RECOMMENDED THIRD)
+**Effort: Low-Medium | Value: Medium | Dependencies: None**
+
+Call `View()` on a model with known state and use `strings.Contains` to assert key content is present. Avoids brittle exact-match or snapshot comparisons. ANSI escape codes from Lipgloss are present in output but don't affect substring matching.
+
+**Tip:** To disable ANSI codes entirely during tests, set `lipgloss.SetColorProfile(termenv.Ascii)` in a `TestMain` function or use `lipgloss.NewRenderer(io.Discard)`.
+
+**What can be tested:**
+- Repo names appear in the table output
+- Branch names appear for each repo
+- Status icons render correctly for different `LocalState`/`RemoteState` combinations
+- Footer content reflects repo count and status summary
+- Legend appears when `ShowLegend == true` and is absent when `false`
+- Pull/prune progress text appears during active operations
+
+**Example:**
+```go
+func TestViewShowsRepoName(t *testing.T) {
+    repos := []domain.Repository{{
+        Name: "my-project", Path: "/tmp/my-project",
+        Activity: domain.IdleActivity{},
+        LocalState: domain.CleanLocalState{},
+        RemoteState: domain.Synced{},
+        Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}},
+    }}
+    m := New(repos)
+    m.width = 120
+    m.height = 40
+
+    output := m.View()
+    if !strings.Contains(output, "my-project") {
+        t.Errorf("expected 'my-project' in view output")
+    }
+}
+```
+
+---
+
+#### Approach D: Table Cell Builder Tests (RECOMMENDED, Part of A)
+**Effort: Low | Value: Medium-High | Dependencies: None**
+
+The individual `build*` functions in `table.go` each take domain types and return strings. They are essentially pure functions and highly testable:
+
+| Function | Input | Tests |
+|---|---|---|
+| `buildSelector(cursor, idx)` | two ints | Returns cursor icon when equal, space otherwise |
+| `buildLocalStatus(state)` | `domain.LocalState` | Clean -> check icon, Dirty -> counts, Error -> error icon |
+| `buildRemoteStatus(state)` | `domain.RemoteState` | Synced/Ahead/Behind/Diverged/NoUpstream/Error -> correct icons and counts |
+| `buildInfo(repo)` | `domain.Repository` | Different output per activity type and remote state |
+| `stylePullOutput(exitCode, text)` | `int, string` | Green on success (0), red on failure |
+
+---
+
+#### Approach E: Domain Type Tests (OPTIONAL, Low Priority)
+**Effort: Very Low | Value: Low**
+
+Domain types are mostly data holders, but some have testable logic:
+- `Repository.IsBusy()` -- returns true when activity is in-progress
+- `Repository.CanPull()` -- delegates to `RemoteState.CanPull()`
+- `LineBuffer.AddLine()` / `GetLastLine()` -- buffer accumulation
+- `RefreshingActivity.MarkComplete()` / `PullingActivity.MarkComplete()` / `PruningActivity.MarkComplete()` -- state flag mutation
+- Each `RemoteState` variant's `CanPull()` return value
+
+---
+
+#### Approach F: `teatest` Integration Testing (NOT RECOMMENDED YET)
+**Effort: High | Value: Low (given current architecture)**
+
+Charm provides `github.com/charmbracelet/x/exp/teatest` which can run a full `tea.Program` in a test harness with a virtual terminal. Features include:
+- `teatest.NewTestModel(tb, model)` -- wraps model in test harness
+- `TestModel.Send(msg)` -- sends messages
+- `TestModel.Type(s)` -- simulates keyboard input
+- `TestModel.FinalModel(tb)` -- gets model after quit
+- `RequireEqualOutput(tb, out)` -- golden file snapshot comparison against `testdata/*.golden` files
+- `WithInitialTermSize(x, y)` -- sets virtual terminal size
+
+**Why not recommended yet:**
+1. All commands (`performRefresh`, `performPull`, `performPrune`) directly call real `git` commands via `exec.Command` -- `teatest` would execute real git operations
+2. The scanning view depends on `scanner.Scanner` which walks the real filesystem
+3. To use `teatest` effectively, you would first need to introduce a `GitOperations` interface and a `Scanner` interface for dependency injection
+4. Direct model testing (Approach B) covers the same `Update` logic with far less complexity
+5. Golden file snapshot tests are brittle with Lipgloss — ANSI codes change across terminal types, Lipgloss versions, and CI environments
+
+**When to adopt:** After extracting a `GitOperations` interface and a `Scanner` interface from the production code. At that point, `teatest` would enable full end-to-end TUI flow testing with mocked backends.
+
+---
+
+### Recommended Implementation Order
+
+| Step | Approach | Files to Create | Estimated Test Count |
+|---|---|---|---|
+| 1 | **A: Pure functions** | `layout_test.go`, `formatting_test.go`, `urls_test.go` | ~30 tests |
+| 2 | **D: Table cell builders** | `table_test.go` | ~15 tests |
+| 3 | **B: Model state transitions** | `listing_test.go`, `tui_test.go` | ~20 tests |
+| 4 | **C: View output assertions** | Extend `listing_test.go` | ~10 tests |
+| 5 | **E: Domain types** | `activity_test.go`, `repository_test.go` | ~10 tests |
+| 6 | **F: teatest integration** | Requires refactoring first | Future |
+
+### Prerequisites / Refactoring That Unlocks Deeper Testing
+
+These are **not required** for approaches A-E above, but would unlock Approach F and allow testing commands:
+
+1. **Extract `GitOperations` interface** from `internal/git/git.go` — wrap `Fetch`, `Pull`, `BuildRepository`, `DeleteBranches` behind an interface. Inject into `listing.Model` instead of calling package-level functions.
+2. **Extract `Scanner` interface** from `internal/scanner/scanner.go` — inject into `scanning.Model`.
+3. **Move `spinner.Model` out of domain** (see item 2.1 above) — makes constructing test `Repository` values simpler since you don't need to create spinners for every test fixture.
+4. **Make `config` injectable** — `commands.go` and `scanning.go` both use a package-level `var cfg = config.DefaultConfig()`. Accept config as a parameter or field instead.
+
+### Tooling Recommendations
+
+- **No external test frameworks needed.** The standard `testing` package with table-driven tests is sufficient and idiomatic for this project's scope.
+- **Consider `github.com/google/go-cmp`** if you want readable struct diff output on assertion failures (optional, not required).
+- **Do not add `testify`** — it adds complexity without meaningful benefit for these test patterns.
+- **Use `t.Helper()`** in any shared assertion helpers to get correct line numbers in failure output.
+- **Use `t.Parallel()`** on all pure function tests to speed up the test suite.
+
+---
+
 ## Suggested Refactoring Roadmap
 
 Recommended implementation order:
@@ -126,5 +255,6 @@ Recommended implementation order:
 3. **Move `spinner.Model` out of domain** (2.1) -- biggest architectural win, unlocks testability
 4. **Deduplicate pull/prune patterns** (3.1) -- reduces ~80 lines of near-identical code
 6. **Clean dead code** (3.5) -- low effort, immediate clarity improvement
-8. **Add tests** (6.1) -- start with pure functions in domain and formatting
+8. **Add tests** (6.1) -- start with pure functions (Approach A), then model tests (Approach B)
 9. **Add `context.Context`** (5.2) and **concurrency limiting** (5.1) -- robustness
+10. **Extract `GitOperations` interface** (6.3) -- unlocks command testing and `teatest` integration
