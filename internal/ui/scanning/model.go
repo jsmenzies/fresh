@@ -2,7 +2,6 @@ package scanning
 
 import (
 	"fmt"
-	"fresh/internal/config"
 	"fresh/internal/domain"
 	"fresh/internal/git"
 	"fresh/internal/scanner"
@@ -16,27 +15,12 @@ import (
 type Model struct {
 	Repositories  []domain.Repository
 	scanner       scanner.RepositoryScanner
-	gitClient     git.Client
+	gitClient     *git.Git
 	Spinner       spinner.Model
 	width, height int
 }
 
-func New(scanDir string) *Model {
-	cfg := config.DefaultConfig()
-	return newWithDependencies(
-		git.NewExecClient(cfg),
-		scanner.New(scanDir),
-	)
-}
-
-func newWithDependencies(gitClient git.Client, repoScanner scanner.RepositoryScanner) *Model {
-	if gitClient == nil {
-		panic("scanning.newWithDependencies requires non-nil git client")
-	}
-	if repoScanner == nil {
-		panic("scanning.newWithDependencies requires non-nil repository scanner")
-	}
-
+func New(gitClient *git.Git, repoScanner scanner.RepositoryScanner) *Model {
 	s := common.NewGreenDotSpinner()
 	return &Model{
 		Repositories: make([]domain.Repository, 0),
@@ -63,7 +47,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case repoFoundMsg:
 		path := string(msg)
-		repo := m.gitClient.BuildRepository(path)
+		repo := m.gitClient.BuildRepository(path, nil)
 		m.Repositories = append(m.Repositories, repo)
 		return m, waitForRepo(m.scanner.GetRepoChannel())
 

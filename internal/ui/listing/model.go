@@ -42,18 +42,14 @@ func newListKeyMap() *listKeyMap {
 
 type Model struct {
 	Repositories  []domain.Repository
-	GitClient     git.Client
+	GitClient     *git.Git
 	Cursor        int
 	Keys          *listKeyMap
 	width, height int
 	ShowLegend    bool
 }
 
-func New(repos []domain.Repository, gitClient git.Client) *Model {
-	if gitClient == nil {
-		panic("listing.New requires non-nil git client")
-	}
-
+func New(repos []domain.Repository, gitClient *git.Git) *Model {
 	sort.Slice(repos, func(i, j int) bool {
 		return strings.ToLower(repos[i].Name) < strings.ToLower(repos[j].Name)
 	})

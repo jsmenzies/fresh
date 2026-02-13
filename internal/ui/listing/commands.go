@@ -8,7 +8,7 @@ func performRefresh(m *Model, index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
 		// Fetch first, then build the repo to get fresh status (avoids 3x GetStatus calls)
 		_ = m.GitClient.Fetch(repoPath)
-		repo := m.GitClient.BuildRepository(repoPath)
+		repo := m.GitClient.BuildRepository(repoPath, nil)
 
 		return RepoUpdatedMsg{
 			Repo:  repo,
@@ -29,7 +29,7 @@ func performPull(m *Model, index int, repoPath string) tea.Cmd {
 
 			close(lineChan)
 
-			repo := m.GitClient.BuildRepository(repoPath)
+			repo := m.GitClient.BuildRepository(repoPath, nil)
 
 			doneChan <- pullCompleteMsg{
 				Index:    index,
@@ -81,7 +81,7 @@ func performPrune(m *Model, index int, repoPath string, branches []string) tea.C
 
 			close(lineChan)
 
-			repo := m.GitClient.BuildRepository(repoPath)
+			repo := m.GitClient.BuildRepository(repoPath, nil)
 
 			doneChan <- pruneCompleteMsg{
 				Index:        index,

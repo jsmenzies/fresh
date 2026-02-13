@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fresh/internal/config"
 	"fresh/internal/git"
 	"fresh/internal/ui/listing"
 	"fresh/internal/ui/scanning"
@@ -12,34 +11,32 @@ import (
 type CurrentView int
 
 const (
-	ScanningView CurrentView = iota
-	RepoListView
+	Scanning CurrentView = iota
+	Listing
 )
 
 type MainModel struct {
 	currentView   CurrentView
-	scanningView  *scanning.Model
-	listingView   *listing.Model
-	gitClient     git.Client
+	scanningModel *scanning.Model
+	listingModel  *listing.Model
+	gitClient     *git.Git
 	width, height int
 }
 
-func New(scanDir string) *MainModel {
-	gitClient := git.NewExecClient(config.DefaultConfig())
-
+func New(scanningModel *scanning.Model, gitClient *git.Git) *MainModel {
 	return &MainModel{
-		currentView:  ScanningView,
-		scanningView: scanning.New(scanDir),
-		gitClient:    gitClient,
+		currentView:   Scanning,
+		scanningModel: scanningModel,
+		gitClient:     gitClient,
 	}
 }
 
 func (m *MainModel) Init() tea.Cmd {
 	switch m.currentView {
-	case ScanningView:
-		return m.scanningView.Init()
-	case RepoListView:
-		return m.listingView.Init()
+	case Scanning:
+		return m.scanningModel.Init()
+	case Listing:
+		return m.listingModel.Init()
 	default:
 		return nil
 	}
@@ -58,22 +55,22 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case scanning.ScanFinishedMsg:
-		m.currentView = RepoListView
-		m.listingView = listing.New(msg.Repos, m.gitClient)
-		return m, m.listingView.Init()
+		m.currentView = Listing
+		m.listingModel = listing.New(msg.Repos, m.gitClient)
+		return m, m.listingModel.Init()
 	}
 
 	switch m.currentView {
-	case ScanningView:
-		newScanningModel, newCmd := m.scanningView.Update(msg)
+	case Scanning:
+		newScanningModel, newCmd := m.scanningModel.Update(msg)
 		if newModel, ok := newScanningModel.(*scanning.Model); ok {
-			m.scanningView = newModel
+			m.scanningModel = newModel
 		}
 		cmd = newCmd
-	case RepoListView:
-		newListingModel, newCmd := m.listingView.Update(msg)
+	case Listing:
+		newListingModel, newCmd := m.listingModel.Update(msg)
 		if newModel, ok := newListingModel.(*listing.Model); ok {
-			m.listingView = newModel
+			m.listingModel = newModel
 		}
 		cmd = newCmd
 	}
@@ -83,10 +80,10 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *MainModel) View() string {
 	switch m.currentView {
-	case ScanningView:
-		return m.scanningView.View()
-	case RepoListView:
-		return m.listingView.View()
+	case Scanning:
+		return m.scanningModel.View()
+	case Listing:
+		return m.listingModel.View()
 	default:
 		return ""
 	}

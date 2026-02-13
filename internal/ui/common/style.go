@@ -23,6 +23,34 @@ const (
 
 	DividerColor = lipgloss.Color("#414868")
 	Padding      = 2
+
+	LabelNoUpstream = "No upstream "
+	HelpNoUpstream  = "(new branch or deleted remote)"
+	LabelDetached   = "Detached HEAD "
+	HelpDetached    = "(not currently on a branch)"
+	HelpDiverged    = " (Pulling will run --rebase)"
+
+	IconGit         = "\uF115"
+	IconClock       = "\uF017"
+	IconClean       = "\uF00C"
+	IconDirty       = "\uF071"
+	IconWarning     = "\uF071"
+	IconUntracked   = "?"
+	IconDiverged    = "⊘"
+	IconRemoteError = "\U000F04E7"
+	IconBehind      = "\uF063"
+	IconAhead       = "\uF062"
+	//IconPullRequests = "\uE726"
+	IconPullRequests = "\uF03A"
+	IconCode         = "\uF09B"
+	IconIssues       = "\uEA60"
+	//IconOpenPR       = "\uF013"
+	IconOpenPR   = "\U000F04C2"
+	IconSynced   = "\U000F12D6"
+	IconSelector = "▶"
+
+	BranchHead     = "HEAD"
+	StatusDiverged = "Diverged"
 )
 
 var TableBorderStyle = lipgloss.NewStyle().Foreground(DividerColor)
@@ -137,14 +165,6 @@ var PullProgressStyle = lipgloss.NewStyle()
 var InfoStyle = lipgloss.NewStyle().
 	MaxHeight(1)
 
-const (
-	LabelNoUpstream = "No upstream "
-	HelpNoUpstream  = "(new branch or deleted remote)"
-	LabelDetached   = "Detached HEAD "
-	HelpDetached    = "(not currently on a branch)"
-	HelpDiverged    = " (Pulling will run --rebase)"
-)
-
 type StatusMessage struct {
 	Label string
 	Help  string
@@ -174,32 +194,6 @@ func TruncateWithEllipsis(text string, maxWidth int) string {
 func FormatPullProgress(spinnerView string, lastLine string, width int) string {
 	return spinnerView + " " + PullProgressStyle.Width(width).Render(lastLine)
 }
-
-const (
-	IconGit         = "\uF115"
-	IconClock       = "\uF017"
-	IconClean       = "\uF00C"
-	IconDirty       = "\uF071"
-	IconWarning     = "\uF071"
-	IconUntracked   = "?"
-	IconDiverged    = "⊘"
-	IconRemoteError = "\U000F04E7"
-	IconBehind      = "\uF063"
-	IconAhead       = "\uF062"
-	//IconPullRequests = "\uE726"
-	IconPullRequests = "\uF03A"
-	IconCode         = "\uF09B"
-	IconIssues       = "\uEA60"
-	//IconOpenPR       = "\uF013"
-	IconOpenPR   = "\U000F04C2"
-	IconSynced   = "\U000F12D6"
-	IconSelector = "▶"
-)
-
-const (
-	BranchHead     = "HEAD"
-	StatusDiverged = "Diverged"
-)
 
 var SelectorStyle = lipgloss.NewStyle().
 	Foreground(Blue).

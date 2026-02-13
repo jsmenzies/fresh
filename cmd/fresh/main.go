@@ -4,8 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"fresh/internal/cli"
+	"fresh/internal/config"
 	"fresh/internal/git"
+	"fresh/internal/scanner"
 	"fresh/internal/ui"
+	"fresh/internal/ui/scanning"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -44,12 +47,16 @@ func main() {
 }
 
 func runApp(cfg *cli.Config) {
-	if git.IsGitInstalled() == false {
+	if !git.IsGitInstalled() {
 		fmt.Println("Git is not installed or not found in PATH.")
 		os.Exit(1)
 	}
 
-	m := ui.New(cfg.ScanDir)
+	appCfg := config.DefaultConfig()
+	gitClient := git.New(appCfg)
+	scanner := scanner.New(cfg.ScanDir)
+	scanningModel := scanning.New(gitClient, scanner)
+	m := ui.New(scanningModel, gitClient)
 
 	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Println("Error running program:", err)
