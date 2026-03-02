@@ -9,8 +9,8 @@ import (
 	"fresh/internal/ui/views/common"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 )
 
 var cfg = config.DefaultConfig()
@@ -39,12 +39,15 @@ func (m *Model) Init() tea.Cmd {
 	)
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		return m, nil
+
+	case tea.KeyPressMsg:
+		// Handle any key messages (optional, can be removed if not needed)
 
 	case repoFoundMsg:
 		path := string(msg)

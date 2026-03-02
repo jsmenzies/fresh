@@ -4,7 +4,7 @@ import (
 	"fresh/internal/config"
 	"fresh/internal/git"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 var cfg = config.DefaultConfig()
