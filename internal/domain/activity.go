@@ -1,6 +1,6 @@
 package domain
 
-import "github.com/charmbracelet/bubbles/spinner"
+import "charm.land/bubbles/v2/spinner"
 
 type Activity interface {
 	isActivity()

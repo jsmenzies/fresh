@@ -4,7 +4,7 @@ import (
 	"fresh/internal/ui/views/listing"
 	"fresh/internal/ui/views/scanning"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 type CurrentView int
@@ -15,9 +15,9 @@ const (
 )
 
 type MainModel struct {
-	currentView  CurrentView
-	scanningView *scanning.Model
-	listingView  *listing.Model
+	currentView   CurrentView
+	scanningView  *scanning.Model
+	listingView   *listing.Model
 	width, height int
 }
 
@@ -47,7 +47,7 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" || msg.String() == "q" {
 			return m, tea.Quit
 		}
@@ -59,29 +59,21 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.currentView {
 	case ScanningView:
-		newScanningModel, newCmd := m.scanningView.Update(msg)
-		if newModel, ok := newScanningModel.(*scanning.Model); ok {
-			m.scanningView = newModel
-		}
-		cmd = newCmd
+		m.scanningView, cmd = m.scanningView.Update(msg)
 	case RepoListView:
-		newListingModel, newCmd := m.listingView.Update(msg)
-		if newModel, ok := newListingModel.(*listing.Model); ok {
-			m.listingView = newModel
-		}
-		cmd = newCmd
+		m.listingView, cmd = m.listingView.Update(msg)
 	}
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
 }
 
-func (m *MainModel) View() string {
+func (m *MainModel) View() tea.View {
+	v := tea.NewView("")
 	switch m.currentView {
 	case ScanningView:
-		return m.scanningView.View()
+		v.SetContent(m.scanningView.View())
 	case RepoListView:
-		return m.listingView.View()
-	default:
-		return ""
+		v.SetContent(m.listingView.View())
 	}
+	return v
 }
