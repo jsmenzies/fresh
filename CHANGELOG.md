@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.12.0](https://github.com/jsmenzies/fresh/compare/v1.11.1...v1.12.0) (2026-03-02)
+
+
+### Features
+
+* migrate to BubbleTea v2 ([a60536d](https://github.com/jsmenzies/fresh/commit/a60536d6dd0dfbf713b526552bb2b5012ad5b6f4))
+* migrate to BubbleTea v2 ([4b6364a](https://github.com/jsmenzies/fresh/commit/4b6364adf0385840628da3e8ec3730de979ca4ef))
+
+
+### Documentation
+
+* add detailed BubbleTea v2 migration plan ([afff687](https://github.com/jsmenzies/fresh/commit/afff68790107993e3da79fbe4cebae5704dc88ee))
+
 ## [1.11.1](https://github.com/jsmenzies/fresh/compare/v1.11.0...v1.11.1) (2026-02-11)
 
 
