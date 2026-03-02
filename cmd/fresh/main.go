@@ -7,7 +7,7 @@ import (
 	"fresh/internal/ui"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 var (
@@ -108,7 +108,7 @@ func runApp(cfg *Config) {
 
 	m := ui.New(cfg.ScanDir)
 
-	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+	if _, err := tea.NewProgram(m).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}

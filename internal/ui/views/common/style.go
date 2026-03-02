@@ -3,11 +3,11 @@ package common
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/lipgloss/v2"
 )
 
-const (
+var (
 	SubtleGray    = lipgloss.Color("#5b6078")
 	TextPrimary   = lipgloss.Color("#FFFFFF")
 	TextSecondary = lipgloss.Color("#a9b1d6")
@@ -22,30 +22,33 @@ const (
 	Blue   = lipgloss.Color("#52A2FF")
 
 	DividerColor = lipgloss.Color("#414868")
-	Padding      = 2
+)
+
+const (
+	Padding = 2
 )
 
 var TableBorderStyle = lipgloss.NewStyle().Foreground(DividerColor)
 
 func NewGreenDotSpinner() spinner.Model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a"))
-	return s
+	return spinner.New(
+		spinner.WithSpinner(spinner.Dot),
+		spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a"))),
+	)
 }
 
 func NewRefreshSpinner() spinner.Model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(TextSecondary)
-	return s
+	return spinner.New(
+		spinner.WithSpinner(spinner.Dot),
+		spinner.WithStyle(lipgloss.NewStyle().Foreground(TextSecondary)),
+	)
 }
 
 func NewPullSpinner() spinner.Model {
-	s := spinner.New()
-	s.Spinner = spinner.Points
-	s.Style = lipgloss.NewStyle().Foreground(Blue)
-	return s
+	return spinner.New(
+		spinner.WithSpinner(spinner.Points),
+		spinner.WithStyle(lipgloss.NewStyle().Foreground(Blue)),
+	)
 }
 
 var TableHeaderStyle = lipgloss.NewStyle().

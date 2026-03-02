@@ -6,7 +6,7 @@ import (
 	"fresh/internal/ui/views/scanning"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestMainModel_InitialViewIsScanning(t *testing.T) {
@@ -56,7 +56,7 @@ func TestMainModel_QuitOnCtrlC(t *testing.T) {
 	t.Parallel()
 
 	m := New(t.TempDir())
-	msg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	msg := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 
 	_, cmd := m.Update(msg)
 
@@ -71,7 +71,7 @@ func TestMainModel_QuitOnQ(t *testing.T) {
 	t.Parallel()
 
 	m := New(t.TempDir())
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg := tea.KeyPressMsg{Code: 'q'}
 
 	_, cmd := m.Update(msg)
 
@@ -110,7 +110,7 @@ func TestMainModel_DelegatesKeyMsgToListingInRepoListView(t *testing.T) {
 	m.Update(scanning.ScanFinishedMsg{Repos: repos})
 
 	// Now send a 'j' key to move cursor
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	msg := tea.KeyPressMsg{Code: 'j'}
 	m.Update(msg)
 
 	if m.listingView.Cursor != 1 {
@@ -125,7 +125,7 @@ func TestMainModel_ViewInScanningMode(t *testing.T) {
 	output := m.View()
 
 	// Scanning view should contain scanning-related content
-	if output == "" {
+	if output.Content == "" {
 		t.Error("expected non-empty view output in scanning mode")
 	}
 }
@@ -144,7 +144,7 @@ func TestMainModel_ViewInListingMode(t *testing.T) {
 
 	output := m.View()
 
-	if output == "" {
+	if output.Content == "" {
 		t.Error("expected non-empty view output in listing mode")
 	}
 }
@@ -175,8 +175,8 @@ func TestMainModel_DefaultViewReturnsEmpty(t *testing.T) {
 	}
 
 	output := m.View()
-	if output != "" {
-		t.Errorf("expected empty string for unknown view, got %q", output)
+	if output.Content != "" {
+		t.Errorf("expected empty string for unknown view, got %q", output.Content)
 	}
 }
 

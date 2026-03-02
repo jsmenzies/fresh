@@ -3,7 +3,7 @@ package listing
 import (
 	"fresh/internal/ui/views/common"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 func RenderLegend(show bool) string {

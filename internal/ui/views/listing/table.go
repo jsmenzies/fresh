@@ -8,8 +8,8 @@ import (
 	"fresh/internal/git"
 	"fresh/internal/ui/views/common"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/table"
 )
 
 func GenerateTable(repositories []domain.Repository, cursor int, terminalWidth int) string {
