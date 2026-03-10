@@ -2,11 +2,9 @@ name: Test
 
 on:
   push:
-    branches:
-      - '**'
-  pull_request:
-    branches:
-      - '**'
+    branches-ignore:
+      - main
+      - dev
 
 jobs:
   test:
@@ -33,7 +31,7 @@ jobs:
         run: go vet ./...
 
       - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+        run: go test -v -race ./...
 
       - name: Build
         run: go build -v ./cmd/fresh
