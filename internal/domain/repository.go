@@ -5,6 +5,7 @@ import "time"
 type Repository struct {
 	Name           string
 	Path           string
+	TimingInfo     string
 	RemoteURL      string
 	Branches       Branches
 	StashCount     int

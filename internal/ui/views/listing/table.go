@@ -222,6 +222,11 @@ func buildInfo(repo domain.Repository) string {
 	}
 
 	if content == "" {
+		if repo.TimingInfo != "" {
+			content = common.TextGrey.Render(common.TruncateWithEllipsis(repo.TimingInfo, InfoWidth))
+			return infoStyle.Render(content)
+		}
+
 		// Check for remote errors first
 		switch s := repo.RemoteState.(type) {
 		case domain.RemoteError:

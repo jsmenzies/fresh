@@ -1,8 +1,11 @@
 package listing
 
 import (
+	"fmt"
 	"fresh/internal/config"
 	"fresh/internal/git"
+	"fresh/internal/telemetry"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -11,9 +14,28 @@ var cfg = config.DefaultConfig()
 
 func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
+		refreshStart := time.Now()
+		fetchStart := time.Now()
 		// Fetch first, then build the repo to get fresh status (avoids 3x GetStatus calls)
-		git.Fetch(repoPath)
+		fetchErr := git.Fetch(repoPath)
+		fetchDuration := time.Since(fetchStart)
+		buildStart := time.Now()
 		repo := git.BuildRepository(repoPath, cfg)
+		buildDuration := time.Since(buildStart)
+
+		if telemetry.Enabled() {
+			fetchResult := "ok"
+			if fetchErr != nil {
+				fetchResult = "err"
+			}
+			repo.TimingInfo = fmt.Sprintf(
+				"refresh %s f:%s(%s) b:%s",
+				telemetry.Short(time.Since(refreshStart)),
+				telemetry.Short(fetchDuration),
+				fetchResult,
+				telemetry.Short(buildDuration),
+			)
+		}
 
 		return RepoUpdatedMsg{
 			Repo:  repo,

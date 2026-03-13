@@ -6,6 +6,7 @@ import (
 	"fresh/internal/domain"
 	"fresh/internal/git"
 	"fresh/internal/scanner"
+	"fresh/internal/telemetry"
 	"fresh/internal/ui/views/common"
 	"strings"
 
@@ -52,6 +53,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case repoFoundMsg:
 		path := string(msg)
 		repo := git.BuildRepository(path, cfg)
+		if telemetry.Enabled() && repo.TimingInfo != "" {
+			repo.TimingInfo = "scan " + repo.TimingInfo
+		}
 		m.Repositories = append(m.Repositories, repo)
 		return m, waitForRepo(m.scanner.GetRepoChannel())
 
