@@ -41,6 +41,7 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 		lastCommitTime time.Time
 		remoteURL      string
 		branches       domain.Branches
+		stashCount     int
 	}
 
 	var res result
@@ -50,17 +51,45 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 		func() { res.lastCommitTime = GetLastCommitTime(path) },
 		func() { res.remoteURL = GetRemoteURL(path) },
 		func() { res.branches = BuildBranches(path, cfg.ProtectedBranches) },
+		func() { res.stashCount = GetStashCount(path) },
 	)
 
 	return domain.Repository{
 		Name:           repoName,
 		Path:           path,
 		Branches:       res.branches,
+		StashCount:     res.stashCount,
 		LocalState:     res.localState,
 		LastCommitTime: res.lastCommitTime,
 		RemoteURL:      res.remoteURL,
 		RemoteState:    res.remoteState,
 	}
+}
+
+func GetStashCount(repoPath string) int {
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "rev-list", "--walk-reflogs", "--count", "refs/stash")
+	cmd.Dir = repoPath
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		errMsg := strings.ToLower(strings.TrimSpace(string(output)))
+		if strings.Contains(errMsg, "unknown revision or path not in the working tree") ||
+			strings.Contains(errMsg, "ambiguous argument 'refs/stash'") ||
+			strings.Contains(errMsg, "bad revision 'refs/stash'") {
+			return 0
+		}
+		return 0
+	}
+
+	count := 0
+	if _, scanErr := fmt.Sscanf(strings.TrimSpace(string(output)), "%d", &count); scanErr != nil {
+		return 0
+	}
+
+	if count < 0 {
+		return 0
+	}
+
+	return count
 }
 
 func IsGitInstalled() bool {
