@@ -3,6 +3,7 @@ package listing
 import (
 	"fmt"
 	"fresh/internal/config"
+	"fresh/internal/domain"
 	"fresh/internal/git"
 	"fresh/internal/telemetry"
 	"time"
@@ -11,6 +12,32 @@ import (
 )
 
 var cfg = config.DefaultConfig()
+
+func performInitialRefresh(index int, existingRepo domain.Repository) tea.Cmd {
+	return func() tea.Msg {
+		refreshStart := time.Now()
+		repo := existingRepo
+		err := git.RefreshRemoteStatusWithFetch(&repo)
+
+		if telemetry.Enabled() {
+			result := "ok"
+			if err != nil {
+				result = "err"
+			}
+			repo.TimingInfo = fmt.Sprintf(
+				"refresh %s f:%s(%s) b:reuse",
+				telemetry.Short(time.Since(refreshStart)),
+				telemetry.Short(time.Since(refreshStart)),
+				result,
+			)
+		}
+
+		return RepoUpdatedMsg{
+			Repo:  repo,
+			Index: index,
+		}
+	}
+}
 
 func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
