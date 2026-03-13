@@ -235,6 +235,12 @@ func buildInfo(repo domain.Repository) string {
 					mergedText = "branch"
 				}
 				content = common.TextGrey.Render(fmt.Sprintf("%d prunable %s", mergedCount, mergedText))
+			} else if repo.StashCount > 0 {
+				stashText := "stashes"
+				if repo.StashCount == 1 {
+					stashText = "stash"
+				}
+				content = common.TextGrey.Render(fmt.Sprintf("%d %s", repo.StashCount, stashText))
 			} else if _, ok := repo.RemoteState.(domain.NoUpstream); ok {
 				content = common.RenderStatusMessage(common.MsgNoUpstream, InfoWidth)
 			} else if _, ok := repo.RemoteState.(domain.DetachedRemote); ok {

@@ -7,6 +7,7 @@ type Repository struct {
 	Path           string
 	RemoteURL      string
 	Branches       Branches
+	StashCount     int
 	LocalState     LocalState
 	RemoteState    RemoteState
 	LastCommitTime time.Time
