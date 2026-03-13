@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.12.1](https://github.com/jsmenzies/fresh/compare/v1.12.0...v1.12.1) (2026-03-13)
+
+
+### Bug Fixes
+
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.2 ([458a88e](https://github.com/jsmenzies/fresh/commit/458a88ecf17f2155279d1b4f1bf1e4402e392b97))
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.2 ([fc98de0](https://github.com/jsmenzies/fresh/commit/fc98de0127d30576403e5d9e527b1ef39e9885aa))
+* **deps:** update module charm.land/lipgloss/v2 to v2.0.2 ([e928e65](https://github.com/jsmenzies/fresh/commit/e928e65cdda463a149165092402cdc73b6ace5cd))
+* **deps:** update module charm.land/lipgloss/v2 to v2.0.2 ([da42e8c](https://github.com/jsmenzies/fresh/commit/da42e8c42031d296bc30282c0ef9501ab1916ecd))
+
 ## [1.12.0](https://github.com/jsmenzies/fresh/compare/v1.11.1...v1.12.0) (2026-03-02)
 
 
