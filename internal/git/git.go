@@ -46,12 +46,11 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 
 	var res result
 	Parallel(
-		func() { res.localState = GetLocalState(path) },
+		func() { res.localState, res.stashCount = GetLocalState(path) },
 		func() { res.remoteState = GetRemoteState(path) },
 		func() { res.lastCommitTime = GetLastCommitTime(path) },
 		func() { res.remoteURL = GetRemoteURL(path) },
 		func() { res.branches = BuildBranches(path, cfg.ProtectedBranches) },
-		func() { res.stashCount = GetStashCount(path) },
 	)
 
 	return domain.Repository{
@@ -64,32 +63,6 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 		RemoteURL:      res.remoteURL,
 		RemoteState:    res.remoteState,
 	}
-}
-
-func GetStashCount(repoPath string) int {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "rev-list", "--walk-reflogs", "--count", "refs/stash")
-	cmd.Dir = repoPath
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		errMsg := strings.ToLower(strings.TrimSpace(string(output)))
-		if strings.Contains(errMsg, "unknown revision or path not in the working tree") ||
-			strings.Contains(errMsg, "ambiguous argument 'refs/stash'") ||
-			strings.Contains(errMsg, "bad revision 'refs/stash'") {
-			return 0
-		}
-		return 0
-	}
-
-	count := 0
-	if _, scanErr := fmt.Sscanf(strings.TrimSpace(string(output)), "%d", &count); scanErr != nil {
-		return 0
-	}
-
-	if count < 0 {
-		return 0
-	}
-
-	return count
 }
 
 func IsGitInstalled() bool {
@@ -135,20 +108,21 @@ func GetCurrentBranch(repoPath string) domain.Branch {
 	}
 }
 
-func GetLocalState(repoPath string) domain.LocalState {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "status", "--porcelain=v2")
+func GetLocalState(repoPath string) (domain.LocalState, int) {
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "status", "--porcelain=v2", "--branch", "--show-stash")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 
 	if err != nil {
-		return domain.LocalStateError{Message: err.Error()}
+		return domain.LocalStateError{Message: err.Error()}, 0
 	}
 	result := strings.TrimSpace(string(output))
 	if result == "" {
-		return domain.CleanLocalState{}
+		return domain.CleanLocalState{}, 0
 	}
 
 	var added, modified, deleted, untracked int
+	var stashCount int
 
 	scanner := bufio.NewScanner(strings.NewReader(result))
 	for scanner.Scan() {
@@ -157,9 +131,18 @@ func GetLocalState(repoPath string) domain.LocalState {
 			continue
 		}
 
+		if strings.HasPrefix(line, "# stash ") {
+			if _, parseErr := fmt.Sscanf(line, "# stash %d", &stashCount); parseErr != nil || stashCount < 0 {
+				stashCount = 0
+			}
+			continue
+		}
+
 		switch line[0] {
 		case '?':
 			untracked++
+		case '#':
+			continue
 		case '1', '2':
 			parts := strings.Fields(line)
 			if len(parts) < 2 {
@@ -179,12 +162,16 @@ func GetLocalState(repoPath string) domain.LocalState {
 		}
 	}
 
+	if added == 0 && modified == 0 && deleted == 0 && untracked == 0 {
+		return domain.CleanLocalState{}, stashCount
+	}
+
 	return domain.DirtyLocalState{
 		Added:     added,
 		Modified:  modified,
 		Deleted:   deleted,
 		Untracked: untracked,
-	}
+	}, stashCount
 }
 
 func GetRemoteState(repoPath string) domain.RemoteState {
