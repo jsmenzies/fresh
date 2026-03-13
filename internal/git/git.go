@@ -41,11 +41,12 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 		lastCommitTime time.Time
 		remoteURL      string
 		branches       domain.Branches
+		stashCount     int
 	}
 
 	var res result
 	Parallel(
-		func() { res.localState = GetLocalState(path) },
+		func() { res.localState, res.stashCount = GetLocalState(path) },
 		func() { res.remoteState = GetRemoteState(path) },
 		func() { res.lastCommitTime = GetLastCommitTime(path) },
 		func() { res.remoteURL = GetRemoteURL(path) },
@@ -56,6 +57,7 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 		Name:           repoName,
 		Path:           path,
 		Branches:       res.branches,
+		StashCount:     res.stashCount,
 		LocalState:     res.localState,
 		LastCommitTime: res.lastCommitTime,
 		RemoteURL:      res.remoteURL,
@@ -106,20 +108,21 @@ func GetCurrentBranch(repoPath string) domain.Branch {
 	}
 }
 
-func GetLocalState(repoPath string) domain.LocalState {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "status", "--porcelain=v2")
+func GetLocalState(repoPath string) (domain.LocalState, int) {
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "status", "--porcelain=v2", "--branch", "--show-stash")
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 
 	if err != nil {
-		return domain.LocalStateError{Message: err.Error()}
+		return domain.LocalStateError{Message: err.Error()}, 0
 	}
 	result := strings.TrimSpace(string(output))
 	if result == "" {
-		return domain.CleanLocalState{}
+		return domain.CleanLocalState{}, 0
 	}
 
 	var added, modified, deleted, untracked int
+	var stashCount int
 
 	scanner := bufio.NewScanner(strings.NewReader(result))
 	for scanner.Scan() {
@@ -128,9 +131,18 @@ func GetLocalState(repoPath string) domain.LocalState {
 			continue
 		}
 
+		if strings.HasPrefix(line, "# stash ") {
+			if _, parseErr := fmt.Sscanf(line, "# stash %d", &stashCount); parseErr != nil || stashCount < 0 {
+				stashCount = 0
+			}
+			continue
+		}
+
 		switch line[0] {
 		case '?':
 			untracked++
+		case '#':
+			continue
 		case '1', '2':
 			parts := strings.Fields(line)
 			if len(parts) < 2 {
@@ -150,12 +162,16 @@ func GetLocalState(repoPath string) domain.LocalState {
 		}
 	}
 
+	if added == 0 && modified == 0 && deleted == 0 && untracked == 0 {
+		return domain.CleanLocalState{}, stashCount
+	}
+
 	return domain.DirtyLocalState{
 		Added:     added,
 		Modified:  modified,
 		Deleted:   deleted,
 		Untracked: untracked,
-	}
+	}, stashCount
 }
 
 func GetRemoteState(repoPath string) domain.RemoteState {

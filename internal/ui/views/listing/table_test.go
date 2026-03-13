@@ -376,6 +376,49 @@ func TestBuildInfo(t *testing.T) {
 			contains: []string{"1 prunable branch"},
 		},
 		{
+			name: "idle with one stash uses singular stash label",
+			repo: domain.Repository{
+				Activity:    domain.IdleActivity{},
+				RemoteState: domain.Synced{},
+				StashCount:  1,
+				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
+			},
+			contains: []string{"1 stash"},
+		},
+		{
+			name: "idle with multiple stashes uses plural stash label",
+			repo: domain.Repository{
+				Activity:    domain.IdleActivity{},
+				RemoteState: domain.Synced{},
+				StashCount:  3,
+				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
+			},
+			contains: []string{"3 stashes"},
+		},
+		{
+			name: "idle with stash and prunable branches prefers prunable info",
+			repo: domain.Repository{
+				Activity:    domain.IdleActivity{},
+				RemoteState: domain.Synced{},
+				StashCount:  2,
+				Branches: domain.Branches{
+					Current: domain.OnBranch{Name: "main"},
+					Merged:  []string{"feature-a"},
+				},
+			},
+			contains: []string{"1 prunable branch"},
+		},
+		{
+			name: "idle with remote error and stash prefers remote error",
+			repo: domain.Repository{
+				Activity:    domain.IdleActivity{},
+				RemoteState: domain.RemoteError{Message: "connection timed out"},
+				StashCount:  4,
+				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
+			},
+			contains: []string{"connection timed out"},
+		},
+		{
 			name: "completed pull with exit 0 and up to date",
 			repo: domain.Repository{
 				Activity: &domain.PullingActivity{
