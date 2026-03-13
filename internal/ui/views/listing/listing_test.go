@@ -72,6 +72,30 @@ func TestUpdate_CheckoutDevShortcut_StartsActivityOnSelectedRepo(t *testing.T) {
 	}
 }
 
+func TestUpdate_CheckoutMainShortcut_StartsActivityOnSelectedRepo(t *testing.T) {
+	m := New([]domain.Repository{
+		{
+			Name:        "a",
+			Path:        "/tmp/a",
+			Activity:    &domain.IdleActivity{},
+			LocalState:  domain.CleanLocalState{},
+			RemoteState: domain.Synced{},
+			Branches:    domain.Branches{Current: domain.OnBranch{Name: "develop"}},
+		},
+	})
+
+	msg := tea.KeyPressMsg{Code: 'm', Text: "m"}
+	newM, cmd := m.Update(msg)
+
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd for m shortcut")
+	}
+	repo := newM.Repositories[0]
+	if _, ok := repo.Activity.(*domain.CheckoutActivity); !ok {
+		t.Fatalf("expected CheckoutActivity, got %T", repo.Activity)
+	}
+}
+
 func TestUpdate_CheckoutDevShortcut_DoesNothingWhenBusy(t *testing.T) {
 	m := New([]domain.Repository{
 		{
@@ -99,5 +123,8 @@ func TestBuildFooter_IncludesCheckoutShortcut(t *testing.T) {
 	footer := buildFooter()
 	if !strings.Contains(footer, "d checkout develop/dev") {
 		t.Fatalf("expected footer to include checkout shortcut, got %q", footer)
+	}
+	if !strings.Contains(footer, "m checkout main/master") {
+		t.Fatalf("expected footer to include main/master shortcut, got %q", footer)
 	}
 }

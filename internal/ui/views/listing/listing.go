@@ -16,6 +16,7 @@ type listKeyMap struct {
 	pullAll      key.Binding
 	pruneAll     key.Binding
 	checkoutDev  key.Binding
+	checkoutMain key.Binding
 	toggleLegend key.Binding
 }
 
@@ -36,6 +37,10 @@ func newListKeyMap() *listKeyMap {
 		checkoutDev: key.NewBinding(
 			key.WithKeys("d"),
 			key.WithHelp("d", "checkout develop/dev"),
+		),
+		checkoutMain: key.NewBinding(
+			key.WithKeys("m"),
+			key.WithHelp("m", "checkout main/master"),
 		),
 		toggleLegend: key.NewBinding(
 			key.WithKeys("?"),
@@ -142,6 +147,21 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 					}
 					return m, tea.Batch(
 						performCheckoutIntegration(m.Cursor, repo.Path),
+						repo.Activity.(*domain.CheckoutActivity).Spinner.Tick,
+					)
+				}
+			}
+			return m, nil
+
+		case key.Matches(msg, m.Keys.checkoutMain):
+			if m.Cursor >= 0 && m.Cursor < len(m.Repositories) {
+				repo := &m.Repositories[m.Cursor]
+				if !repo.IsBusy() {
+					repo.Activity = &domain.CheckoutActivity{
+						Spinner: common.NewPullSpinner(),
+					}
+					return m, tea.Batch(
+						performCheckoutPrimary(m.Cursor, repo.Path),
 						repo.Activity.(*domain.CheckoutActivity).Spinner.Tick,
 					)
 				}
@@ -323,6 +343,7 @@ func buildFooter() string {
 		"p pull all updates",
 		"b prune merged branches",
 		"d checkout develop/dev",
+		"m checkout main/master",
 		"? toggle legend",
 		"q quit",
 	}

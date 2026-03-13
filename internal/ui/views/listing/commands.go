@@ -154,6 +154,37 @@ func performCheckoutIntegration(index int, repoPath string) tea.Cmd {
 	}
 }
 
+func performCheckoutPrimary(index int, repoPath string) tea.Cmd {
+	return func() tea.Msg {
+		lineChan := make(chan string, 10)
+		doneChan := make(chan checkoutCompleteMsg, 1)
+
+		go func() {
+			targetBranch, exitCode, _ := git.CheckoutPrimary(repoPath, func(line string) {
+				lineChan <- line
+			})
+
+			close(lineChan)
+
+			repo := git.BuildRepository(repoPath, cfg)
+
+			doneChan <- checkoutCompleteMsg{
+				Index:        index,
+				exitCode:     exitCode,
+				targetBranch: targetBranch,
+				Repo:         repo,
+			}
+			close(doneChan)
+		}()
+
+		return checkoutWorkState{
+			Index:    index,
+			lineChan: lineChan,
+			doneChan: doneChan,
+		}
+	}
+}
+
 func listenForCheckoutProgress(state checkoutWorkState) tea.Cmd {
 	return func() tea.Msg {
 		select {

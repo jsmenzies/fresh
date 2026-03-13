@@ -30,6 +30,27 @@ func CheckoutIntegration(repoPath string, lineCallback func(string)) (targetBran
 	return targetBranch, exitCode, runErr
 }
 
+func CheckoutPrimary(repoPath string, lineCallback func(string)) (targetBranch string, exitCode int, err error) {
+	targetBranch, trackRemote, err := resolvePrimaryBranch(repoPath)
+	if err != nil {
+		if lineCallback != nil {
+			lineCallback(err.Error())
+		}
+		return "", 1, err
+	}
+
+	args := []string{"checkout", targetBranch}
+	if trackRemote {
+		args = []string{"checkout", "--track", "origin/" + targetBranch}
+	}
+
+	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", args...)
+	cmd.Dir = repoPath
+
+	exitCode, runErr := runCommandStreamingOutput(cmd, lineCallback)
+	return targetBranch, exitCode, runErr
+}
+
 func resolveIntegrationBranch(repoPath string) (target string, trackRemote bool, err error) {
 	if branchExists(repoPath, "refs/heads/develop") {
 		return "develop", false, nil
@@ -45,6 +66,23 @@ func resolveIntegrationBranch(repoPath string) (target string, trackRemote bool,
 	}
 
 	return "", false, fmt.Errorf("No integration branch found: expected develop or dev (local or origin)")
+}
+
+func resolvePrimaryBranch(repoPath string) (target string, trackRemote bool, err error) {
+	if branchExists(repoPath, "refs/heads/main") {
+		return "main", false, nil
+	}
+	if branchExists(repoPath, "refs/heads/master") {
+		return "master", false, nil
+	}
+	if branchExists(repoPath, "refs/remotes/origin/main") {
+		return "main", true, nil
+	}
+	if branchExists(repoPath, "refs/remotes/origin/master") {
+		return "master", true, nil
+	}
+
+	return "", false, fmt.Errorf("No primary branch found: expected main or master (local or origin)")
 }
 
 func branchExists(repoPath, ref string) bool {
