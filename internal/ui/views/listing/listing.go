@@ -71,7 +71,7 @@ func (m *Model) Init() tea.Cmd {
 		repo.Activity = &domain.RefreshingActivity{
 			Spinner: common.NewRefreshSpinner(),
 		}
-		cmds = append(cmds, performRefresh(i, repo.Path))
+		cmds = append(cmds, performInitialRefresh(i, *repo))
 		cmds = append(cmds, repo.Activity.(*domain.RefreshingActivity).Spinner.Tick)
 	}
 	return tea.Batch(cmds...)

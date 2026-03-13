@@ -2,12 +2,25 @@ package listing
 
 import (
 	"fresh/internal/config"
+	"fresh/internal/domain"
 	"fresh/internal/git"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 var cfg = config.DefaultConfig()
+
+func performInitialRefresh(index int, existingRepo domain.Repository) tea.Cmd {
+	return func() tea.Msg {
+		repo := existingRepo
+		_ = git.RefreshRemoteStatusWithFetch(&repo)
+
+		return RepoUpdatedMsg{
+			Repo:  repo,
+			Index: index,
+		}
+	}
+}
 
 func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
