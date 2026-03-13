@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.13.0](https://github.com/jsmenzies/fresh/compare/v1.12.1...v1.13.0) (2026-03-13)
+
+
+### Features
+
+* show stash count in repo info column ([9ce5962](https://github.com/jsmenzies/fresh/commit/9ce59623e1b570729b6840835fd1e867c084f31e))
+* **ui:** show stash count in repository info column ([5a6ca1c](https://github.com/jsmenzies/fresh/commit/5a6ca1c6e829fd4d85c4e23d402a04828177859b))
+
+
+### Performance Improvements
+
+* **git:** derive stash count from git status output ([d64e471](https://github.com/jsmenzies/fresh/commit/d64e4710407c612cbb0277ad09300766dbc5b8d5))
+
 ## [1.12.1](https://github.com/jsmenzies/fresh/compare/v1.12.0...v1.12.1) (2026-03-13)
 
 
