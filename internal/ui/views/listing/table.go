@@ -219,6 +219,25 @@ func buildInfo(repo domain.Repository) string {
 				content = common.PullOutputSuccess.Width(InfoWidth).Render(fmt.Sprintf("Deleted %d branches", activity.DeletedCount))
 			}
 		}
+	case *domain.CheckoutActivity:
+		if !activity.Complete {
+			lastLine := activity.GetLastLine()
+			truncated := common.TruncateWithEllipsis(lastLine, InfoWidth-3)
+			content = common.FormatPullProgress(activity.Spinner.View(), truncated, InfoWidth-2)
+		} else {
+			if activity.ExitCode == 0 {
+				if activity.TargetBranch != "" {
+					content = common.PullOutputSuccess.Width(InfoWidth).Render(
+						common.TruncateWithEllipsis(fmt.Sprintf("Switched to %s", activity.TargetBranch), InfoWidth),
+					)
+				} else {
+					content = common.PullOutputSuccess.Width(InfoWidth).Render("Switched branch")
+				}
+			} else {
+				lastLine := activity.GetLastLine()
+				content = stylePullOutput(lastLine, activity.ExitCode)
+			}
+		}
 	}
 
 	if content == "" {

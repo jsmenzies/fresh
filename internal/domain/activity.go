@@ -74,3 +74,21 @@ func (p *PruningActivity) MarkComplete(exitCode int, deletedCount int) {
 }
 
 func (p *PruningActivity) IsInProgress() bool { return !p.Complete }
+
+type CheckoutActivity struct {
+	LineBuffer
+	Spinner      spinner.Model
+	TargetBranch string
+	ExitCode     int
+	Complete     bool
+}
+
+func (*CheckoutActivity) isActivity() {}
+
+func (c *CheckoutActivity) MarkComplete(exitCode int, targetBranch string) {
+	c.Complete = true
+	c.ExitCode = exitCode
+	c.TargetBranch = targetBranch
+}
+
+func (c *CheckoutActivity) IsInProgress() bool { return !c.Complete }
