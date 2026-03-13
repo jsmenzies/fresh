@@ -502,6 +502,32 @@ func TestBuildInfo(t *testing.T) {
 				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
 			},
 		},
+		{
+			name: "completed checkout shows switched branch success",
+			repo: domain.Repository{
+				Activity: &domain.CheckoutActivity{
+					TargetBranch: "develop",
+					Complete:     true,
+					ExitCode:     0,
+				},
+				RemoteState: domain.Synced{},
+				Branches:    domain.Branches{Current: domain.OnBranch{Name: "develop"}},
+			},
+			contains: []string{"Switched to develop"},
+		},
+		{
+			name: "failed checkout shows error line",
+			repo: domain.Repository{
+				Activity: &domain.CheckoutActivity{
+					LineBuffer: domain.LineBuffer{Lines: []string{"fatal: pathspec 'develop' did not match"}},
+					Complete:   true,
+					ExitCode:   1,
+				},
+				RemoteState: domain.Synced{},
+				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
+			},
+			contains: []string{"fatal: pathspec"},
+		},
 	}
 
 	for _, tt := range tests {

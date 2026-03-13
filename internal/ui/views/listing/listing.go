@@ -15,6 +15,8 @@ type listKeyMap struct {
 	refresh      key.Binding
 	pullAll      key.Binding
 	pruneAll     key.Binding
+	checkoutDev  key.Binding
+	checkoutMain key.Binding
 	toggleLegend key.Binding
 }
 
@@ -31,6 +33,14 @@ func newListKeyMap() *listKeyMap {
 		pruneAll: key.NewBinding(
 			key.WithKeys("b"),
 			key.WithHelp("b", "prune merged branches"),
+		),
+		checkoutDev: key.NewBinding(
+			key.WithKeys("d"),
+			key.WithHelp("d", "checkout develop/dev"),
+		),
+		checkoutMain: key.NewBinding(
+			key.WithKeys("m"),
+			key.WithHelp("m", "checkout main/master"),
 		),
 		toggleLegend: key.NewBinding(
 			key.WithKeys("?"),
@@ -128,6 +138,36 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			}
 			return m, tea.Batch(cmds...)
 
+		case key.Matches(msg, m.Keys.checkoutDev):
+			if m.Cursor >= 0 && m.Cursor < len(m.Repositories) {
+				repo := &m.Repositories[m.Cursor]
+				if !repo.IsBusy() {
+					repo.Activity = &domain.CheckoutActivity{
+						Spinner: common.NewPullSpinner(),
+					}
+					return m, tea.Batch(
+						performCheckoutIntegration(m.Cursor, repo.Path),
+						repo.Activity.(*domain.CheckoutActivity).Spinner.Tick,
+					)
+				}
+			}
+			return m, nil
+
+		case key.Matches(msg, m.Keys.checkoutMain):
+			if m.Cursor >= 0 && m.Cursor < len(m.Repositories) {
+				repo := &m.Repositories[m.Cursor]
+				if !repo.IsBusy() {
+					repo.Activity = &domain.CheckoutActivity{
+						Spinner: common.NewPullSpinner(),
+					}
+					return m, tea.Batch(
+						performCheckoutPrimary(m.Cursor, repo.Path),
+						repo.Activity.(*domain.CheckoutActivity).Spinner.Tick,
+					)
+				}
+			}
+			return m, nil
+
 		case key.Matches(msg, m.Keys.toggleLegend):
 			m.ShowLegend = !m.ShowLegend
 			return m, nil
@@ -211,6 +251,33 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			}
 		}
 
+	case checkoutWorkState:
+		return m, listenForCheckoutProgress(msg)
+
+	case checkoutLineMsg:
+		if msg.Index < len(m.Repositories) {
+			repo := &m.Repositories[msg.Index]
+			if checkout, ok := repo.Activity.(*domain.CheckoutActivity); ok {
+				checkout.AddLine(msg.line)
+			}
+		}
+		if msg.state != nil {
+			return m, listenForCheckoutProgress(*msg.state)
+		}
+
+	case checkoutCompleteMsg:
+		if msg.Index < len(m.Repositories) {
+			repo := &m.Repositories[msg.Index]
+			activity := repo.Activity
+			*repo = msg.Repo
+			if checkout, ok := activity.(*domain.CheckoutActivity); ok {
+				checkout.MarkComplete(msg.exitCode, msg.targetBranch)
+				repo.Activity = checkout
+			} else {
+				repo.Activity = activity
+			}
+		}
+
 	case spinner.TickMsg:
 		var cmds []tea.Cmd
 		for i := range m.Repositories {
@@ -228,6 +295,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 					cmds = append(cmds, cmd)
 				}
 			case *domain.PruningActivity:
+				if !activity.Complete {
+					var cmd tea.Cmd
+					activity.Spinner, cmd = activity.Spinner.Update(msg)
+					cmds = append(cmds, cmd)
+				}
+			case *domain.CheckoutActivity:
 				if !activity.Complete {
 					var cmd tea.Cmd
 					activity.Spinner, cmd = activity.Spinner.Update(msg)
@@ -269,6 +342,8 @@ func buildFooter() string {
 		"r refresh",
 		"p pull all updates",
 		"b prune merged branches",
+		"d checkout develop/dev",
+		"m checkout main/master",
 		"? toggle legend",
 		"q quit",
 	}

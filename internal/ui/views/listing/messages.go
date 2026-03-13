@@ -43,3 +43,22 @@ type pruneCompleteMsg struct {
 	Repo         domain.Repository
 	DeletedCount int
 }
+
+type checkoutWorkState struct {
+	Index    int
+	lineChan chan string
+	doneChan chan checkoutCompleteMsg
+}
+
+type checkoutLineMsg struct {
+	Index int
+	line  string
+	state *checkoutWorkState
+}
+
+type checkoutCompleteMsg struct {
+	Index        int
+	exitCode     int
+	targetBranch string
+	Repo         domain.Repository
+}
