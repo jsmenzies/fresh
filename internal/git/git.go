@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"fresh/internal/config"
 	"fresh/internal/domain"
-	"fresh/internal/telemetry"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -35,8 +34,6 @@ func Parallel(fns ...func()) {
 
 func BuildRepository(path string, cfg *config.Config) domain.Repository {
 	repoName := filepath.Base(path)
-	profilingEnabled := telemetry.Enabled()
-	buildStart := time.Now()
 
 	type result struct {
 		localState     domain.LocalState
@@ -48,51 +45,16 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 	}
 
 	var res result
-	var localStateDuration time.Duration
-	var remoteStateDuration time.Duration
-	var lastCommitDuration time.Duration
-	var remoteURLDuration time.Duration
-	var branchesDuration time.Duration
 
 	Parallel(
-		func() {
-			start := time.Now()
-			res.localState, res.stashCount = GetLocalState(path)
-			if profilingEnabled {
-				localStateDuration = time.Since(start)
-			}
-		},
-		func() {
-			start := time.Now()
-			res.remoteState = GetRemoteState(path)
-			if profilingEnabled {
-				remoteStateDuration = time.Since(start)
-			}
-		},
-		func() {
-			start := time.Now()
-			res.lastCommitTime = GetLastCommitTime(path)
-			if profilingEnabled {
-				lastCommitDuration = time.Since(start)
-			}
-		},
-		func() {
-			start := time.Now()
-			res.remoteURL = GetRemoteURL(path)
-			if profilingEnabled {
-				remoteURLDuration = time.Since(start)
-			}
-		},
-		func() {
-			start := time.Now()
-			res.branches = BuildBranches(path, cfg.ProtectedBranches)
-			if profilingEnabled {
-				branchesDuration = time.Since(start)
-			}
-		},
+		func() { res.localState, res.stashCount = GetLocalState(path) },
+		func() { res.remoteState = GetRemoteState(path) },
+		func() { res.lastCommitTime = GetLastCommitTime(path) },
+		func() { res.remoteURL = GetRemoteURL(path) },
+		func() { res.branches = BuildBranches(path, cfg.ProtectedBranches) },
 	)
 
-	repo := domain.Repository{
+	return domain.Repository{
 		Name:           repoName,
 		Path:           path,
 		Branches:       res.branches,
@@ -102,20 +64,6 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 		RemoteURL:      res.remoteURL,
 		RemoteState:    res.remoteState,
 	}
-
-	if profilingEnabled {
-		repo.TimingInfo = fmt.Sprintf(
-			"build %s st:%s rm:%s lc:%s url:%s br:%s",
-			telemetry.Short(time.Since(buildStart)),
-			telemetry.Short(localStateDuration),
-			telemetry.Short(remoteStateDuration),
-			telemetry.Short(lastCommitDuration),
-			telemetry.Short(remoteURLDuration),
-			telemetry.Short(branchesDuration),
-		)
-	}
-
-	return repo
 }
 
 func IsGitInstalled() bool {

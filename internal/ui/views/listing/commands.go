@@ -1,12 +1,9 @@
 package listing
 
 import (
-	"fmt"
 	"fresh/internal/config"
 	"fresh/internal/domain"
 	"fresh/internal/git"
-	"fresh/internal/telemetry"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -15,22 +12,8 @@ var cfg = config.DefaultConfig()
 
 func performInitialRefresh(index int, existingRepo domain.Repository) tea.Cmd {
 	return func() tea.Msg {
-		refreshStart := time.Now()
 		repo := existingRepo
-		err := git.RefreshRemoteStatusWithFetch(&repo)
-
-		if telemetry.Enabled() {
-			result := "ok"
-			if err != nil {
-				result = "err"
-			}
-			repo.TimingInfo = fmt.Sprintf(
-				"refresh %s f:%s(%s) b:reuse",
-				telemetry.Short(time.Since(refreshStart)),
-				telemetry.Short(time.Since(refreshStart)),
-				result,
-			)
-		}
+		_ = git.RefreshRemoteStatusWithFetch(&repo)
 
 		return RepoUpdatedMsg{
 			Repo:  repo,
@@ -41,28 +24,9 @@ func performInitialRefresh(index int, existingRepo domain.Repository) tea.Cmd {
 
 func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
-		refreshStart := time.Now()
-		fetchStart := time.Now()
 		// Fetch first, then build the repo to get fresh status (avoids 3x GetStatus calls)
-		fetchErr := git.Fetch(repoPath)
-		fetchDuration := time.Since(fetchStart)
-		buildStart := time.Now()
+		git.Fetch(repoPath)
 		repo := git.BuildRepository(repoPath, cfg)
-		buildDuration := time.Since(buildStart)
-
-		if telemetry.Enabled() {
-			fetchResult := "ok"
-			if fetchErr != nil {
-				fetchResult = "err"
-			}
-			repo.TimingInfo = fmt.Sprintf(
-				"refresh %s f:%s(%s) b:%s",
-				telemetry.Short(time.Since(refreshStart)),
-				telemetry.Short(fetchDuration),
-				fetchResult,
-				telemetry.Short(buildDuration),
-			)
-		}
 
 		return RepoUpdatedMsg{
 			Repo:  repo,
