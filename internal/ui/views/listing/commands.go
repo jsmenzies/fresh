@@ -9,6 +9,8 @@ import (
 
 var cfg = config.DefaultConfig()
 
+type checkoutFn func(repoPath string, lineCallback func(string)) (targetBranch string, exitCode int, err error)
+
 func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
 		// Fetch first, then build the repo to get fresh status (avoids 3x GetStatus calls)
@@ -124,43 +126,20 @@ func listenForPruneProgress(state pruneWorkState) tea.Cmd {
 }
 
 func performCheckoutIntegration(index int, repoPath string) tea.Cmd {
-	return func() tea.Msg {
-		lineChan := make(chan string, 10)
-		doneChan := make(chan checkoutCompleteMsg, 1)
-
-		go func() {
-			targetBranch, exitCode, _ := git.CheckoutIntegration(repoPath, func(line string) {
-				lineChan <- line
-			})
-
-			close(lineChan)
-
-			repo := git.BuildRepository(repoPath, cfg)
-
-			doneChan <- checkoutCompleteMsg{
-				Index:        index,
-				exitCode:     exitCode,
-				targetBranch: targetBranch,
-				Repo:         repo,
-			}
-			close(doneChan)
-		}()
-
-		return checkoutWorkState{
-			Index:    index,
-			lineChan: lineChan,
-			doneChan: doneChan,
-		}
-	}
+	return performCheckout(index, repoPath, git.CheckoutIntegration)
 }
 
 func performCheckoutPrimary(index int, repoPath string) tea.Cmd {
+	return performCheckout(index, repoPath, git.CheckoutPrimary)
+}
+
+func performCheckout(index int, repoPath string, fn checkoutFn) tea.Cmd {
 	return func() tea.Msg {
 		lineChan := make(chan string, 10)
 		doneChan := make(chan checkoutCompleteMsg, 1)
 
 		go func() {
-			targetBranch, exitCode, _ := git.CheckoutPrimary(repoPath, func(line string) {
+			targetBranch, exitCode, _ := fn(repoPath, func(line string) {
 				lineChan <- line
 			})
 

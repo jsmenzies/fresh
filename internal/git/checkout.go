@@ -9,29 +9,18 @@ import (
 	"fresh/internal/config"
 )
 
+type branchResolver func(repoPath string) (target string, trackRemote bool, err error)
+
 func CheckoutIntegration(repoPath string, lineCallback func(string)) (targetBranch string, exitCode int, err error) {
-	targetBranch, trackRemote, err := resolveIntegrationBranch(repoPath)
-	if err != nil {
-		if lineCallback != nil {
-			lineCallback(err.Error())
-		}
-		return "", 1, err
-	}
-
-	args := []string{"checkout", targetBranch}
-	if trackRemote {
-		args = []string{"checkout", "--track", "origin/" + targetBranch}
-	}
-
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", args...)
-	cmd.Dir = repoPath
-
-	exitCode, runErr := runCommandStreamingOutput(cmd, lineCallback)
-	return targetBranch, exitCode, runErr
+	return checkoutResolvedBranch(repoPath, resolveIntegrationBranch, lineCallback)
 }
 
 func CheckoutPrimary(repoPath string, lineCallback func(string)) (targetBranch string, exitCode int, err error) {
-	targetBranch, trackRemote, err := resolvePrimaryBranch(repoPath)
+	return checkoutResolvedBranch(repoPath, resolvePrimaryBranch, lineCallback)
+}
+
+func checkoutResolvedBranch(repoPath string, resolver branchResolver, lineCallback func(string)) (targetBranch string, exitCode int, err error) {
+	targetBranch, trackRemote, err := resolver(repoPath)
 	if err != nil {
 		if lineCallback != nil {
 			lineCallback(err.Error())
