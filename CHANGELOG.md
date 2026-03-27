@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.13.1](https://github.com/jsmenzies/fresh/compare/v1.13.0...v1.13.1) (2026-03-27)
+
+
+### Bug Fixes
+
+* **deps:** update module charm.land/bubbles/v2 to v2.1.0 ([9895484](https://github.com/jsmenzies/fresh/commit/989548493b26da2317c330d551bf60f0f8d7f8f6))
+* **deps:** update module charm.land/bubbles/v2 to v2.1.0 ([7a1e1f6](https://github.com/jsmenzies/fresh/commit/7a1e1f6a682f7917943cc4d0c10c58ba9708099a))
+
 ## [1.13.0](https://github.com/jsmenzies/fresh/compare/v1.12.1...v1.13.0) (2026-03-13)
 
 
