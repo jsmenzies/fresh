@@ -45,6 +45,7 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 	}
 
 	var res result
+
 	Parallel(
 		func() { res.localState, res.stashCount = GetLocalState(path) },
 		func() { res.remoteState = GetRemoteState(path) },
