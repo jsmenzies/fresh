@@ -2,6 +2,7 @@ package listing
 
 import (
 	"fresh/internal/domain"
+	"fresh/internal/ui/views/common"
 	"testing"
 )
 
@@ -25,9 +26,9 @@ func TestClamp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := clamp(tt.value, tt.min, tt.max)
+			got := common.Clamp(tt.value, tt.min, tt.max)
 			if got != tt.want {
-				t.Errorf("clamp(%d, %d, %d) = %d, want %d",
+				t.Errorf("common.Clamp(%d, %d, %d) = %d, want %d",
 					tt.value, tt.min, tt.max, got, tt.want)
 			}
 		})
