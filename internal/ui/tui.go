@@ -57,7 +57,6 @@ func (m *MainModel) Init() tea.Cmd {
 
 func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -95,16 +94,19 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.currentView {
 	case ScanningView:
-		m.scanningView, cmd = m.scanningView.Update(msg)
+		if m.scanningView != nil {
+			m.scanningView, cmd = m.scanningView.Update(msg)
+		}
 	case RepoListView:
-		m.listingView, cmd = m.listingView.Update(msg)
+		if m.listingView != nil {
+			m.listingView, cmd = m.listingView.Update(msg)
+		}
 	case RepoPRListView:
 		if m.pullRequestsView != nil {
 			m.pullRequestsView, cmd = m.pullRequestsView.Update(msg)
 		}
 	}
-	cmds = append(cmds, cmd)
-	return m, tea.Batch(cmds...)
+	return m, cmd
 }
 
 func (m *MainModel) View() tea.View {

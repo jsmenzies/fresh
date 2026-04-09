@@ -67,18 +67,7 @@ func buildNumber(number int, mine bool) string {
 }
 
 func buildTitle(title string, mine bool, selected bool, width int) string {
-	if width < 1 {
-		width = 1
-	}
-
-	displayTitle := title
-	if lipgloss.Width(title) > width {
-		displayTitle = common.TruncateWithEllipsis(title, width)
-	}
-
 	style := lipgloss.NewStyle().
-		Width(width).
-		MaxWidth(width).
 		AlignHorizontal(lipgloss.Left)
 	if mine {
 		style = style.Foreground(common.Blue)
@@ -89,7 +78,7 @@ func buildTitle(title string, mine bool, selected bool, width int) string {
 		style = style.Bold(true)
 	}
 
-	return style.Render(displayTitle)
+	return common.RenderTruncatedText(title, width, style)
 }
 
 func buildCheckBar(checks domain.PullRequestChecks, width int, pulse bool) string {

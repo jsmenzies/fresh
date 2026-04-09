@@ -183,6 +183,19 @@ func TruncateWithEllipsis(text string, maxWidth int) string {
 	return string(runes[:maxWidth-3]) + "..."
 }
 
+func RenderTruncatedText(text string, width int, style lipgloss.Style) string {
+	if width < 1 {
+		width = 1
+	}
+	if lipgloss.Width(text) > width {
+		text = TruncateWithEllipsis(text, width)
+	}
+	return style.
+		Width(width).
+		MaxWidth(width).
+		Render(text)
+}
+
 func FormatPullProgress(spinnerView string, lastLine string, width int) string {
 	return spinnerView + " " + PullProgressStyle.Width(width).Render(lastLine)
 }

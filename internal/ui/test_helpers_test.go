@@ -1,4 +1,4 @@
-package listing
+package ui
 
 import "fresh/internal/domain"
 
