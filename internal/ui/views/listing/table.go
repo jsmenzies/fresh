@@ -12,7 +12,7 @@ import (
 )
 
 func GenerateTable(repositories []domain.Repository, cursor int, layout ColumnLayout, runtime InfoRuntime) string {
-	headers := []string{"", "󰉋 Repo", " Branch", " Local", "󰓦 Remote", common.IconPullRequests + " PR", ""}
+	headers := []string{"", "󰉋 Repo", " Branch", " Local", "󰓦 Remote", common.IconPullRequests + " PR", "", ""}
 
 	rows := make([][]string, len(repositories))
 	for i, repo := range repositories {
@@ -41,7 +41,8 @@ func repositoryToRow(repo domain.Repository, isSelected bool, layout ColumnLayou
 	branchName := buildBranchName(repo.Branches.Current, layout.BranchWidth)
 	localCol := buildLocalStatus(repo.LocalState)
 	remoteCol := buildRemoteStatus(repo)
-	prCol := buildPullRequestStatus(repo.PullRequests)
+	prCol := buildPullRequestStatus(repo.PullRequests, runtime)
+	prAlertCol := buildPullRequestAlert(repo.PullRequests, runtime)
 	info := buildInfo(repo, layout.InfoWidth, runtime)
 
 	return []string{
@@ -51,8 +52,30 @@ func repositoryToRow(repo domain.Repository, isSelected bool, layout ColumnLayou
 		localCol,
 		remoteCol,
 		prCol,
+		prAlertCol,
 		info,
 	}
+}
+
+func buildPullRequestAlert(state domain.PullRequestState, runtime InfoRuntime) string {
+	style := lipgloss.NewStyle().
+		Width(PRAlertWidth).
+		MaxWidth(PRAlertWidth).
+		Height(1).
+		MaxHeight(1).
+		Align(lipgloss.Left)
+
+	s, ok := state.(domain.PullRequestCount)
+	if !ok || s.MyBlocked <= 0 {
+		return style.Render("")
+	}
+
+	frame := runtime.BlockedSpinner
+	if frame == "" {
+		return style.Foreground(common.SubtleRed).Render(common.IconWarning)
+	}
+
+	return style.Foreground(common.SubtleRed).Render(frame)
 }
 
 func buildSelector(isSelected bool) string {
@@ -64,18 +87,29 @@ func buildSelector(isSelected bool) string {
 }
 
 func buildProjectName(name string, isSelected bool, width int) string {
+	if width < 1 {
+		width = 1
+	}
+
+	displayName := name
+	if lipgloss.Width(name) > width {
+		displayName = common.TruncateWithEllipsis(name, width)
+	}
+
 	style := lipgloss.NewStyle().
 		Foreground(common.TextPrimary).
 		Align(lipgloss.Left).
 		Width(width).
 		MaxWidth(width).
+		Height(1).
+		MaxHeight(1).
 		AlignHorizontal(lipgloss.Left)
 
 	if isSelected {
 		style = style.Bold(true)
 	}
 
-	return style.Render(name)
+	return style.Render(displayName)
 }
 
 func buildBranchName(branch domain.Branch, width int) string {
@@ -170,18 +204,24 @@ func buildRemoteStatus(repo domain.Repository) string {
 	}
 }
 
-func buildPullRequestStatus(state domain.PullRequestState) string {
+func buildPullRequestStatus(state domain.PullRequestState, runtime InfoRuntime) string {
 	baseStyle := common.PullRequestStatusBaseStyle.
 		Width(PRWidth).
 		MaxWidth(PRWidth)
 
+	if runtime.PullRequestSyncing {
+		return baseStyle.Render(runtime.PullRequestSpinner)
+	}
+
 	switch s := state.(type) {
 	case domain.PullRequestCount:
 		if s.Open <= 0 {
-			return baseStyle.Foreground(common.SubtleGray).Render("0")
+			return baseStyle.Render("")
 		}
 		if s.MyOpen > 0 {
-			return baseStyle.Foreground(common.Blue).Render(fmt.Sprintf("%d(*)", s.Open))
+			count := lipgloss.NewStyle().Foreground(common.Blue).Render(fmt.Sprintf("%d", s.Open))
+			mine := lipgloss.NewStyle().Foreground(common.TextPrimary).Render("(*)")
+			return baseStyle.Render(count + mine)
 		}
 		return baseStyle.Foreground(common.Blue).Render(fmt.Sprintf("%d", s.Open))
 	case domain.PullRequestError:
@@ -213,6 +253,16 @@ func buildInfo(repo domain.Repository, infoWidth int, runtime InfoRuntime) strin
 		return infoStyle.Render("")
 	}
 
+	pinned := filterPinnedInfoMessages(messages)
+	if len(pinned) > 0 {
+		idx := 0
+		if len(pinned) > 1 {
+			idx = int(runtime.Phase % uint64(len(pinned)))
+		}
+
+		return infoStyle.Render(renderInfoMessage(pinned[idx], infoWidth))
+	}
+
 	idx := 0
 	if len(messages) > 1 {
 		idx = int(runtime.Phase % uint64(len(messages)))
@@ -221,18 +271,20 @@ func buildInfo(repo domain.Repository, infoWidth int, runtime InfoRuntime) strin
 	return infoStyle.Render(renderInfoMessage(messages[idx], infoWidth))
 }
 
-func buildMyPullRequestSummary(state domain.PullRequestState) string {
+func buildMyPullRequestSummary(state domain.PullRequestState) (string, bool) {
 	s, ok := state.(domain.PullRequestCount)
 	if !ok {
-		return ""
+		return "", false
 	}
 
 	parts := make([]string, 0, 4)
+	hasPinned := false
 	if s.MyReady > 0 {
 		parts = append(parts, fmt.Sprintf("%d ready", s.MyReady))
 	}
 	if s.MyBlocked > 0 {
 		parts = append(parts, fmt.Sprintf("%d blocked", s.MyBlocked))
+		hasPinned = true
 	}
 	if s.MyChecks > 0 {
 		parts = append(parts, fmt.Sprintf("%d checks", s.MyChecks))
@@ -242,10 +294,10 @@ func buildMyPullRequestSummary(state domain.PullRequestState) string {
 	}
 
 	if len(parts) == 0 {
-		return ""
+		return "", false
 	}
 
-	return "My PRs: " + strings.Join(parts, ", ")
+	return "My PRs: " + strings.Join(parts, ", "), hasPinned
 }
 
 func stylePullOutput(lastLine string, exitCode int, infoWidth int) string {

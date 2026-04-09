@@ -7,6 +7,8 @@ import (
 
 	"fresh/internal/domain"
 	"fresh/internal/ui/views/common"
+
+	"charm.land/lipgloss/v2"
 )
 
 // ============================================================================
@@ -86,6 +88,18 @@ func TestBuildProjectName(t *testing.T) {
 					tt.project, tt.isSelected, tt.width, got, tt.project)
 			}
 		})
+	}
+}
+
+func TestBuildProjectName_TruncatesWithEllipsis(t *testing.T) {
+	t.Parallel()
+
+	got := buildProjectName("this-is-a-very-long-repository-name", false, 12)
+	if !strings.Contains(got, "...") {
+		t.Fatalf("buildProjectName() = %q, want ellipsis", got)
+	}
+	if strings.Contains(got, "this-is-a-very-long-repository-name") {
+		t.Fatalf("buildProjectName() = %q, did not expect full untruncated name", got)
 	}
 }
 
@@ -305,6 +319,7 @@ func TestBuildPullRequestStatus(t *testing.T) {
 		name     string
 		state    domain.PullRequestState
 		contains []string
+		isEmpty  bool
 	}{
 		{
 			name:     "open pull requests show icon and count",
@@ -312,14 +327,14 @@ func TestBuildPullRequestStatus(t *testing.T) {
 			contains: []string{"3"},
 		},
 		{
-			name:     "zero pull requests shows icon and zero",
-			state:    domain.PullRequestCount{Open: 0, MyOpen: 0},
-			contains: []string{"0"},
+			name:    "zero pull requests shows empty",
+			state:   domain.PullRequestCount{Open: 0, MyOpen: 0},
+			isEmpty: true,
 		},
 		{
 			name:     "my open pull request still shows icon and count",
 			state:    domain.PullRequestCount{Open: 2, MyOpen: 1},
-			contains: []string{"2(*)"},
+			contains: []string{"2", "(*)"},
 		},
 		{
 			name:     "unavailable pull requests show dash",
@@ -336,11 +351,90 @@ func TestBuildPullRequestStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := buildPullRequestStatus(tt.state)
+			got := buildPullRequestStatus(tt.state, InfoRuntime{})
+			if tt.isEmpty {
+				trimmed := strings.TrimSpace(got)
+				if trimmed != "" {
+					t.Errorf("buildPullRequestStatus(%q) = %q, want empty", tt.name, got)
+				}
+				return
+			}
 			for _, want := range tt.contains {
 				if !strings.Contains(got, want) {
 					t.Errorf("buildPullRequestStatus(%q) = %q, want it to contain %q", tt.name, got, want)
 				}
+			}
+		})
+	}
+}
+
+func TestBuildPullRequestStatus_MyOpenUsesWhiteMarker(t *testing.T) {
+	t.Parallel()
+
+	got := buildPullRequestStatus(domain.PullRequestCount{Open: 2, MyOpen: 1}, InfoRuntime{})
+	wantMarker := lipgloss.NewStyle().Foreground(common.TextPrimary).Render("(*)")
+
+	if !strings.Contains(got, wantMarker) {
+		t.Fatalf("buildPullRequestStatus() = %q, expected white marker %q", got, wantMarker)
+	}
+}
+
+func TestBuildPullRequestStatus_SyncingShowsSpinnerOnly(t *testing.T) {
+	t.Parallel()
+
+	runtime := InfoRuntime{PullRequestSyncing: true, PullRequestSpinner: "⠋"}
+	got := buildPullRequestStatus(domain.PullRequestCount{Open: 9, MyOpen: 1}, runtime)
+
+	if !strings.Contains(got, "⠋") {
+		t.Fatalf("buildPullRequestStatus() = %q, want spinner", got)
+	}
+	if strings.Contains(got, "9") || strings.Contains(got, "(*)") {
+		t.Fatalf("buildPullRequestStatus() = %q, want spinner-only content", got)
+	}
+}
+
+func TestBuildPullRequestAlert(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		state    domain.PullRequestState
+		runtime  InfoRuntime
+		contains string
+		isEmpty  bool
+	}{
+		{
+			name:    "syncing keeps alert empty",
+			state:   domain.PullRequestCount{Open: 9, MyOpen: 1},
+			runtime: InfoRuntime{PullRequestSyncing: true, PullRequestSpinner: "⠋"},
+			isEmpty: true,
+		},
+		{
+			name:     "blocked my prs show alert spinner",
+			state:    domain.PullRequestCount{MyBlocked: 2},
+			runtime:  InfoRuntime{BlockedSpinner: "█"},
+			contains: "█",
+		},
+		{
+			name:    "no blocked prs shows empty",
+			state:   domain.PullRequestCount{MyBlocked: 0},
+			runtime: InfoRuntime{},
+			isEmpty: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := buildPullRequestAlert(tt.state, tt.runtime)
+			if tt.isEmpty {
+				if strings.TrimSpace(got) != "" {
+					t.Fatalf("buildPullRequestAlert(%q) = %q, want empty", tt.name, got)
+				}
+				return
+			}
+			if !strings.Contains(got, tt.contains) {
+				t.Fatalf("buildPullRequestAlert(%q) = %q, want %q", tt.name, got, tt.contains)
 			}
 		})
 	}
@@ -404,7 +498,7 @@ func TestBuildMyPullRequestSummary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := buildMyPullRequestSummary(tt.state)
+			got, _ := buildMyPullRequestSummary(tt.state)
 			if tt.isEmpty {
 				if got != "" {
 					t.Errorf("buildMyPullRequestSummary(%q) = %q, want empty", tt.name, got)
@@ -417,6 +511,22 @@ func TestBuildMyPullRequestSummary(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBuildMyPullRequestSummary_BlockedIsPinned(t *testing.T) {
+	t.Parallel()
+
+	state := domain.PullRequestCount{MyBlocked: 2}
+
+	got, pinned := buildMyPullRequestSummary(state)
+
+	if !pinned {
+		t.Fatalf("buildMyPullRequestSummary() pinned = false, want true")
+	}
+
+	if !strings.Contains(got, "2 blocked") {
+		t.Fatalf("summary = %q, want blocked count", got)
 	}
 }
 
@@ -703,8 +813,8 @@ func TestRepositoryToRow(t *testing.T) {
 
 	row := repositoryToRow(repo, true, ColumnLayout{ProjectWidth: 30, BranchWidth: 20, InfoWidth: InfoWidth}, InfoRuntime{})
 
-	if len(row) != 7 {
-		t.Fatalf("repositoryToRow returned %d columns, want 7", len(row))
+	if len(row) != 8 {
+		t.Fatalf("repositoryToRow returned %d columns, want 8", len(row))
 	}
 
 	// Selector should have the icon since isSelected=true
@@ -732,8 +842,12 @@ func TestRepositoryToRow(t *testing.T) {
 		t.Errorf("row[4] (remote) = %q, want it to contain %q", row[4], common.IconSynced)
 	}
 
-	if !strings.Contains(row[5], "2(*)") {
-		t.Errorf("row[5] (prs) = %q, want it to contain %q", row[5], "2(*)")
+	if !strings.Contains(row[5], "2") || !strings.Contains(row[5], "(*)") {
+		t.Errorf("row[5] (prs) = %q, want it to contain count and marker", row[5])
+	}
+
+	if strings.TrimSpace(row[6]) != "" {
+		t.Errorf("row[6] (pr alert) = %q, want empty when no blocked PRs", row[6])
 	}
 }
 

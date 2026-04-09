@@ -13,8 +13,18 @@ type RepoUpdatedMsg struct {
 	Index int
 }
 
+type PullRequestSyncTrigger int
+
+const (
+	pullRequestSyncUnknown PullRequestSyncTrigger = iota
+	pullRequestSyncStartup
+	pullRequestSyncManual
+	pullRequestSyncWatch
+)
+
 type PullRequestStatesUpdatedMsg struct {
-	States map[string]domain.PullRequestState
+	States  map[string]domain.PullRequestState
+	Trigger PullRequestSyncTrigger
 }
 
 type pullLineMsg struct {

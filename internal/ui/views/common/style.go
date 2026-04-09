@@ -2,10 +2,13 @@ package common
 
 import (
 	"fmt"
+	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/lipgloss/v2"
 )
+
+const spinnerFrameInterval = 100 * time.Millisecond
 
 var (
 	SubtleGray    = lipgloss.Color("#5b6078")
@@ -45,9 +48,26 @@ func NewRefreshSpinner() spinner.Model {
 }
 
 func NewPullSpinner() spinner.Model {
+	pullSpinner := spinner.Points
+	pullSpinner.FPS = spinnerFrameInterval
+
 	return spinner.New(
-		spinner.WithSpinner(spinner.Points),
+		spinner.WithSpinner(pullSpinner),
 		spinner.WithStyle(lipgloss.NewStyle().Foreground(Blue)),
+	)
+}
+
+func NewPullRequestSpinner() spinner.Model {
+	return NewRefreshSpinner()
+}
+
+func NewBlockedPullRequestSpinner() spinner.Model {
+	blockedSpinner := spinner.Pulse
+	blockedSpinner.FPS = spinnerFrameInterval
+
+	return spinner.New(
+		spinner.WithSpinner(blockedSpinner),
+		spinner.WithStyle(lipgloss.NewStyle().Foreground(SubtleRed).Bold(true)),
 	)
 }
 
@@ -130,6 +150,10 @@ var PullOutputError = lipgloss.NewStyle().
 	Height(1).
 	MaxHeight(1).
 	Inline(true)
+
+var AlertSpinnerStyle = lipgloss.NewStyle().
+	Foreground(Red).
+	Bold(true)
 
 var PullProgressStyle = lipgloss.NewStyle()
 
