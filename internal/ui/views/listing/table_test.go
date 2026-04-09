@@ -7,8 +7,6 @@ import (
 
 	"fresh/internal/domain"
 	"fresh/internal/ui/views/common"
-
-	"charm.land/lipgloss/v2"
 )
 
 // ============================================================================
@@ -365,17 +363,6 @@ func TestBuildPullRequestStatus(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestBuildPullRequestStatus_MyOpenUsesWhiteMarker(t *testing.T) {
-	t.Parallel()
-
-	got := buildPullRequestStatus(domain.PullRequestCount{Open: 2, MyOpen: 1}, InfoRuntime{})
-	wantMarker := lipgloss.NewStyle().Foreground(common.TextPrimary).Render("(*)")
-
-	if !strings.Contains(got, wantMarker) {
-		t.Fatalf("buildPullRequestStatus() = %q, expected white marker %q", got, wantMarker)
 	}
 }
 

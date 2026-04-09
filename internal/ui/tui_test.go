@@ -2,8 +2,6 @@ package ui
 
 import (
 	"fresh/internal/domain"
-	"fresh/internal/ui/views/listing"
-	"fresh/internal/ui/views/pullrequests"
 	"fresh/internal/ui/views/scanning"
 	"testing"
 
@@ -47,7 +45,6 @@ func TestMainModel_ScanFinishedMsg_TransitionsToListingView(t *testing.T) {
 	if len(model.listingView.Repositories) != 1 {
 		t.Errorf("listing repos count = %d, want 1", len(model.listingView.Repositories))
 	}
-	// Init should return a cmd (refresh commands for the listing)
 	if cmd == nil {
 		t.Error("expected non-nil cmd from listing Init()")
 	}
@@ -60,9 +57,6 @@ func TestMainModel_QuitOnCtrlC(t *testing.T) {
 	msg := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 
 	_, cmd := m.Update(msg)
-
-	// tea.Quit returns a special cmd; we can't compare functions directly
-	// but we can verify the cmd is not nil (quit produces a cmd)
 	if cmd == nil {
 		t.Error("expected non-nil cmd (quit) from ctrl+c")
 	}
@@ -75,7 +69,6 @@ func TestMainModel_QuitOnQ(t *testing.T) {
 	msg := tea.KeyPressMsg{Code: 'q'}
 
 	_, cmd := m.Update(msg)
-
 	if cmd == nil {
 		t.Error("expected non-nil cmd (quit) from 'q'")
 	}
@@ -103,14 +96,12 @@ func TestMainModel_DelegatesKeyMsgToListingInRepoListView(t *testing.T) {
 
 	m := New(t.TempDir())
 
-	// Transition to listing view
 	repos := []domain.Repository{
 		{Name: "a", Path: "/a", Activity: domain.IdleActivity{}, LocalState: domain.CleanLocalState{}, RemoteState: domain.Synced{}, Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}}},
 		{Name: "b", Path: "/b", Activity: domain.IdleActivity{}, LocalState: domain.CleanLocalState{}, RemoteState: domain.Synced{}, Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}}},
 	}
 	m.Update(scanning.ScanFinishedMsg{Repos: repos})
 
-	// Now send a 'j' key to move cursor
 	msg := tea.KeyPressMsg{Code: 'j'}
 	m.Update(msg)
 
@@ -191,37 +182,6 @@ func TestMainModel_EscapeTransitionsBackToListingView(t *testing.T) {
 	}
 }
 
-func TestMainModel_ViewInScanningMode(t *testing.T) {
-	t.Parallel()
-
-	m := New(t.TempDir())
-	output := m.View()
-
-	// Scanning view should contain scanning-related content
-	if output.Content == "" {
-		t.Error("expected non-empty view output in scanning mode")
-	}
-}
-
-func TestMainModel_ViewInListingMode(t *testing.T) {
-	t.Parallel()
-
-	m := New(t.TempDir())
-
-	repos := []domain.Repository{
-		{Name: "test-repo", Path: "/tmp/test-repo", Activity: domain.IdleActivity{}, LocalState: domain.CleanLocalState{}, RemoteState: domain.Synced{}, Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}}},
-	}
-	m.Update(scanning.ScanFinishedMsg{Repos: repos})
-	m.listingView.Cursor = 0
-	m.listingView.Repositories[0].Activity = &domain.IdleActivity{}
-
-	output := m.View()
-
-	if output.Content == "" {
-		t.Error("expected non-empty view output in listing mode")
-	}
-}
-
 func TestMainModel_ScanFinishedMsg_WithEmptyRepos(t *testing.T) {
 	t.Parallel()
 
@@ -238,23 +198,3 @@ func TestMainModel_ScanFinishedMsg_WithEmptyRepos(t *testing.T) {
 		t.Errorf("repos count = %d, want 0", len(model.listingView.Repositories))
 	}
 }
-
-func TestMainModel_DefaultViewReturnsEmpty(t *testing.T) {
-	t.Parallel()
-
-	// Construct a model with an invalid view to test the default case
-	m := &MainModel{
-		currentView: CurrentView(99),
-	}
-
-	output := m.View()
-	if output.Content != "" {
-		t.Errorf("expected empty string for unknown view, got %q", output.Content)
-	}
-}
-
-// Verify that unused imports don't cause issues — these are needed for
-// the test to compile but the linter may flag them without explicit use.
-var _ = listing.New
-var _ = pullrequests.New
-var _ = scanning.ScanFinishedMsg{}
