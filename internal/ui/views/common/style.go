@@ -130,13 +130,6 @@ func RemoteStatusCounts(behind int, ahead int, width int) string {
 var RemoteStatusErrorText = lipgloss.NewStyle().
 	Foreground(SubtleRed)
 
-var RemoteStatusErrorHelpText = lipgloss.NewStyle().
-	Foreground(SubtleGray)
-
-var BadgeStyle = lipgloss.NewStyle().
-	Inline(true).
-	MarginLeft(2)
-
 var PullOutputSuccess = lipgloss.NewStyle().
 	Foreground(Green).
 	Height(1).
@@ -176,26 +169,8 @@ var InfoStyle = lipgloss.NewStyle().
 
 const (
 	LabelNoUpstream = "No upstream "
-	HelpNoUpstream  = "(new branch or deleted remote)"
 	LabelDetached   = "Detached HEAD "
-	HelpDetached    = "(not currently on a branch)"
-	HelpDiverged    = " (Pulling will run --rebase)"
 )
-
-type StatusMessage struct {
-	Label string
-	Help  string
-}
-
-var (
-	MsgNoUpstream = StatusMessage{Label: LabelNoUpstream, Help: HelpNoUpstream}
-	MsgDetached   = StatusMessage{Label: LabelDetached, Help: HelpDetached}
-	MsgDiverged   = StatusMessage{Label: StatusDiverged, Help: HelpDiverged}
-)
-
-func RenderStatusMessage(msg StatusMessage, maxWidth int) string {
-	return RemoteStatusErrorText.Render(msg.Label)
-}
 
 func TruncateWithEllipsis(text string, maxWidth int) string {
 	runes := []rune(text)
@@ -213,7 +188,6 @@ func FormatPullProgress(spinnerView string, lastLine string, width int) string {
 }
 
 const (
-	IconGit          = "\uF115"
 	IconClean        = "\uF00C"
 	IconDirty        = "\uF071"
 	IconWarning      = "\uF071"

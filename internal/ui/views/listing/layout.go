@@ -1,6 +1,9 @@
 package listing
 
-import "fresh/internal/domain"
+import (
+	"fresh/internal/domain"
+	"fresh/internal/ui/views/common"
+)
 
 type ColumnLayout struct {
 	ProjectWidth int
@@ -90,8 +93,8 @@ func calculateColumnWidths(repositories []domain.Repository, terminalWidth int) 
 	}
 
 	// Clamp to min/max immediately
-	projectWidth = clamp(maxProjectLen, MinProjectWidth, MaxProjectWidth)
-	branchWidth = clamp(maxBranchLen, MinBranchWidth, MaxBranchWidth)
+	projectWidth = common.Clamp(maxProjectLen, MinProjectWidth, MaxProjectWidth)
+	branchWidth = common.Clamp(maxBranchLen, MinBranchWidth, MaxBranchWidth)
 
 	// If no terminal width provided, use content-based widths
 	if terminalWidth <= 0 {
@@ -113,17 +116,6 @@ func calculateColumnWidths(repositories []domain.Repository, terminalWidth int) 
 
 	// Need to shrink proportionally
 	return distributeWidth(projectWidth, branchWidth, availableWidth)
-}
-
-// clamp restricts value to [min, max] range.
-func clamp(value, min, max int) int {
-	if value < min {
-		return min
-	}
-	if value > max {
-		return max
-	}
-	return value
 }
 
 // distributeWidth proportionally allocates availableWidth between project and branch columns.
@@ -153,8 +145,8 @@ func distributeWidth(projectDesired, branchDesired, available int) (project, bra
 	}
 
 	// Final clamp to maxes
-	project = clamp(project, MinProjectWidth, MaxProjectWidth)
-	branch = clamp(branch, MinBranchWidth, MaxBranchWidth)
+	project = common.Clamp(project, MinProjectWidth, MaxProjectWidth)
+	branch = common.Clamp(branch, MinBranchWidth, MaxBranchWidth)
 
 	return project, branch
 }
