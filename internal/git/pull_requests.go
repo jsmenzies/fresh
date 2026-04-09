@@ -47,6 +47,7 @@ type gqlPullRequestNode struct {
 	Repository struct {
 		NameWithOwner string `json:"nameWithOwner"`
 	} `json:"repository"`
+	Title            string  `json:"title"`
 	Number           int     `json:"number"`
 	IsDraft          bool    `json:"isDraft"`
 	ReviewDecision   *string `json:"reviewDecision"`
@@ -242,6 +243,7 @@ query($q: String!) {
         repository {
           nameWithOwner
         }
+        title
         number
         isDraft
         reviewDecision
@@ -306,6 +308,7 @@ query($q: String!) {
 				Number: row.Number,
 			},
 			Status: classification,
+			Title:  strings.TrimSpace(row.Title),
 		})
 
 		summary := summaries[ownerRepo]
