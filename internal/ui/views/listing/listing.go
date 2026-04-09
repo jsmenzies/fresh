@@ -2,6 +2,7 @@ package listing
 
 import (
 	"fresh/internal/domain"
+	"fresh/internal/notifications"
 	"fresh/internal/ui/views/common"
 	"sort"
 	"strings"
@@ -16,6 +17,7 @@ type listKeyMap struct {
 	refresh      key.Binding
 	pullAll      key.Binding
 	pruneAll     key.Binding
+	alert        key.Binding
 	toggleLegend key.Binding
 }
 
@@ -32,6 +34,10 @@ func newListKeyMap() *listKeyMap {
 		pruneAll: key.NewBinding(
 			key.WithKeys("b"),
 			key.WithHelp("b", "prune merged branches"),
+		),
+		alert: key.NewBinding(
+			key.WithKeys("a"),
+			key.WithHelp("a", "trigger mock alert"),
 		),
 		toggleLegend: key.NewBinding(
 			key.WithKeys("?"),
@@ -52,9 +58,14 @@ type Model struct {
 	ActivityTTL   time.Duration
 	RecentInfo    map[string][]TimedInfoMessage
 	StartupPRSync bool
+	notifier      *notifications.Notifier
 }
 
 func New(repos []domain.Repository) *Model {
+	return NewWithNotifier(repos, nil)
+}
+
+func NewWithNotifier(repos []domain.Repository, notifier *notifications.Notifier) *Model {
 	sort.Slice(repos, func(i, j int) bool {
 		return strings.ToLower(repos[i].Name) < strings.ToLower(repos[j].Name)
 	})
@@ -73,6 +84,7 @@ func New(repos []domain.Repository) *Model {
 		ActivityTTL:   10 * time.Second,
 		RecentInfo:    make(map[string][]TimedInfoMessage),
 		StartupPRSync: false,
+		notifier:      notifier,
 	}
 }
 
@@ -153,6 +165,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 		case key.Matches(msg, m.Keys.toggleLegend):
 			m.ShowLegend = !m.ShowLegend
+			return m, nil
+
+		case key.Matches(msg, m.Keys.alert):
+			m.triggerMockAlert()
 			return m, nil
 
 		case msg.String() == "up", msg.String() == "k":
@@ -328,6 +344,7 @@ func buildFooter() string {
 		"r refresh",
 		"p pull all updates",
 		"b prune merged branches",
+		"a mock alert",
 		"? toggle legend",
 		"q quit",
 	}
@@ -360,4 +377,22 @@ func (m *Model) pruneExpiredRecentActivityInfo(now time.Time) {
 		}
 		m.RecentInfo[repoPath] = filtered
 	}
+}
+
+func (m *Model) triggerMockAlert() {
+	if m.notifier == nil {
+		return
+	}
+
+	m.notifier.Upsert(notifications.Notification{
+		Key: notifications.PRKey{
+			Owner:  "mock-owner",
+			Repo:   "mock-repo",
+			Number: 1,
+		},
+		Kind:        notifications.KindProgress,
+		Reason:      "Mock alert from keypress",
+		Repeat:      true,
+		RepeatEvery: 10 * time.Second,
+	})
 }

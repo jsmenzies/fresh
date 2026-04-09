@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"fresh/internal/git"
+	"fresh/internal/notifications"
 	"fresh/internal/ui"
 	"os"
 
@@ -102,7 +103,11 @@ func runApp(cfg *Config) {
 		os.Exit(1)
 	}
 
-	m := ui.New(cfg.ScanDir)
+	notifier := notifications.NewNotifier()
+	notifier.Start()
+	defer notifier.Stop()
+
+	m := ui.New(cfg.ScanDir, notifier)
 
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		fmt.Println("Error running program:", err)

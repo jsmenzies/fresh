@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fresh/internal/notifications"
 	"fresh/internal/ui/views/listing"
 	"fresh/internal/ui/views/scanning"
 
@@ -18,13 +19,20 @@ type MainModel struct {
 	currentView   CurrentView
 	scanningView  *scanning.Model
 	listingView   *listing.Model
+	notifier      *notifications.Notifier
 	width, height int
 }
 
-func New(scanDir string) *MainModel {
+func New(scanDir string, notifier ...*notifications.Notifier) *MainModel {
+	var injectedNotifier *notifications.Notifier
+	if len(notifier) > 0 {
+		injectedNotifier = notifier[0]
+	}
+
 	return &MainModel{
 		currentView:  ScanningView,
 		scanningView: scanning.New(scanDir),
+		notifier:     injectedNotifier,
 	}
 }
 
@@ -53,7 +61,7 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case scanning.ScanFinishedMsg:
 		m.currentView = RepoListView
-		m.listingView = listing.New(msg.Repos)
+		m.listingView = listing.NewWithNotifier(msg.Repos, m.notifier)
 		m.listingView.SetSize(m.width, m.height)
 		return m, m.listingView.Init()
 	}
