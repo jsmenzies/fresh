@@ -7,6 +7,8 @@ import (
 
 	"fresh/internal/domain"
 	"fresh/internal/ui/views/common"
+
+	"charm.land/lipgloss/v2"
 )
 
 // ============================================================================
@@ -505,6 +507,62 @@ func TestBuildMyPullRequestSummary_BlockedIsPinned(t *testing.T) {
 
 	if !strings.Contains(got, "2 blocked") {
 		t.Fatalf("summary = %q, want blocked count", got)
+	}
+}
+
+func TestBuildMyPullRequestSummary_ReadyIsPinned(t *testing.T) {
+	t.Parallel()
+
+	state := domain.PullRequestCount{MyReady: 1}
+
+	got, pinned := buildMyPullRequestSummary(state)
+
+	if !pinned {
+		t.Fatalf("buildMyPullRequestSummary() pinned = false, want true")
+	}
+
+	if !strings.Contains(got, "1 ready") {
+		t.Fatalf("summary = %q, want ready count", got)
+	}
+}
+
+func TestBuildInfo_MyPullRequestSummaryUsesStatusColors(t *testing.T) {
+	t.Parallel()
+
+	repo := newTestRepository("repo").
+		PullRequests(domain.PullRequestCount{
+			MyReady:   1,
+			MyBlocked: 2,
+			MyChecks:  3,
+			MyReview:  1,
+		}).
+		Build()
+
+	got := buildInfo(repo, 120, InfoRuntime{})
+
+	wantLabel := lipgloss.NewStyle().Foreground(common.TextPrimary).Render("My PRs:")
+	if !strings.Contains(got, wantLabel) {
+		t.Fatalf("buildInfo() = %q, want white label %q", got, wantLabel)
+	}
+
+	wantReady := lipgloss.NewStyle().Foreground(common.Green).Render("1 ready")
+	if !strings.Contains(got, wantReady) {
+		t.Fatalf("buildInfo() = %q, want green ready segment %q", got, wantReady)
+	}
+
+	wantBlocked := lipgloss.NewStyle().Foreground(common.Red).Render("2 blocked")
+	if !strings.Contains(got, wantBlocked) {
+		t.Fatalf("buildInfo() = %q, want red blocked segment %q", got, wantBlocked)
+	}
+
+	wantChecks := lipgloss.NewStyle().Foreground(common.Yellow).Render("3 checks")
+	if !strings.Contains(got, wantChecks) {
+		t.Fatalf("buildInfo() = %q, want yellow checks segment %q", got, wantChecks)
+	}
+
+	wantReview := lipgloss.NewStyle().Foreground(common.Yellow).Render("1 review")
+	if !strings.Contains(got, wantReview) {
+		t.Fatalf("buildInfo() = %q, want yellow review segment %q", got, wantReview)
 	}
 }
 

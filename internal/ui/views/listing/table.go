@@ -292,6 +292,7 @@ func buildMyPullRequestSummary(state domain.PullRequestState) (string, bool) {
 	hasPinned := false
 	if s.MyReady > 0 {
 		parts = append(parts, fmt.Sprintf("%d ready", s.MyReady))
+		hasPinned = true
 	}
 	if s.MyBlocked > 0 {
 		parts = append(parts, fmt.Sprintf("%d blocked", s.MyBlocked))
