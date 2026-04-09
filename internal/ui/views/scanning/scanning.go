@@ -88,7 +88,7 @@ func (m *Model) View() string {
 		repoList.String() + "\n"
 }
 
-func waitForRepo(c chan string) tea.Cmd {
+func waitForRepo(c <-chan string) tea.Cmd {
 	return func() tea.Msg {
 		path, ok := <-c
 		if !ok {
