@@ -166,7 +166,7 @@ func TestCalculateColumnWidths(t *testing.T) {
 			repos: []domain.Repository{
 				makeTestRepository(
 					"app",
-					withRepoCurrentBranch(domain.OnBranch{Name: "feature/very-long-branch-name-that-is-too-wide"}),
+					withRepo(domain.Repository{Branches: domain.Branches{Current: domain.OnBranch{Name: "feature/very-long-branch-name-that-is-too-wide"}}}),
 				),
 			},
 			terminalWidth: 200,
@@ -175,7 +175,7 @@ func TestCalculateColumnWidths(t *testing.T) {
 		},
 		{
 			name:          "zero terminal width uses content-based widths",
-			repos:         []domain.Repository{makeTestRepository("my-project", withRepoCurrentBranch(domain.OnBranch{Name: "develop"}))},
+			repos:         []domain.Repository{makeTestRepository("my-project", withRepo(domain.Repository{Branches: domain.Branches{Current: domain.OnBranch{Name: "develop"}}}))},
 			terminalWidth: 0,
 			wantProject:   MinProjectWidth,
 			wantBranch:    MinBranchWidth,
@@ -212,7 +212,7 @@ func TestCalculateColumnWidths_NarrowTerminal(t *testing.T) {
 func TestCalculateColumnWidths_DetachedHead(t *testing.T) {
 	t.Parallel()
 
-	repo := makeTestRepository("my-project", withRepoCurrentBranch(domain.DetachedHead{CommitSHA: "abc123"}))
+	repo := makeTestRepository("my-project", withRepo(domain.Repository{Branches: domain.Branches{Current: domain.DetachedHead{CommitSHA: "abc123"}}}))
 
 	// DetachedHead should use "HEAD" (4 chars) for branch width calculation
 	project, branch := calculateColumnWidths([]domain.Repository{repo}, 200)
@@ -231,7 +231,7 @@ func TestCalculateColumnWidths_MultipleRepos(t *testing.T) {
 		makeTestRepository("short"),
 		makeTestRepository(
 			"this-is-a-medium-length-name",
-			withRepoCurrentBranch(domain.OnBranch{Name: "feature/long-branch"}),
+			withRepo(domain.Repository{Branches: domain.Branches{Current: domain.OnBranch{Name: "feature/long-branch"}}}),
 		),
 	}
 

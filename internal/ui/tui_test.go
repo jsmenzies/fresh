@@ -91,8 +91,8 @@ func TestMainModel_DelegatesKeyMsgToListingInRepoListView(t *testing.T) {
 	m := New(t.TempDir())
 
 	repos := []domain.Repository{
-		makeTestRepository("a", withRepoPath("/a")),
-		makeTestRepository("b", withRepoPath("/b")),
+		makeTestRepository("a"),
+		makeTestRepository("b"),
 	}
 	m.Update(scanning.ScanFinishedMsg{Repos: repos})
 
@@ -110,9 +110,7 @@ func TestMainModel_EnterTransitionsToPullRequestView(t *testing.T) {
 	m := New(t.TempDir())
 
 	repos := []domain.Repository{
-		makeTestRepository("repo-a", withRepoMutator(func(repo *domain.Repository) {
-			repo.RemoteURL = "https://github.com/octo/repo-a"
-		})),
+		makeTestRepository("repo-a", withRepo(domain.Repository{RemoteURL: "https://github.com/octo/repo-a"})),
 	}
 	m.Update(scanning.ScanFinishedMsg{Repos: repos})
 
@@ -141,7 +139,7 @@ func TestMainModel_EscapeTransitionsBackToListingView(t *testing.T) {
 	m := New(t.TempDir())
 
 	repos := []domain.Repository{
-		makeTestRepository("repo-a", withRepoRemoteURL("https://github.com/octo/repo-a")),
+		makeTestRepository("repo-a", withRepo(domain.Repository{RemoteURL: "https://github.com/octo/repo-a"})),
 	}
 	m.Update(scanning.ScanFinishedMsg{Repos: repos})
 	_, openCmd := m.Update(tea.KeyPressMsg{Code: '\r'})

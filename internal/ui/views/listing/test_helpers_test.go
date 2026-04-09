@@ -21,54 +21,37 @@ func makeTestRepository(name string, opts ...testRepositoryOption) domain.Reposi
 	return repo
 }
 
-func withRepoPath(path string) testRepositoryOption {
+func withRepo(overrides domain.Repository) testRepositoryOption {
 	return func(repo *domain.Repository) {
-		repo.Path = path
+		if overrides.Name != "" {
+			repo.Name = overrides.Name
+		}
+		if overrides.Path != "" {
+			repo.Path = overrides.Path
+		}
+		if overrides.RemoteURL != "" {
+			repo.RemoteURL = overrides.RemoteURL
+		}
+		if overrides.Activity != nil {
+			repo.Activity = overrides.Activity
+		}
+		if overrides.LocalState != nil {
+			repo.LocalState = overrides.LocalState
+		}
+		if overrides.RemoteState != nil {
+			repo.RemoteState = overrides.RemoteState
+		}
+		if overrides.PullRequests != nil {
+			repo.PullRequests = overrides.PullRequests
+		}
+		if overrides.Branches.Current != nil {
+			repo.Branches.Current = overrides.Branches.Current
+		}
+		if overrides.Branches.Merged != nil {
+			repo.Branches.Merged = append([]string(nil), overrides.Branches.Merged...)
+		}
+		if overrides.StashCount != 0 {
+			repo.StashCount = overrides.StashCount
+		}
 	}
-}
-
-func withRepoActivity(activity domain.Activity) testRepositoryOption {
-	return func(repo *domain.Repository) {
-		repo.Activity = activity
-	}
-}
-
-func withRepoLocalState(state domain.LocalState) testRepositoryOption {
-	return func(repo *domain.Repository) {
-		repo.LocalState = state
-	}
-}
-
-func withRepoRemoteState(state domain.RemoteState) testRepositoryOption {
-	return func(repo *domain.Repository) {
-		repo.RemoteState = state
-	}
-}
-
-func withRepoPullRequests(state domain.PullRequestState) testRepositoryOption {
-	return func(repo *domain.Repository) {
-		repo.PullRequests = state
-	}
-}
-
-func withRepoCurrentBranch(branch domain.Branch) testRepositoryOption {
-	return func(repo *domain.Repository) {
-		repo.Branches.Current = branch
-	}
-}
-
-func withRepoMergedBranches(merged ...string) testRepositoryOption {
-	return func(repo *domain.Repository) {
-		repo.Branches.Merged = append([]string(nil), merged...)
-	}
-}
-
-func withRepoStashCount(count int) testRepositoryOption {
-	return func(repo *domain.Repository) {
-		repo.StashCount = count
-	}
-}
-
-func withRepoMutator(mutator func(*domain.Repository)) testRepositoryOption {
-	return mutator
 }
