@@ -2,9 +2,11 @@ package listing
 
 import (
 	"fresh/internal/domain"
+	"fresh/internal/notifications"
 	"fresh/internal/ui/views/common"
 	"sort"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
@@ -15,6 +17,7 @@ type listKeyMap struct {
 	refresh      key.Binding
 	pullAll      key.Binding
 	pruneAll     key.Binding
+	alert        key.Binding
 	toggleLegend key.Binding
 }
 
@@ -32,6 +35,10 @@ func newListKeyMap() *listKeyMap {
 			key.WithKeys("b"),
 			key.WithHelp("b", "prune merged branches"),
 		),
+		alert: key.NewBinding(
+			key.WithKeys("a"),
+			key.WithHelp("a", "trigger mock alert"),
+		),
 		toggleLegend: key.NewBinding(
 			key.WithKeys("?"),
 			key.WithHelp("?", "toggle legend"),
@@ -43,11 +50,22 @@ type Model struct {
 	Repositories  []domain.Repository
 	Cursor        int
 	Keys          *listKeyMap
+	layout        ColumnLayout
 	width, height int
 	ShowLegend    bool
+	InfoPhase     uint64
+	RotateEvery   time.Duration
+	ActivityTTL   time.Duration
+	RecentInfo    map[string][]TimedInfoMessage
+	StartupPRSync bool
+	notifier      *notifications.Notifier
 }
 
 func New(repos []domain.Repository) *Model {
+	return NewWithNotifier(repos, nil)
+}
+
+func NewWithNotifier(repos []domain.Repository, notifier *notifications.Notifier) *Model {
 	sort.Slice(repos, func(i, j int) bool {
 		return strings.ToLower(repos[i].Name) < strings.ToLower(repos[j].Name)
 	})
@@ -57,15 +75,32 @@ func New(repos []domain.Repository) *Model {
 	}
 
 	return &Model{
-		Repositories: repos,
-		Cursor:       0,
-		Keys:         newListKeyMap(),
-		ShowLegend:   false,
+		Repositories:  repos,
+		Cursor:        0,
+		Keys:          newListKeyMap(),
+		layout:        calculateColumnLayout(repos, 0),
+		ShowLegend:    false,
+		RotateEvery:   10 * time.Second,
+		ActivityTTL:   10 * time.Second,
+		RecentInfo:    make(map[string][]TimedInfoMessage),
+		StartupPRSync: false,
+		notifier:      notifier,
 	}
+}
+
+func (m *Model) SetSize(width, height int) {
+	m.width = width
+	m.height = height
+	m.layout = calculateColumnLayout(m.Repositories, width)
 }
 
 func (m *Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
+	cmds = append(cmds, scheduleInfoRotateTick(m.RotateEvery))
+	if !m.StartupPRSync {
+		cmds = append(cmds, performPullRequestSync(m.Repositories))
+		m.StartupPRSync = true
+	}
 	for i := range m.Repositories {
 		repo := &m.Repositories[i]
 		repo.Activity = &domain.RefreshingActivity{
@@ -80,14 +115,14 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
+		m.SetSize(msg.Width, msg.Height)
 		return m, nil
 
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.Keys.refresh):
 			var cmds []tea.Cmd
+			cmds = append(cmds, performPullRequestSync(m.Repositories))
 			for i := range m.Repositories {
 				repo := &m.Repositories[i]
 				if !repo.IsBusy() {
@@ -132,6 +167,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.ShowLegend = !m.ShowLegend
 			return m, nil
 
+		case key.Matches(msg, m.Keys.alert):
+			m.triggerMockAlert()
+			return m, nil
+
 		case msg.String() == "up", msg.String() == "k":
 			if m.Cursor > 0 {
 				m.Cursor--
@@ -147,15 +186,20 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if msg.Index < len(m.Repositories) {
 			repo := &m.Repositories[msg.Index]
 			activity := repo.Activity
+			pullRequests := repo.PullRequests
 			*repo = msg.Repo
+			repo.PullRequests = pullRequests
 
 			if refreshing, ok := activity.(*domain.RefreshingActivity); ok {
 				refreshing.MarkComplete()
-				repo.Activity = refreshing
+				repo.Activity = &domain.IdleActivity{}
 			} else {
 				repo.Activity = activity
 			}
 		}
+
+	case PullRequestStatesUpdatedMsg:
+		m.applyPullRequestStates(msg.States)
 
 	case pullWorkState:
 		return m, listenForPullProgress(msg)
@@ -175,10 +219,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if msg.Index < len(m.Repositories) {
 			repo := &m.Repositories[msg.Index]
 			activity := repo.Activity
+			pullRequests := repo.PullRequests
 			*repo = msg.Repo
+			repo.PullRequests = pullRequests
 			if pulling, ok := activity.(*domain.PullingActivity); ok {
 				pulling.MarkComplete(msg.exitCode)
-				repo.Activity = pulling
+				m.storeRecentActivityInfo(repo.Path, buildPullOutputInfoMessage(pulling.GetLastLine(), pulling.ExitCode))
+				repo.Activity = &domain.IdleActivity{}
 			} else {
 				repo.Activity = activity
 			}
@@ -202,14 +249,24 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if msg.Index < len(m.Repositories) {
 			repo := &m.Repositories[msg.Index]
 			activity := repo.Activity
+			pullRequests := repo.PullRequests
 			*repo = msg.Repo
+			repo.PullRequests = pullRequests
 			if pruning, ok := activity.(*domain.PruningActivity); ok {
 				pruning.MarkComplete(msg.exitCode, msg.DeletedCount)
-				repo.Activity = pruning
+				if info, ok := buildPruneCompletionInfoMessage(*pruning); ok {
+					m.storeRecentActivityInfo(repo.Path, info)
+				}
+				repo.Activity = &domain.IdleActivity{}
 			} else {
 				repo.Activity = activity
 			}
 		}
+
+	case infoRotateTickMsg:
+		m.InfoPhase++
+		m.pruneExpiredRecentActivityInfo(time.Now())
+		return m, scheduleInfoRotateTick(m.RotateEvery)
 
 	case spinner.TickMsg:
 		var cmds []tea.Cmd
@@ -242,6 +299,19 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *Model) applyPullRequestStates(states map[string]domain.PullRequestState) {
+	if len(states) == 0 {
+		return
+	}
+
+	for i := range m.Repositories {
+		repo := &m.Repositories[i]
+		if state, ok := states[repo.Path]; ok {
+			repo.PullRequests = state
+		}
+	}
+}
+
 func (m *Model) View() string {
 	var s strings.Builder
 	s.WriteString(common.FormatHeader(len(m.Repositories)))
@@ -251,7 +321,12 @@ func (m *Model) View() string {
 		return s.String()
 	}
 
-	s.WriteString(GenerateTable(m.Repositories, m.Cursor, m.width))
+	runtime := InfoRuntime{
+		Phase:                m.InfoPhase,
+		Now:                  time.Now(),
+		RecentActivityByRepo: m.RecentInfo,
+	}
+	s.WriteString(GenerateTable(m.Repositories, m.Cursor, m.layout, runtime))
 	s.WriteString("\n\n")
 
 	s.WriteString(buildFooter())
@@ -269,9 +344,55 @@ func buildFooter() string {
 		"r refresh",
 		"p pull all updates",
 		"b prune merged branches",
+		"a mock alert",
 		"? toggle legend",
 		"q quit",
 	}
 	footerText := strings.Join(hotkeys, "  •  ")
 	return common.FooterStyle.Render(footerText)
+}
+
+func (m *Model) storeRecentActivityInfo(repoPath string, message InfoMessage) {
+	if repoPath == "" || message.Text == "" {
+		return
+	}
+
+	now := time.Now()
+	expiresAt := now.Add(m.ActivityTTL)
+	m.RecentInfo[repoPath] = append(m.RecentInfo[repoPath], TimedInfoMessage{Message: message, ExpiresAt: expiresAt})
+}
+
+func (m *Model) pruneExpiredRecentActivityInfo(now time.Time) {
+	for repoPath, items := range m.RecentInfo {
+		filtered := items[:0]
+		for _, item := range items {
+			if !item.ExpiresAt.IsZero() && now.After(item.ExpiresAt) {
+				continue
+			}
+			filtered = append(filtered, item)
+		}
+		if len(filtered) == 0 {
+			delete(m.RecentInfo, repoPath)
+			continue
+		}
+		m.RecentInfo[repoPath] = filtered
+	}
+}
+
+func (m *Model) triggerMockAlert() {
+	if m.notifier == nil {
+		return
+	}
+
+	m.notifier.Upsert(notifications.Notification{
+		Key: notifications.PRKey{
+			Owner:  "mock-owner",
+			Repo:   "mock-repo",
+			Number: 1,
+		},
+		Kind:        notifications.KindProgress,
+		Reason:      "Mock alert from keypress",
+		Repeat:      true,
+		RepeatEvery: 10 * time.Second,
+	})
 }

@@ -2,6 +2,12 @@ package listing
 
 import "fresh/internal/domain"
 
+type ColumnLayout struct {
+	ProjectWidth int
+	BranchWidth  int
+	InfoWidth    int
+}
+
 // Column width constraints for dynamic columns
 const (
 	MaxProjectWidth = 50
@@ -12,13 +18,13 @@ const (
 
 // Fixed column widths
 const (
-	SelectorWidth   = 2
-	LocalWidth      = 15
-	RemoteWidth     = 11
-	InfoWidth       = 42
-	LastCommitWidth = 20
-	LinksWidth      = 8
-	InterColumnGap  = 2 // spacing between columns
+	SelectorWidth  = 2
+	LocalWidth     = 15
+	RemoteWidth    = 11
+	PRWidth        = 8
+	InfoWidth      = 42
+	MinInfoWidth   = 1
+	InterColumnGap = 2 // spacing between columns
 )
 
 // Legend layout
@@ -27,9 +33,36 @@ const (
 )
 
 // totalFixedWidth returns the sum of all fixed-width columns plus inter-column gaps.
+func totalFixedWidthWithoutInfo() int {
+	return SelectorWidth + LocalWidth + RemoteWidth + PRWidth + (5 * InterColumnGap)
+}
+
 func totalFixedWidth() int {
-	return SelectorWidth + LocalWidth + RemoteWidth + InfoWidth +
-		LastCommitWidth + LinksWidth + (6 * InterColumnGap)
+	return totalFixedWidthWithoutInfo() + InfoWidth
+}
+
+func calculateColumnLayout(repositories []domain.Repository, terminalWidth int) ColumnLayout {
+	projectWidth, branchWidth := calculateColumnWidths(repositories, terminalWidth)
+	infoWidth := calculateInfoWidth(terminalWidth, projectWidth, branchWidth)
+
+	return ColumnLayout{
+		ProjectWidth: projectWidth,
+		BranchWidth:  branchWidth,
+		InfoWidth:    infoWidth,
+	}
+}
+
+func calculateInfoWidth(terminalWidth, projectWidth, branchWidth int) int {
+	if terminalWidth <= 0 {
+		return InfoWidth
+	}
+
+	width := terminalWidth - totalFixedWidthWithoutInfo() - projectWidth - branchWidth
+	if width < MinInfoWidth {
+		return MinInfoWidth
+	}
+
+	return width
 }
 
 // calculateColumnWidths determines the project and branch column widths
@@ -69,7 +102,7 @@ func calculateColumnWidths(repositories []domain.Repository, terminalWidth int) 
 	}
 
 	// Check if we need to shrink to fit terminal
-	availableWidth := terminalWidth - totalFixedWidth()
+	availableWidth := terminalWidth - totalFixedWidthWithoutInfo() - MinInfoWidth
 	if availableWidth <= 0 {
 		// Terminal too narrow: use minimums and let truncation handle it
 		return MinProjectWidth, MinBranchWidth

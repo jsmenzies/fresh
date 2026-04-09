@@ -1,17 +1,15 @@
 package domain
 
-import "time"
-
 type Repository struct {
-	Name           string
-	Path           string
-	RemoteURL      string
-	Branches       Branches
-	StashCount     int
-	LocalState     LocalState
-	RemoteState    RemoteState
-	LastCommitTime time.Time
-	Activity       Activity
+	Name         string
+	Path         string
+	RemoteURL    string
+	Branches     Branches
+	StashCount   int
+	LocalState   LocalState
+	RemoteState  RemoteState
+	PullRequests PullRequestState
+	Activity     Activity
 }
 
 func (r Repository) IsBusy() bool {

@@ -5,22 +5,19 @@ import (
 	"strings"
 
 	"fresh/internal/domain"
-	"fresh/internal/git"
 	"fresh/internal/ui/views/common"
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
 )
 
-func GenerateTable(repositories []domain.Repository, cursor int, terminalWidth int) string {
-	projectWidth, branchWidth := calculateColumnWidths(repositories, terminalWidth)
-
-	headers := []string{"", "PROJECT", "BRANCH", "LOCAL", "REMOTE", "", "LAST COMMIT", "LINKS"}
+func GenerateTable(repositories []domain.Repository, cursor int, layout ColumnLayout, runtime InfoRuntime) string {
+	headers := []string{"", "󰉋 Repo", " Branch", " Local", "󰓦 Remote", common.IconPullRequests + " PR", ""}
 
 	rows := make([][]string, len(repositories))
 	for i, repo := range repositories {
 		isSelected := i == cursor
-		rows[i] = repositoryToRow(repo, isSelected, projectWidth, branchWidth)
+		rows[i] = repositoryToRow(repo, isSelected, layout, runtime)
 	}
 
 	t := table.New().
@@ -38,15 +35,14 @@ func GenerateTable(repositories []domain.Repository, cursor int, terminalWidth i
 	return t.Render()
 }
 
-func repositoryToRow(repo domain.Repository, isSelected bool, projectWidth, branchWidth int) []string {
+func repositoryToRow(repo domain.Repository, isSelected bool, layout ColumnLayout, runtime InfoRuntime) []string {
 	selector := buildSelector(isSelected)
-	projectName := buildProjectName(repo.Name, isSelected, projectWidth)
-	branchName := buildBranchName(repo.Branches.Current, branchWidth)
+	projectName := buildProjectName(repo.Name, isSelected, layout.ProjectWidth)
+	branchName := buildBranchName(repo.Branches.Current, layout.BranchWidth)
 	localCol := buildLocalStatus(repo.LocalState)
 	remoteCol := buildRemoteStatus(repo)
-	linksCol := buildLinks(repo.RemoteURL, repo.Branches.Current)
-	lastUpdateCol := buildLastUpdate(repo)
-	info := buildInfo(repo)
+	prCol := buildPullRequestStatus(repo.PullRequests)
+	info := buildInfo(repo, layout.InfoWidth, runtime)
 
 	return []string{
 		selector,
@@ -54,9 +50,8 @@ func repositoryToRow(repo domain.Repository, isSelected bool, projectWidth, bran
 		branchName,
 		localCol,
 		remoteCol,
+		prCol,
 		info,
-		lastUpdateCol,
-		linksCol,
 	}
 }
 
@@ -159,9 +154,9 @@ func buildRemoteStatus(repo domain.Repository) string {
 
 	switch s := repo.RemoteState.(type) {
 	case domain.NoUpstream:
-		return baseStyle.Foreground(common.SubtleRed).Render(common.IconRemoteError)
+		return baseStyle.Foreground(common.SubtleGray).Render("-")
 	case domain.DetachedRemote:
-		return baseStyle.Foreground(common.SubtleRed).Render(common.IconRemoteError)
+		return baseStyle.Foreground(common.SubtleGray).Render("-")
 	case domain.RemoteError:
 		return baseStyle.Foreground(common.SubtleRed).Render(common.IconRemoteError)
 	case domain.Diverged:
@@ -175,147 +170,84 @@ func buildRemoteStatus(repo domain.Repository) string {
 	}
 }
 
-func buildInfo(repo domain.Repository) string {
+func buildPullRequestStatus(state domain.PullRequestState) string {
+	baseStyle := common.PullRequestStatusBaseStyle.
+		Width(PRWidth).
+		MaxWidth(PRWidth)
+
+	switch s := state.(type) {
+	case domain.PullRequestCount:
+		if s.Open <= 0 {
+			return baseStyle.Foreground(common.SubtleGray).Render("0")
+		}
+		if s.MyOpen > 0 {
+			return baseStyle.Foreground(common.Blue).Render(fmt.Sprintf("%d(*)", s.Open))
+		}
+		return baseStyle.Foreground(common.Blue).Render(fmt.Sprintf("%d", s.Open))
+	case domain.PullRequestError:
+		return baseStyle.Foreground(common.SubtleRed).Render(common.IconRemoteError)
+	default:
+		return baseStyle.Foreground(common.SubtleGray).Render("-")
+	}
+}
+
+func buildInfo(repo domain.Repository, infoWidth int, runtime InfoRuntime) string {
+	infoWidth = normalizeInfoWidth(infoWidth)
+
 	infoStyle := common.InfoStyle.
-		Width(InfoWidth).
-		MaxWidth(InfoWidth)
+		Width(infoWidth).
+		MaxWidth(infoWidth)
 
-	var content string
-	switch activity := repo.Activity.(type) {
-	case *domain.PullingActivity:
-		if !activity.Complete {
-			lastLine := activity.GetLastLine()
-			truncated := common.TruncateWithEllipsis(lastLine, InfoWidth-3)
-			content = common.FormatPullProgress(activity.Spinner.View(), truncated, InfoWidth-2)
-		} else {
-			lastLine := activity.GetLastLine()
-			content = stylePullOutput(lastLine, activity.ExitCode)
+	if repo.Activity.IsInProgress() {
+		if active, ok := collectActiveActivityInfoMessage(repo, infoWidth); ok {
+			return infoStyle.Render(renderInfoMessage(active, infoWidth))
 		}
-	case *domain.RefreshingActivity:
-		if !activity.Complete {
-			content = ""
-		}
-	case *domain.PruningActivity:
-		if !activity.Complete {
-			lastLine := activity.GetLastLine()
-			truncated := common.TruncateWithEllipsis(lastLine, InfoWidth-3)
-			content = common.FormatPullProgress(activity.Spinner.View(), truncated, InfoWidth-2)
-		} else {
-			if activity.DeletedCount == 0 {
-				// Check for error messages in the output lines
-				var firstError string
-				for _, line := range activity.Lines {
-					if strings.HasPrefix(line, "Failed: ") {
-						firstError = strings.TrimPrefix(line, "Failed: ")
-						break
-					}
-				}
-				if firstError != "" {
-					content = common.PullOutputError.Width(InfoWidth).Render(common.TruncateWithEllipsis(firstError, InfoWidth))
-				} else {
-					content = common.PullOutputWarn.Width(InfoWidth).Render("No branches to prune")
-				}
-			} else {
-				content = common.PullOutputSuccess.Width(InfoWidth).Render(fmt.Sprintf("Deleted %d branches", activity.DeletedCount))
-			}
-		}
+		return infoStyle.Render("")
 	}
 
-	if content == "" {
-		// Check for remote errors first
-		switch s := repo.RemoteState.(type) {
-		case domain.RemoteError:
-			content = common.RemoteStatusErrorText.Render(common.TruncateWithEllipsis(s.Message, InfoWidth))
-		default:
-			// No error, check for prunable branches
-			mergedCount := len(repo.Branches.Merged)
-			if mergedCount > 0 {
-				mergedText := "branches"
-				if mergedCount == 1 {
-					mergedText = "branch"
-				}
-				content = common.TextGrey.Render(fmt.Sprintf("%d prunable %s", mergedCount, mergedText))
-			} else if repo.StashCount > 0 {
-				stashText := "stashes"
-				if repo.StashCount == 1 {
-					stashText = "stash"
-				}
-				content = common.TextGrey.Render(fmt.Sprintf("%d %s", repo.StashCount, stashText))
-			} else if _, ok := repo.RemoteState.(domain.NoUpstream); ok {
-				content = common.RenderStatusMessage(common.MsgNoUpstream, InfoWidth)
-			} else if _, ok := repo.RemoteState.(domain.DetachedRemote); ok {
-				content = common.RenderStatusMessage(common.MsgDetached, InfoWidth)
-			} else if _, ok := repo.RemoteState.(domain.Diverged); ok {
-				content = common.RenderStatusMessage(common.MsgDiverged, InfoWidth)
-			}
-		}
+	messages := make([]InfoMessage, 0, 10)
+	messages = append(messages, collectRecentActivityInfoMessages(runtime, repo.Path)...)
+	messages = append(messages, collectStatusInfoMessages(repo)...)
+
+	if len(messages) == 0 {
+		return infoStyle.Render("")
 	}
 
-	return infoStyle.Render(content)
+	idx := 0
+	if len(messages) > 1 {
+		idx = int(runtime.Phase % uint64(len(messages)))
+	}
+
+	return infoStyle.Render(renderInfoMessage(messages[idx], infoWidth))
 }
 
-func stylePullOutput(lastLine string, exitCode int) string {
-	lowerLine := strings.ToLower(lastLine)
-	truncated := common.TruncateWithEllipsis(lastLine, InfoWidth)
-
-	if strings.Contains(lowerLine, "error") || strings.Contains(lowerLine, "fatal") {
-		return common.PullOutputError.Width(InfoWidth).Render(truncated)
-	}
-
-	if exitCode == 0 {
-		if strings.Contains(lowerLine, "up to date") || strings.Contains(lowerLine, "up-to-date") {
-			return common.PullOutputUpToDate.Width(InfoWidth).Render(truncated)
-		}
-		if strings.Contains(lowerLine, "done") ||
-			(strings.Contains(lowerLine, "file") && strings.Contains(lowerLine, "changed")) {
-			return common.PullOutputSuccess.Width(InfoWidth).Render(truncated)
-		}
-	}
-
-	return common.PullOutputWarn.Width(InfoWidth).Render(truncated)
-}
-
-func buildLastUpdate(repo domain.Repository) string {
-	if repo.LastCommitTime.IsZero() {
+func buildMyPullRequestSummary(state domain.PullRequestState) string {
+	s, ok := state.(domain.PullRequestCount)
+	if !ok {
 		return ""
 	}
-	timeAgo := common.FormatTimeAgo(repo.LastCommitTime)
-	return common.TimeAgoStyle.Render(common.IconClock + " " + timeAgo)
+
+	parts := make([]string, 0, 4)
+	if s.MyReady > 0 {
+		parts = append(parts, fmt.Sprintf("%d ready", s.MyReady))
+	}
+	if s.MyBlocked > 0 {
+		parts = append(parts, fmt.Sprintf("%d blocked", s.MyBlocked))
+	}
+	if s.MyChecks > 0 {
+		parts = append(parts, fmt.Sprintf("%d checks", s.MyChecks))
+	}
+	if s.MyReview > 0 {
+		parts = append(parts, fmt.Sprintf("%d review", s.MyReview))
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return "My PRs: " + strings.Join(parts, ", ")
 }
 
-func buildLinks(url string, branch domain.Branch) string {
-	var branchName string
-	if url != "" {
-		if git.IsGitHubRepository(url) {
-			if _, ok := branch.(domain.OnBranch); !ok {
-				branchName = ""
-			} else {
-				branchName = branch.(domain.OnBranch).Name
-			}
-			githubURLs := git.BuildGitHubURLs(url, branchName)
-			if githubURLs != nil {
-				var shortcuts []string
-
-				codeLink := MakeClickableURL(githubURLs["code"], common.IconCode)
-				shortcuts = append(shortcuts, common.LinkStyle.Render(codeLink))
-
-				prsLink := MakeClickableURL(githubURLs["prs"], common.IconPullRequests)
-				shortcuts = append(shortcuts, common.LinkStyle.Render(prsLink))
-
-				openPRLink := MakeClickableURL(githubURLs["openpr"], common.IconOpenPR)
-				shortcuts = append(shortcuts, common.LinkStyle.Render(openPRLink))
-
-				shortcutsDisplay := fmt.Sprintf("%s", strings.Join(shortcuts, " "))
-				return common.LinksStyle.Width(LinksWidth).Render(shortcutsDisplay)
-			}
-		}
-	}
-	return ""
-}
-
-func MakeClickableURL(url string, displayText string) string {
-	if url == "" {
-		return displayText
-	}
-	return fmt.Sprintf("\033]8;;%s\033\\%s\033]8;;\033\\", url, displayText)
+func stylePullOutput(lastLine string, exitCode int, infoWidth int) string {
+	return renderInfoMessage(buildPullOutputInfoMessage(lastLine, exitCode), normalizeInfoWidth(infoWidth))
 }
