@@ -8,18 +8,15 @@ import (
 	"charm.land/bubbles/v2/spinner"
 )
 
-func TestStartPullRequestSyncMarksInFlightAndReturnsCommands(t *testing.T) {
+func TestStartPullRequestSyncMarksInFlightAndReturnsCommand(t *testing.T) {
 	m := New(nil)
-	cmds := m.startPullRequestSync(pullRequestSyncManual)
+	cmd := m.startPullRequestSync(pullRequestSyncManual)
 
 	if m.PRSyncInFlight != 1 {
 		t.Fatalf("PRSyncInFlight = %d, want 1", m.PRSyncInFlight)
 	}
-	if len(cmds) != 2 {
-		t.Fatalf("len(cmds) = %d, want 2", len(cmds))
-	}
-	if cmds[0] == nil || cmds[1] == nil {
-		t.Fatal("expected non-nil sync commands")
+	if cmd == nil {
+		t.Fatal("expected non-nil sync command")
 	}
 }
 

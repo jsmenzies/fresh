@@ -2,13 +2,13 @@ package listing
 
 import tea "charm.land/bubbletea/v2"
 
-func (m *Model) startPullRequestSync(trigger PullRequestSyncTrigger) []tea.Cmd {
+func (m *Model) startPullRequestSync(trigger PullRequestSyncTrigger) tea.Cmd {
 	m.PRSyncInFlight++
 
-	return []tea.Cmd{
+	return tea.Batch(
 		performPullRequestSync(m.Repositories, trigger),
 		m.PRSyncSpinner.Tick,
-	}
+	)
 }
 
 func (m *Model) completePullRequestSync() {
