@@ -26,6 +26,10 @@ type PullRequestStatesUpdatedMsg struct {
 	Trigger PullRequestSyncTrigger
 }
 
+type OpenPullRequestsMsg struct {
+	Repo domain.Repository
+}
+
 type pullLineMsg struct {
 	Index int
 	line  string
