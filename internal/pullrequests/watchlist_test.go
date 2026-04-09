@@ -73,6 +73,46 @@ func TestWatchlist_EmitsUnblockedTransition(t *testing.T) {
 	}
 }
 
+func TestWatchlist_EmitsMergeableTransition(t *testing.T) {
+	t.Parallel()
+
+	watchlist := NewWatchlist()
+	watchlist.Apply([]Snapshot{
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusReview},
+	}, ApplyOptions{Seed: true})
+
+	changes := watchlist.Apply([]Snapshot{
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusReady},
+	}, ApplyOptions{})
+
+	if len(changes) != 1 {
+		t.Fatalf("changes = %d, want 1", len(changes))
+	}
+	if changes[0].Kind != ChangeBecameMergeable {
+		t.Fatalf("kind = %q, want %q", changes[0].Kind, ChangeBecameMergeable)
+	}
+}
+
+func TestWatchlist_BlockedToReadyEmitsMergeableOnly(t *testing.T) {
+	t.Parallel()
+
+	watchlist := NewWatchlist()
+	watchlist.Apply([]Snapshot{
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusBlocked},
+	}, ApplyOptions{Seed: true})
+
+	changes := watchlist.Apply([]Snapshot{
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusReady},
+	}, ApplyOptions{})
+
+	if len(changes) != 1 {
+		t.Fatalf("changes = %d, want 1", len(changes))
+	}
+	if changes[0].Kind != ChangeBecameMergeable {
+		t.Fatalf("kind = %q, want %q", changes[0].Kind, ChangeBecameMergeable)
+	}
+}
+
 func TestWatchlist_EmitsBlockedRemovedForTerminalBlockedPullRequest(t *testing.T) {
 	t.Parallel()
 
@@ -135,6 +175,30 @@ func TestWatchlist_NewBlockedAfterSeedEmitsAlert(t *testing.T) {
 	}
 }
 
+func TestWatchlist_NewReadyAfterSeedEmitsMergeableAlert(t *testing.T) {
+	t.Parallel()
+
+	watchlist := NewWatchlist()
+	watchlist.Apply([]Snapshot{
+		{Key: Key{Owner: "acme", Repo: "web", Number: 44}, Status: StatusReview},
+	}, ApplyOptions{Seed: true})
+
+	changes := watchlist.Apply([]Snapshot{
+		{Key: Key{Owner: "acme", Repo: "web", Number: 44}, Status: StatusReview},
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusReady},
+	}, ApplyOptions{})
+
+	if len(changes) != 1 {
+		t.Fatalf("changes = %d, want 1", len(changes))
+	}
+	if changes[0].Kind != ChangeBecameMergeable {
+		t.Fatalf("kind = %q, want %q", changes[0].Kind, ChangeBecameMergeable)
+	}
+	if changes[0].Key.Number != 12 {
+		t.Fatalf("number = %d, want 12", changes[0].Key.Number)
+	}
+}
+
 func TestWatchlist_FirstApplyWithoutSeedStillAlertsBlocked(t *testing.T) {
 	t.Parallel()
 
@@ -148,6 +212,22 @@ func TestWatchlist_FirstApplyWithoutSeedStillAlertsBlocked(t *testing.T) {
 	}
 	if changes[0].Kind != ChangeBecameBlocked {
 		t.Fatalf("kind = %q, want %q", changes[0].Kind, ChangeBecameBlocked)
+	}
+}
+
+func TestWatchlist_FirstApplyWithoutSeedAlertsMergeable(t *testing.T) {
+	t.Parallel()
+
+	watchlist := NewWatchlist()
+	changes := watchlist.Apply([]Snapshot{
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusReady},
+	}, ApplyOptions{Seed: false})
+
+	if len(changes) != 1 {
+		t.Fatalf("changes = %d, want 1", len(changes))
+	}
+	if changes[0].Kind != ChangeBecameMergeable {
+		t.Fatalf("kind = %q, want %q", changes[0].Kind, ChangeBecameMergeable)
 	}
 }
 

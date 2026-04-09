@@ -87,6 +87,57 @@ func TestNotificationCoordinator_UnblockedTransitionResolvesThenProgress(t *test
 	}
 }
 
+func TestNotificationCoordinator_MergeableTransitionUpsertsProgress(t *testing.T) {
+	t.Parallel()
+
+	coordinator := NewNotificationCoordinator(nil)
+	_ = coordinator.Sync([]Snapshot{
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusReview},
+	}, ApplyOptions{Seed: true}, nil)
+
+	sink := &fakeNotificationSink{}
+	changes := coordinator.Sync([]Snapshot{
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusReady},
+	}, ApplyOptions{}, sink)
+
+	if len(changes) != 1 || changes[0].Kind != ChangeBecameMergeable {
+		t.Fatalf("changes = %+v, want one %q", changes, ChangeBecameMergeable)
+	}
+	if len(sink.resolves) != 0 {
+		t.Fatalf("resolves = %d, want 0", len(sink.resolves))
+	}
+	if len(sink.upserts) != 1 {
+		t.Fatalf("upserts = %d, want 1", len(sink.upserts))
+	}
+	if sink.upserts[0].Kind != notifications.KindProgress {
+		t.Fatalf("kind = %q, want %q", sink.upserts[0].Kind, notifications.KindProgress)
+	}
+}
+
+func TestNotificationCoordinator_BlockedToReadyDoesNotEmitUnblocked(t *testing.T) {
+	t.Parallel()
+
+	coordinator := NewNotificationCoordinator(nil)
+	_ = coordinator.Sync([]Snapshot{
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusBlocked},
+	}, ApplyOptions{Seed: true}, nil)
+
+	sink := &fakeNotificationSink{}
+	changes := coordinator.Sync([]Snapshot{
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusReady},
+	}, ApplyOptions{}, sink)
+
+	if len(changes) != 1 || changes[0].Kind != ChangeBecameMergeable {
+		t.Fatalf("changes = %+v, want one %q", changes, ChangeBecameMergeable)
+	}
+	if len(sink.resolves) != 0 {
+		t.Fatalf("resolves = %d, want 0", len(sink.resolves))
+	}
+	if len(sink.upserts) != 1 {
+		t.Fatalf("upserts = %d, want 1", len(sink.upserts))
+	}
+}
+
 func TestNotificationCoordinator_BlockedRemovedOnlyResolves(t *testing.T) {
 	t.Parallel()
 

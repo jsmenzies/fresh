@@ -38,6 +38,7 @@ type ChangeKind string
 const (
 	ChangeBecameBlocked   ChangeKind = "became_blocked"
 	ChangeBecameUnblocked ChangeKind = "became_unblocked"
+	ChangeBecameMergeable ChangeKind = "became_mergeable"
 	ChangeBlockedRemoved  ChangeKind = "blocked_removed"
 )
 
@@ -87,16 +88,26 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 		return nil
 	}
 
-	emitNewBlocked := w.seeded || !options.Seed
+	emitNewTransitions := w.seeded || !options.Seed
 	changes := make([]Change, 0)
 
 	for key, currentStatus := range currentByKey {
 		previousStatus, existed := w.tracked[key]
 		switch {
 		case !existed:
-			if emitNewBlocked && currentStatus == StatusBlocked {
+			if !emitNewTransitions {
+				continue
+			}
+
+			if currentStatus == StatusBlocked {
 				changes = append(changes, Change{
 					Kind:    ChangeBecameBlocked,
+					Key:     key,
+					Current: currentStatus,
+				})
+			} else if currentStatus == StatusReady {
+				changes = append(changes, Change{
+					Kind:    ChangeBecameMergeable,
 					Key:     key,
 					Current: currentStatus,
 				})
@@ -106,6 +117,13 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 			case currentStatus == StatusBlocked:
 				changes = append(changes, Change{
 					Kind:     ChangeBecameBlocked,
+					Key:      key,
+					Previous: previousStatus,
+					Current:  currentStatus,
+				})
+			case currentStatus == StatusReady:
+				changes = append(changes, Change{
+					Kind:     ChangeBecameMergeable,
 					Key:      key,
 					Previous: previousStatus,
 					Current:  currentStatus,
