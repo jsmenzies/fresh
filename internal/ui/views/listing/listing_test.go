@@ -88,16 +88,11 @@ func TestStoreAndPruneRecentActivityInfo(t *testing.T) {
 func TestBuildInfo_CompletedActivityRequiresRecentInfo(t *testing.T) {
 	t.Parallel()
 
-	repo := domain.Repository{
-		Name: "demo",
-		Path: "/tmp/demo",
-		Activity: &domain.PullingActivity{
-			LineBuffer: domain.LineBuffer{Lines: []string{"Already up to date."}},
-			Complete:   true,
-			ExitCode:   0,
-		},
-		RemoteState: domain.Synced{},
-		Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
+	repo := makeTestRepository("demo")
+	repo.Activity = &domain.PullingActivity{
+		LineBuffer: domain.LineBuffer{Lines: []string{"Already up to date."}},
+		Complete:   true,
+		ExitCode:   0,
 	}
 
 	withoutRecent := buildInfo(repo, InfoWidth, InfoRuntime{})

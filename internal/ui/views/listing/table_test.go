@@ -423,13 +423,7 @@ func TestBuildMyPullRequestSummary(t *testing.T) {
 func TestBuildInfo_UsesRecentActivityOverStatus(t *testing.T) {
 	t.Parallel()
 
-	repo := domain.Repository{
-		Name:        "demo",
-		Path:        "/tmp/demo",
-		Activity:    domain.IdleActivity{},
-		RemoteState: domain.Synced{},
-		Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-	}
+	repo := makeTestRepository("demo")
 
 	runtime := InfoRuntime{
 		Phase:                0,

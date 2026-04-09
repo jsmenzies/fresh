@@ -89,22 +89,24 @@ func collectActiveActivityInfoMessage(repo domain.Repository, infoWidth int) (In
 
 	switch activity := repo.Activity.(type) {
 	case *domain.PullingActivity:
-		if activity.Complete {
-			return InfoMessage{}, false
-		}
-		lastLine := activity.GetLastLine()
-		truncated := common.TruncateWithEllipsis(lastLine, max(1, infoWidth-3))
-		return InfoMessage{Text: common.FormatPullProgress(activity.Spinner.View(), truncated, max(1, infoWidth-2)), Tone: InfoTonePrimary}, true
+		return formatActiveProgressInfoMessage(activity.Complete, activity.Spinner.View(), activity.GetLastLine(), infoWidth)
 	case *domain.PruningActivity:
-		if activity.Complete {
-			return InfoMessage{}, false
-		}
-		lastLine := activity.GetLastLine()
-		truncated := common.TruncateWithEllipsis(lastLine, max(1, infoWidth-3))
-		return InfoMessage{Text: common.FormatPullProgress(activity.Spinner.View(), truncated, max(1, infoWidth-2)), Tone: InfoTonePrimary}, true
+		return formatActiveProgressInfoMessage(activity.Complete, activity.Spinner.View(), activity.GetLastLine(), infoWidth)
 	default:
 		return InfoMessage{}, false
 	}
+}
+
+func formatActiveProgressInfoMessage(complete bool, spinnerView, lastLine string, infoWidth int) (InfoMessage, bool) {
+	if complete {
+		return InfoMessage{}, false
+	}
+
+	truncated := common.TruncateWithEllipsis(lastLine, max(1, infoWidth-3))
+	return InfoMessage{
+		Text: common.FormatPullProgress(spinnerView, truncated, max(1, infoWidth-2)),
+		Tone: InfoTonePrimary,
+	}, true
 }
 
 func collectRecentActivityInfoMessages(runtime InfoRuntime, repoPath string) []InfoMessage {
