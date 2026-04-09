@@ -209,11 +209,6 @@ func buildInfo(repo domain.Repository, infoWidth int, runtime InfoRuntime) strin
 	messages = append(messages, collectRecentActivityInfoMessages(runtime, repo.Path)...)
 	messages = append(messages, collectStatusInfoMessages(repo)...)
 
-	// Backward-compatible fallback: completed activity embedded on repo.
-	if len(messages) == 0 {
-		messages = append(messages, collectCompletedActivityFallbackMessages(repo)...)
-	}
-
 	if len(messages) == 0 {
 		return infoStyle.Render("")
 	}

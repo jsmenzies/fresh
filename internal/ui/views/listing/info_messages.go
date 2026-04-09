@@ -72,10 +72,10 @@ func collectStatusInfoMessages(repo domain.Repository) []InfoMessage {
 	}
 
 	if _, ok := repo.RemoteState.(domain.NoUpstream); ok {
-		appendMessage(InfoMessage{Text: common.LabelNoUpstream, Tone: InfoToneError})
+		appendMessage(InfoMessage{Text: common.LabelNoUpstream, Tone: InfoToneSubtle})
 	}
 	if _, ok := repo.RemoteState.(domain.DetachedRemote); ok {
-		appendMessage(InfoMessage{Text: common.LabelDetached, Tone: InfoToneError})
+		appendMessage(InfoMessage{Text: common.LabelDetached, Tone: InfoToneSubtle})
 	}
 	if _, ok := repo.RemoteState.(domain.Diverged); ok {
 		appendMessage(InfoMessage{Text: common.StatusDiverged, Tone: InfoToneWarn})
@@ -105,23 +105,6 @@ func collectActiveActivityInfoMessage(repo domain.Repository, infoWidth int) (In
 	default:
 		return InfoMessage{}, false
 	}
-}
-
-func collectCompletedActivityFallbackMessages(repo domain.Repository) []InfoMessage {
-	switch activity := repo.Activity.(type) {
-	case *domain.PullingActivity:
-		if activity.Complete {
-			return []InfoMessage{buildPullOutputInfoMessage(activity.GetLastLine(), activity.ExitCode)}
-		}
-	case *domain.PruningActivity:
-		if activity.Complete {
-			if msg, ok := buildPruneCompletionInfoMessage(*activity); ok {
-				return []InfoMessage{msg}
-			}
-		}
-	}
-
-	return nil
 }
 
 func collectRecentActivityInfoMessages(runtime InfoRuntime, repoPath string) []InfoMessage {
