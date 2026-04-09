@@ -416,8 +416,20 @@ func TestBuildPullRequestAlert(t *testing.T) {
 			contains: "█",
 		},
 		{
-			name:    "no blocked prs shows empty",
-			state:   domain.PullRequestCount{MyBlocked: 0},
+			name:     "ready my prs show success spinner",
+			state:    domain.PullRequestCount{MyReady: 2},
+			runtime:  InfoRuntime{ReadySpinner: "●"},
+			contains: "●",
+		},
+		{
+			name:     "blocked takes precedence over ready",
+			state:    domain.PullRequestCount{MyBlocked: 1, MyReady: 2},
+			runtime:  InfoRuntime{BlockedSpinner: "█", ReadySpinner: "●"},
+			contains: "█",
+		},
+		{
+			name:    "no blocked or ready prs shows empty",
+			state:   domain.PullRequestCount{MyBlocked: 0, MyReady: 0},
 			runtime: InfoRuntime{},
 			isEmpty: true,
 		},
@@ -841,7 +853,7 @@ func TestRepositoryToRow(t *testing.T) {
 	}
 
 	if strings.TrimSpace(row[6]) != "" {
-		t.Errorf("row[6] (pr alert) = %q, want empty when no blocked PRs", row[6])
+		t.Errorf("row[6] (pr alert) = %q, want empty when no blocked/ready PRs", row[6])
 	}
 }
 
