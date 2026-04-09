@@ -21,7 +21,7 @@ func New(scanDir string) *Scanner {
 	}
 }
 
-func (s *Scanner) GetRepoChannel() chan string {
+func (s *Scanner) GetRepoChannel() <-chan string {
 	return s.ch
 }
 
