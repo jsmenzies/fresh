@@ -140,8 +140,12 @@ func performPullRequestSync(repos []domain.Repository, trigger PullRequestSyncTr
 	snapshot := append([]domain.Repository(nil), repos...)
 
 	return func() tea.Msg {
-		states := git.GetPullRequestStates(snapshot)
-		return PullRequestStatesUpdatedMsg{States: states, Trigger: trigger}
+		sync := git.GetPullRequestSync(snapshot)
+		return PullRequestStatesUpdatedMsg{
+			States:  sync.States,
+			Tracked: sync.Tracked,
+			Trigger: trigger,
+		}
 	}
 }
 

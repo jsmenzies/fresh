@@ -1,8 +1,10 @@
 package listing
 
 import (
+	"fmt"
 	"fresh/internal/domain"
 	"fresh/internal/notifications"
+	"fresh/internal/pullrequests"
 	"fresh/internal/ui/views/common"
 	"sort"
 	"strings"
@@ -77,6 +79,7 @@ type Model struct {
 	WatchBackoff   int
 	WatchEvery     time.Duration
 	WatchMaxEvery  time.Duration
+	watchlist      *pullrequests.Watchlist
 	notifier       *notifications.Notifier
 }
 
@@ -112,6 +115,7 @@ func NewWithNotifier(repos []domain.Repository, notifier *notifications.Notifier
 		WatchBackoff:   0,
 		WatchEvery:     defaultWatchInterval,
 		WatchMaxEvery:  defaultWatchMaxInterval,
+		watchlist:      pullrequests.NewWatchlist(),
 		notifier:       notifier,
 	}
 }
@@ -227,9 +231,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 	case PullRequestStatesUpdatedMsg:
 		m.applyPullRequestStates(msg.States)
+		syncFailed := hasPullRequestSyncError(msg.States)
+		if !syncFailed {
+			m.applyPullRequestWatchlist(msg.Tracked, msg.Trigger == pullRequestSyncStartup)
+		}
 		m.completePullRequestSync()
 		if msg.Trigger == pullRequestSyncWatch && m.WatchEnabled {
-			m.updateWatchBackoff(hasPullRequestSyncError(msg.States))
+			m.updateWatchBackoff(syncFailed)
 			return m, scheduleWatchTick(m.currentWatchInterval(), m.WatchToken)
 		}
 
@@ -361,6 +369,43 @@ func (m *Model) applyPullRequestStates(states map[string]domain.PullRequestState
 		repo := &m.Repositories[i]
 		if state, ok := states[repo.Path]; ok {
 			repo.PullRequests = state
+		}
+	}
+}
+
+func (m *Model) applyPullRequestWatchlist(tracked []pullrequests.Snapshot, seed bool) {
+	if m.watchlist == nil {
+		return
+	}
+
+	changes := m.watchlist.Apply(tracked, pullrequests.ApplyOptions{Seed: seed})
+	if len(changes) == 0 || m.notifier == nil {
+		return
+	}
+
+	for _, change := range changes {
+		notificationKey := notifications.PRKey{
+			Owner:  change.Key.Owner,
+			Repo:   change.Key.Repo,
+			Number: change.Key.Number,
+		}
+
+		switch change.Kind {
+		case pullrequests.ChangeBecameBlocked:
+			m.notifier.Upsert(notifications.Notification{
+				Key:    notificationKey,
+				Kind:   notifications.KindBlocked,
+				Reason: fmt.Sprintf("%s is blocked", change.Key.String()),
+			})
+		case pullrequests.ChangeBecameUnblocked:
+			m.notifier.Resolve(notificationKey)
+			m.notifier.Upsert(notifications.Notification{
+				Key:    notificationKey,
+				Kind:   notifications.KindProgress,
+				Reason: fmt.Sprintf("%s is no longer blocked", change.Key.String()),
+			})
+		case pullrequests.ChangeRemoved:
+			m.notifier.Resolve(notificationKey)
 		}
 	}
 }
