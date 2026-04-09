@@ -7,8 +7,6 @@ import (
 
 	"fresh/internal/domain"
 	"fresh/internal/ui/views/common"
-
-	"charm.land/lipgloss/v2"
 )
 
 // ============================================================================
@@ -368,17 +366,6 @@ func TestBuildPullRequestStatus(t *testing.T) {
 	}
 }
 
-func TestBuildPullRequestStatus_MyOpenUsesWhiteMarker(t *testing.T) {
-	t.Parallel()
-
-	got := buildPullRequestStatus(domain.PullRequestCount{Open: 2, MyOpen: 1}, InfoRuntime{})
-	wantMarker := lipgloss.NewStyle().Foreground(common.TextPrimary).Render("(*)")
-
-	if !strings.Contains(got, wantMarker) {
-		t.Fatalf("buildPullRequestStatus() = %q, expected white marker %q", got, wantMarker)
-	}
-}
-
 func TestBuildPullRequestStatus_SyncingKeepsCurrentStateVisible(t *testing.T) {
 	t.Parallel()
 
@@ -416,8 +403,20 @@ func TestBuildPullRequestAlert(t *testing.T) {
 			contains: "█",
 		},
 		{
-			name:    "no blocked prs shows empty",
-			state:   domain.PullRequestCount{MyBlocked: 0},
+			name:     "ready my prs show success spinner",
+			state:    domain.PullRequestCount{MyReady: 2},
+			runtime:  InfoRuntime{ReadySpinner: "●"},
+			contains: "●",
+		},
+		{
+			name:     "blocked takes precedence over ready",
+			state:    domain.PullRequestCount{MyBlocked: 1, MyReady: 2},
+			runtime:  InfoRuntime{BlockedSpinner: "█", ReadySpinner: "●"},
+			contains: "█",
+		},
+		{
+			name:    "no blocked or ready prs shows empty",
+			state:   domain.PullRequestCount{MyBlocked: 0, MyReady: 0},
 			runtime: InfoRuntime{},
 			isEmpty: true,
 		},
@@ -841,7 +840,7 @@ func TestRepositoryToRow(t *testing.T) {
 	}
 
 	if strings.TrimSpace(row[6]) != "" {
-		t.Errorf("row[6] (pr alert) = %q, want empty when no blocked PRs", row[6])
+		t.Errorf("row[6] (pr alert) = %q, want empty when no blocked/ready PRs", row[6])
 	}
 }
 

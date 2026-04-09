@@ -71,6 +71,7 @@ type Model struct {
 	PRSyncInFlight int
 	PRSyncSpinner  spinner.Model
 	BlockedSpinner spinner.Model
+	ReadySpinner   spinner.Model
 	WatchEnabled   bool
 	WatchToken     uint64
 	WatchBackoff   int
@@ -105,6 +106,7 @@ func NewWithNotifier(repos []domain.Repository, notifier *notifications.Notifier
 		PRSyncInFlight: 0,
 		PRSyncSpinner:  common.NewPullRequestSpinner(),
 		BlockedSpinner: common.NewBlockedPullRequestSpinner(),
+		ReadySpinner:   common.NewReadyPullRequestSpinner(),
 		WatchEnabled:   false,
 		WatchToken:     0,
 		WatchBackoff:   0,
@@ -128,6 +130,7 @@ func (m *Model) Init() tea.Cmd {
 		m.StartupPRSync = true
 	}
 	cmds = append(cmds, m.BlockedSpinner.Tick)
+	cmds = append(cmds, m.ReadySpinner.Tick)
 	for i := range m.Repositories {
 		repo := &m.Repositories[i]
 		repo.Activity = &domain.RefreshingActivity{
@@ -315,6 +318,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		if blockedCmd != nil {
 			cmds = append(cmds, blockedCmd)
 		}
+		var readyCmd tea.Cmd
+		m.ReadySpinner, readyCmd = m.ReadySpinner.Update(msg)
+		if readyCmd != nil {
+			cmds = append(cmds, readyCmd)
+		}
 		for i := range m.Repositories {
 			switch activity := m.Repositories[i].Activity.(type) {
 			case *domain.RefreshingActivity:
@@ -373,6 +381,7 @@ func (m *Model) View() string {
 		PullRequestSyncing:   m.isPullRequestSyncInFlight(),
 		PullRequestSpinner:   m.pullRequestSpinnerView(),
 		BlockedSpinner:       m.BlockedSpinner.View(),
+		ReadySpinner:         m.ReadySpinner.View(),
 	}
 	s.WriteString(GenerateTable(m.Repositories, m.Cursor, m.layout, runtime))
 	s.WriteString("\n\n")

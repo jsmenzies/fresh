@@ -100,9 +100,26 @@ func TestClassifyMyPullRequestDecisionMatrix(t *testing.T) {
 			want: "ready",
 		},
 		{
-			name: "default requires review",
-			node: makePRNode(),
+			name: "review required remains review",
+			node: makePRNode(
+				withReviewDecision("REVIEW_REQUIRED"),
+				withMergeState("CLEAN"),
+			),
 			want: "review",
+		},
+		{
+			name: "no review required and clean merge is ready",
+			node: makePRNode(
+				withMergeState("CLEAN"),
+			),
+			want: "ready",
+		},
+		{
+			name: "unstable merge without rollup details stays checks",
+			node: makePRNode(
+				withMergeState("UNSTABLE"),
+			),
+			want: "checks",
 		},
 	}
 

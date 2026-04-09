@@ -71,6 +71,16 @@ func NewBlockedPullRequestSpinner() spinner.Model {
 	)
 }
 
+func NewReadyPullRequestSpinner() spinner.Model {
+	readySpinner := spinner.Pulse
+	readySpinner.FPS = spinnerFrameInterval
+
+	return spinner.New(
+		spinner.WithSpinner(readySpinner),
+		spinner.WithStyle(lipgloss.NewStyle().Foreground(SubtleGreen).Bold(true)),
+	)
+}
+
 var TableHeaderStyle = lipgloss.NewStyle().
 	Foreground(TextSecondary).
 	Bold(true).
@@ -153,6 +163,10 @@ var PullOutputError = lipgloss.NewStyle().
 
 var AlertSpinnerStyle = lipgloss.NewStyle().
 	Foreground(Red).
+	Bold(true)
+
+var SuccessSpinnerStyle = lipgloss.NewStyle().
+	Foreground(Green).
 	Bold(true)
 
 var PullProgressStyle = lipgloss.NewStyle()

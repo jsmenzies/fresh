@@ -64,7 +64,13 @@ func buildPullRequestAlert(state domain.PullRequestState, runtime InfoRuntime) s
 		Height(1).
 		MaxHeight(1).
 		Align(lipgloss.Left)
-	alertStyle := common.AlertSpinnerStyle.
+	blockedStyle := common.AlertSpinnerStyle.
+		Width(PRAlertWidth).
+		MaxWidth(PRAlertWidth).
+		Height(1).
+		MaxHeight(1).
+		Align(lipgloss.Left)
+	readyStyle := common.SuccessSpinnerStyle.
 		Width(PRAlertWidth).
 		MaxWidth(PRAlertWidth).
 		Height(1).
@@ -72,19 +78,30 @@ func buildPullRequestAlert(state domain.PullRequestState, runtime InfoRuntime) s
 		Align(lipgloss.Left)
 
 	s, ok := state.(domain.PullRequestCount)
-	if !ok || s.MyBlocked <= 0 {
+	if !ok {
 		return baseStyle.Render("")
 	}
 	if runtime.PullRequestSyncing {
 		return baseStyle.Render("")
 	}
 
-	frame := runtime.BlockedSpinner
-	if frame == "" {
-		return alertStyle.Render(common.IconWarning)
+	if s.MyBlocked > 0 {
+		frame := runtime.BlockedSpinner
+		if frame == "" {
+			return blockedStyle.Render(common.IconWarning)
+		}
+		return blockedStyle.Render(frame)
 	}
 
-	return alertStyle.Render(frame)
+	if s.MyReady > 0 {
+		frame := runtime.ReadySpinner
+		if frame == "" {
+			return readyStyle.Render(common.IconClean)
+		}
+		return readyStyle.Render(frame)
+	}
+
+	return baseStyle.Render("")
 }
 
 func buildSelector(isSelected bool) string {
