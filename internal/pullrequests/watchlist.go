@@ -38,7 +38,7 @@ type ChangeKind string
 const (
 	ChangeBecameBlocked   ChangeKind = "became_blocked"
 	ChangeBecameUnblocked ChangeKind = "became_unblocked"
-	ChangeRemoved         ChangeKind = "removed"
+	ChangeBlockedRemoved  ChangeKind = "blocked_removed"
 )
 
 type Change struct {
@@ -56,12 +56,12 @@ type ApplyOptions struct {
 
 type Watchlist struct {
 	seeded  bool
-	tracked map[string]Snapshot
+	tracked map[Key]Status
 }
 
 func NewWatchlist() *Watchlist {
 	return &Watchlist{
-		tracked: make(map[string]Snapshot),
+		tracked: make(map[Key]Status),
 	}
 }
 
@@ -70,15 +70,15 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 		return nil
 	}
 	if w.tracked == nil {
-		w.tracked = make(map[string]Snapshot)
+		w.tracked = make(map[Key]Status)
 	}
 
-	currentByKey := make(map[string]Snapshot, len(current))
+	currentByKey := make(map[Key]Status, len(current))
 	for _, snapshot := range current {
 		if !snapshot.Key.IsValid() {
 			continue
 		}
-		currentByKey[snapshot.Key.String()] = snapshot
+		currentByKey[snapshot.Key] = snapshot.Status
 	}
 
 	if !w.seeded && options.Seed {
@@ -90,45 +90,48 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 	emitNewBlocked := w.seeded || !options.Seed
 	changes := make([]Change, 0)
 
-	for key, snapshot := range currentByKey {
-		previous, existed := w.tracked[key]
+	for key, currentStatus := range currentByKey {
+		previousStatus, existed := w.tracked[key]
 		switch {
 		case !existed:
-			if emitNewBlocked && snapshot.Status == StatusBlocked {
+			if emitNewBlocked && currentStatus == StatusBlocked {
 				changes = append(changes, Change{
 					Kind:    ChangeBecameBlocked,
-					Key:     snapshot.Key,
-					Current: snapshot.Status,
+					Key:     key,
+					Current: currentStatus,
 				})
 			}
-		case previous.Status != snapshot.Status:
+		case previousStatus != currentStatus:
 			switch {
-			case snapshot.Status == StatusBlocked:
+			case currentStatus == StatusBlocked:
 				changes = append(changes, Change{
 					Kind:     ChangeBecameBlocked,
-					Key:      snapshot.Key,
-					Previous: previous.Status,
-					Current:  snapshot.Status,
+					Key:      key,
+					Previous: previousStatus,
+					Current:  currentStatus,
 				})
-			case previous.Status == StatusBlocked:
+			case previousStatus == StatusBlocked:
 				changes = append(changes, Change{
 					Kind:     ChangeBecameUnblocked,
-					Key:      snapshot.Key,
-					Previous: previous.Status,
-					Current:  snapshot.Status,
+					Key:      key,
+					Previous: previousStatus,
+					Current:  currentStatus,
 				})
 			}
 		}
 	}
 
-	for key, previous := range w.tracked {
+	for key, previousStatus := range w.tracked {
 		if _, ok := currentByKey[key]; ok {
 			continue
 		}
+		if previousStatus != StatusBlocked {
+			continue
+		}
 		changes = append(changes, Change{
-			Kind:     ChangeRemoved,
-			Key:      previous.Key,
-			Previous: previous.Status,
+			Kind:     ChangeBlockedRemoved,
+			Key:      key,
+			Previous: previousStatus,
 		})
 	}
 
@@ -136,13 +139,21 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 	w.seeded = true
 
 	sort.Slice(changes, func(i, j int) bool {
-		left := changes[i].Key.String()
-		right := changes[j].Key.String()
-		if left == right {
+		if changes[i].Key == changes[j].Key {
 			return changes[i].Kind < changes[j].Kind
 		}
-		return left < right
+		return keyLess(changes[i].Key, changes[j].Key)
 	})
 
 	return changes
+}
+
+func keyLess(left, right Key) bool {
+	if left.Owner != right.Owner {
+		return left.Owner < right.Owner
+	}
+	if left.Repo != right.Repo {
+		return left.Repo < right.Repo
+	}
+	return left.Number < right.Number
 }

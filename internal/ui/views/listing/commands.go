@@ -136,15 +136,16 @@ func listenForPruneProgress(state pruneWorkState) tea.Cmd {
 	}
 }
 
-func performPullRequestSync(repos []domain.Repository, trigger PullRequestSyncTrigger) tea.Cmd {
+func performPullRequestSync(repos []domain.Repository, trigger PullRequestSyncTrigger, generation uint64) tea.Cmd {
 	snapshot := append([]domain.Repository(nil), repos...)
 
 	return func() tea.Msg {
 		sync := git.GetPullRequestSync(snapshot)
 		return PullRequestStatesUpdatedMsg{
-			States:  sync.States,
-			Tracked: sync.Tracked,
-			Trigger: trigger,
+			Generation: generation,
+			States:     sync.States,
+			Tracked:    sync.Tracked,
+			Trigger:    trigger,
 		}
 	}
 }

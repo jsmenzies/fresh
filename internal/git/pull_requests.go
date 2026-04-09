@@ -84,10 +84,6 @@ func SetPullRequestService(service PullRequestService) {
 	pullRequestService = service
 }
 
-func GetPullRequestStates(repos []domain.Repository) map[string]domain.PullRequestState {
-	return pullRequestService.GetPullRequestSync(repos).States
-}
-
 func GetPullRequestSync(repos []domain.Repository) PullRequestSync {
 	return pullRequestService.GetPullRequestSync(repos)
 }
