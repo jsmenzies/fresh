@@ -34,19 +34,6 @@ func TestClamp(t *testing.T) {
 	}
 }
 
-func TestTotalFixedWidth(t *testing.T) {
-	t.Parallel()
-
-	// totalFixedWidth should return the sum of all fixed columns + gaps
-	expected := SelectorWidth + LocalWidth + RemoteWidth + PRWidth +
-		InfoWidth + (5 * InterColumnGap)
-
-	got := totalFixedWidth()
-	if got != expected {
-		t.Errorf("totalFixedWidth() = %d, want %d", got, expected)
-	}
-}
-
 func TestDistributeWidth(t *testing.T) {
 	t.Parallel()
 

@@ -137,8 +137,10 @@ func listenForPruneProgress(state pruneWorkState) tea.Cmd {
 }
 
 func performPullRequestSync(repos []domain.Repository) tea.Cmd {
+	snapshot := append([]domain.Repository(nil), repos...)
+
 	return func() tea.Msg {
-		states := git.GetPullRequestStates(repos)
+		states := git.GetPullRequestStates(snapshot)
 		return PullRequestStatesUpdatedMsg{States: states}
 	}
 }

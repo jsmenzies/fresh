@@ -37,10 +37,6 @@ func totalFixedWidthWithoutInfo() int {
 	return SelectorWidth + LocalWidth + RemoteWidth + PRWidth + (5 * InterColumnGap)
 }
 
-func totalFixedWidth() int {
-	return totalFixedWidthWithoutInfo() + InfoWidth
-}
-
 func calculateColumnLayout(repositories []domain.Repository, terminalWidth int) ColumnLayout {
 	projectWidth, branchWidth := calculateColumnWidths(repositories, terminalWidth)
 	infoWidth := calculateInfoWidth(terminalWidth, projectWidth, branchWidth)
