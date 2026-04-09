@@ -45,7 +45,6 @@ func TestMainModel_ScanFinishedMsg_TransitionsToListingView(t *testing.T) {
 	if len(model.listingView.Repositories) != 1 {
 		t.Errorf("listing repos count = %d, want 1", len(model.listingView.Repositories))
 	}
-	// Init should return a cmd (refresh commands for the listing)
 	if cmd == nil {
 		t.Error("expected non-nil cmd from listing Init()")
 	}
@@ -58,9 +57,6 @@ func TestMainModel_QuitOnCtrlC(t *testing.T) {
 	msg := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 
 	_, cmd := m.Update(msg)
-
-	// tea.Quit returns a special cmd; we can't compare functions directly
-	// but we can verify the cmd is not nil (quit produces a cmd)
 	if cmd == nil {
 		t.Error("expected non-nil cmd (quit) from ctrl+c")
 	}
@@ -73,7 +69,6 @@ func TestMainModel_QuitOnQ(t *testing.T) {
 	msg := tea.KeyPressMsg{Code: 'q'}
 
 	_, cmd := m.Update(msg)
-
 	if cmd == nil {
 		t.Error("expected non-nil cmd (quit) from 'q'")
 	}
@@ -101,19 +96,89 @@ func TestMainModel_DelegatesKeyMsgToListingInRepoListView(t *testing.T) {
 
 	m := New(t.TempDir())
 
-	// Transition to listing view
 	repos := []domain.Repository{
 		{Name: "a", Path: "/a", Activity: domain.IdleActivity{}, LocalState: domain.CleanLocalState{}, RemoteState: domain.Synced{}, Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}}},
 		{Name: "b", Path: "/b", Activity: domain.IdleActivity{}, LocalState: domain.CleanLocalState{}, RemoteState: domain.Synced{}, Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}}},
 	}
 	m.Update(scanning.ScanFinishedMsg{Repos: repos})
 
-	// Now send a 'j' key to move cursor
 	msg := tea.KeyPressMsg{Code: 'j'}
 	m.Update(msg)
 
 	if m.listingView.Cursor != 1 {
 		t.Errorf("listing cursor = %d, want 1 (key should be delegated)", m.listingView.Cursor)
+	}
+}
+
+func TestMainModel_EnterTransitionsToPullRequestView(t *testing.T) {
+	t.Parallel()
+
+	m := New(t.TempDir())
+
+	repos := []domain.Repository{
+		{
+			Name:        "repo-a",
+			Path:        "/tmp/repo-a",
+			RemoteURL:   "https://github.com/octo/repo-a",
+			Activity:    domain.IdleActivity{},
+			LocalState:  domain.CleanLocalState{},
+			RemoteState: domain.Synced{},
+			Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
+		},
+	}
+	m.Update(scanning.ScanFinishedMsg{Repos: repos})
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: '\r'})
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd after enter")
+	}
+
+	result, _ := m.Update(cmd())
+	model := result.(*MainModel)
+
+	if model.currentView != RepoPRListView {
+		t.Errorf("view after enter = %d, want RepoPRListView (%d)", model.currentView, RepoPRListView)
+	}
+	if model.pullRequestsView == nil {
+		t.Fatal("expected pullRequestsView to be initialized")
+	}
+	if model.pullRequestsView.Repo.Path != repos[0].Path {
+		t.Errorf("pull request view repo path = %q, want %q", model.pullRequestsView.Repo.Path, repos[0].Path)
+	}
+}
+
+func TestMainModel_EscapeTransitionsBackToListingView(t *testing.T) {
+	t.Parallel()
+
+	m := New(t.TempDir())
+
+	repos := []domain.Repository{
+		{
+			Name:        "repo-a",
+			Path:        "/tmp/repo-a",
+			RemoteURL:   "https://github.com/octo/repo-a",
+			Activity:    domain.IdleActivity{},
+			LocalState:  domain.CleanLocalState{},
+			RemoteState: domain.Synced{},
+			Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
+		},
+	}
+	m.Update(scanning.ScanFinishedMsg{Repos: repos})
+	_, openCmd := m.Update(tea.KeyPressMsg{Code: '\r'})
+	if openCmd == nil {
+		t.Fatal("expected non-nil open command after enter")
+	}
+	m.Update(openCmd())
+
+	_, backCmd := m.Update(tea.KeyPressMsg{Code: 27})
+	if backCmd == nil {
+		t.Fatal("expected non-nil back command after escape")
+	}
+	result, _ := m.Update(backCmd())
+	model := result.(*MainModel)
+
+	if model.currentView != RepoListView {
+		t.Errorf("view after esc = %d, want RepoListView (%d)", model.currentView, RepoListView)
 	}
 }
 
@@ -133,5 +198,3 @@ func TestMainModel_ScanFinishedMsg_WithEmptyRepos(t *testing.T) {
 		t.Errorf("repos count = %d, want 0", len(model.listingView.Repositories))
 	}
 }
-
-var _ = scanning.ScanFinishedMsg{}

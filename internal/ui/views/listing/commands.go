@@ -144,3 +144,9 @@ func performPullRequestSync(repos []domain.Repository, trigger PullRequestSyncTr
 		return PullRequestStatesUpdatedMsg{States: states, Trigger: trigger}
 	}
 }
+
+func openPullRequestsView(repo domain.Repository) tea.Cmd {
+	return func() tea.Msg {
+		return OpenPullRequestsMsg{Repo: repo}
+	}
+}
