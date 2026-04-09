@@ -210,20 +210,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 
 	case RepoUpdatedMsg:
-		if msg.Index < len(m.Repositories) {
-			repo := &m.Repositories[msg.Index]
-			activity := repo.Activity
-			pullRequests := repo.PullRequests
-			*repo = msg.Repo
-			repo.PullRequests = pullRequests
-
+		m.applyRepoUpdate(msg.Index, msg.Repo, func(repo *domain.Repository, activity domain.Activity) {
 			if refreshing, ok := activity.(*domain.RefreshingActivity); ok {
 				refreshing.MarkComplete()
 				repo.Activity = &domain.IdleActivity{}
-			} else {
-				repo.Activity = activity
 			}
-		}
+		})
 
 	case PullRequestStatesUpdatedMsg:
 		m.applyPullRequestStates(msg.States)
@@ -254,20 +246,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 
 	case pullCompleteMsg:
-		if msg.Index < len(m.Repositories) {
-			repo := &m.Repositories[msg.Index]
-			activity := repo.Activity
-			pullRequests := repo.PullRequests
-			*repo = msg.Repo
-			repo.PullRequests = pullRequests
+		m.applyRepoUpdate(msg.Index, msg.Repo, func(repo *domain.Repository, activity domain.Activity) {
 			if pulling, ok := activity.(*domain.PullingActivity); ok {
 				pulling.MarkComplete(msg.exitCode)
 				m.storeRecentActivityInfo(repo.Path, buildPullOutputInfoMessage(pulling.GetLastLine(), pulling.ExitCode))
 				repo.Activity = &domain.IdleActivity{}
-			} else {
-				repo.Activity = activity
 			}
-		}
+		})
 
 	case pruneWorkState:
 		return m, listenForPruneProgress(msg)
@@ -284,22 +269,15 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 
 	case pruneCompleteMsg:
-		if msg.Index < len(m.Repositories) {
-			repo := &m.Repositories[msg.Index]
-			activity := repo.Activity
-			pullRequests := repo.PullRequests
-			*repo = msg.Repo
-			repo.PullRequests = pullRequests
+		m.applyRepoUpdate(msg.Index, msg.Repo, func(repo *domain.Repository, activity domain.Activity) {
 			if pruning, ok := activity.(*domain.PruningActivity); ok {
 				pruning.MarkComplete(msg.exitCode, msg.DeletedCount)
 				if info, ok := buildPruneCompletionInfoMessage(*pruning); ok {
 					m.storeRecentActivityInfo(repo.Path, info)
 				}
 				repo.Activity = &domain.IdleActivity{}
-			} else {
-				repo.Activity = activity
 			}
-		}
+		})
 
 	case infoRotateTickMsg:
 		m.InfoPhase++
@@ -362,6 +340,24 @@ func (m *Model) applyPullRequestStates(states map[string]domain.PullRequestState
 		if state, ok := states[repo.Path]; ok {
 			repo.PullRequests = state
 		}
+	}
+}
+
+func (m *Model) applyRepoUpdate(index int, next domain.Repository, onUpdate func(*domain.Repository, domain.Activity)) {
+	if index < 0 || index >= len(m.Repositories) {
+		return
+	}
+
+	repo := &m.Repositories[index]
+	activity := repo.Activity
+	pullRequests := repo.PullRequests
+
+	*repo = next
+	repo.PullRequests = pullRequests
+	repo.Activity = activity
+
+	if onUpdate != nil {
+		onUpdate(repo, activity)
 	}
 }
 
