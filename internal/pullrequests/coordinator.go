@@ -48,6 +48,12 @@ func (c *NotificationCoordinator) Sync(tracked []Snapshot, options ApplyOptions,
 				Kind:   notifications.KindBlocked,
 				Reason: fmt.Sprintf("%s is blocked", change.Key.String()),
 			})
+		case ChangeBecameMergeable:
+			sink.Upsert(notifications.Notification{
+				Key:    key,
+				Kind:   notifications.KindProgress,
+				Reason: fmt.Sprintf("%s is mergeable", change.Key.String()),
+			})
 		case ChangeBecameUnblocked:
 			sink.Resolve(key)
 			sink.Upsert(notifications.Notification{
