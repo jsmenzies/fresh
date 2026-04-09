@@ -7,6 +7,8 @@ import (
 
 	"fresh/internal/domain"
 	"fresh/internal/ui/views/common"
+
+	"charm.land/lipgloss/v2"
 )
 
 type InfoTone int
@@ -17,6 +19,7 @@ const (
 	InfoToneSuccess
 	InfoToneWarn
 	InfoToneError
+	InfoTonePullRequestSummary
 )
 
 type InfoMessage struct {
@@ -56,7 +59,7 @@ func collectStatusInfoMessages(repo domain.Repository) []InfoMessage {
 	}
 
 	if summary, pinned := buildMyPullRequestSummary(repo.PullRequests); summary != "" {
-		appendMessage(InfoMessage{Text: summary, Tone: InfoToneSubtle, Pinned: pinned})
+		appendMessage(InfoMessage{Text: summary, Tone: InfoTonePullRequestSummary, Pinned: pinned})
 	}
 
 	mergedCount := len(repo.Branches.Merged)
@@ -200,10 +203,51 @@ func renderInfoMessage(msg InfoMessage, infoWidth int) string {
 		return common.PullOutputWarn.Width(infoWidth).Render(text)
 	case InfoToneError:
 		return common.PullOutputError.Width(infoWidth).Render(text)
+	case InfoTonePullRequestSummary:
+		return renderMyPullRequestSummaryInfo(text, infoWidth)
 	default:
 		return common.TextGrey.Render(text)
 	}
 }
+
+func renderMyPullRequestSummaryInfo(text string, infoWidth int) string {
+	text = common.TruncateWithEllipsis(text, infoWidth)
+
+	const prefix = "My PRs:"
+	if !strings.HasPrefix(text, prefix) {
+		return common.TextGrey.Render(text)
+	}
+
+	labelStyle := lipgloss.NewStyle().Foreground(common.TextPrimary)
+	separatorStyle := labelStyle
+	readyStyle := lipgloss.NewStyle().Foreground(common.Green)
+	blockedStyle := lipgloss.NewStyle().Foreground(common.Red)
+	waitingStyle := lipgloss.NewStyle().Foreground(common.Yellow)
+
+	rest := strings.TrimSpace(strings.TrimPrefix(text, prefix))
+	if rest == "" {
+		return labelStyle.Render(prefix)
+	}
+
+	parts := strings.Split(rest, ", ")
+	rendered := make([]string, 0, len(parts))
+	for _, part := range parts {
+		lower := strings.ToLower(part)
+		switch {
+		case strings.Contains(lower, "blocked"):
+			rendered = append(rendered, blockedStyle.Render(part))
+		case strings.Contains(lower, "ready"), strings.Contains(lower, "mergeable"):
+			rendered = append(rendered, readyStyle.Render(part))
+		case strings.Contains(lower, "check"), strings.Contains(lower, "review"), strings.Contains(lower, "waiting"):
+			rendered = append(rendered, waitingStyle.Render(part))
+		default:
+			rendered = append(rendered, labelStyle.Render(part))
+		}
+	}
+
+	return labelStyle.Render(prefix) + separatorStyle.Render(" ") + strings.Join(rendered, separatorStyle.Render(", "))
+}
+
 func normalizeInfoWidth(infoWidth int) int {
 	if infoWidth < 1 {
 		return 1
