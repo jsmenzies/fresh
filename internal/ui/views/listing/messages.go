@@ -16,8 +16,7 @@ type RepoUpdatedMsg struct {
 type PullRequestSyncTrigger int
 
 const (
-	pullRequestSyncUnknown PullRequestSyncTrigger = iota
-	pullRequestSyncStartup
+	pullRequestSyncStartup PullRequestSyncTrigger = iota + 1
 	pullRequestSyncManual
 	pullRequestSyncWatch
 )
