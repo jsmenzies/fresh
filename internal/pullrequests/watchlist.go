@@ -3,6 +3,7 @@ package pullrequests
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 type Status string
@@ -31,6 +32,7 @@ func (k Key) IsValid() bool {
 type Snapshot struct {
 	Key    Key
 	Status Status
+	Title  string
 }
 
 type ChangeKind string
@@ -47,6 +49,7 @@ type Change struct {
 	Key      Key
 	Previous Status
 	Current  Status
+	Title    string
 }
 
 type ApplyOptions struct {
@@ -57,12 +60,12 @@ type ApplyOptions struct {
 
 type Watchlist struct {
 	seeded  bool
-	tracked map[Key]Status
+	tracked map[Key]Snapshot
 }
 
 func NewWatchlist() *Watchlist {
 	return &Watchlist{
-		tracked: make(map[Key]Status),
+		tracked: make(map[Key]Snapshot),
 	}
 }
 
@@ -71,15 +74,17 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 		return nil
 	}
 	if w.tracked == nil {
-		w.tracked = make(map[Key]Status)
+		w.tracked = make(map[Key]Snapshot)
 	}
 
-	currentByKey := make(map[Key]Status, len(current))
+	currentByKey := make(map[Key]Snapshot, len(current))
 	for _, snapshot := range current {
 		if !snapshot.Key.IsValid() {
 			continue
 		}
-		currentByKey[snapshot.Key] = snapshot.Status
+
+		snapshot.Title = strings.TrimSpace(snapshot.Title)
+		currentByKey[snapshot.Key] = snapshot
 	}
 
 	if !w.seeded && options.Seed {
@@ -91,8 +96,15 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 	emitNewTransitions := w.seeded || !options.Seed
 	changes := make([]Change, 0)
 
-	for key, currentStatus := range currentByKey {
-		previousStatus, existed := w.tracked[key]
+	for key, currentSnapshot := range currentByKey {
+		currentStatus := currentSnapshot.Status
+		previousSnapshot, existed := w.tracked[key]
+		previousStatus := previousSnapshot.Status
+		title := currentSnapshot.Title
+		if title == "" {
+			title = previousSnapshot.Title
+		}
+
 		switch {
 		case !existed:
 			if !emitNewTransitions {
@@ -104,12 +116,14 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 					Kind:    ChangeBecameBlocked,
 					Key:     key,
 					Current: currentStatus,
+					Title:   title,
 				})
 			} else if currentStatus == StatusReady {
 				changes = append(changes, Change{
 					Kind:    ChangeBecameMergeable,
 					Key:     key,
 					Current: currentStatus,
+					Title:   title,
 				})
 			}
 		case previousStatus != currentStatus:
@@ -120,6 +134,7 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 					Key:      key,
 					Previous: previousStatus,
 					Current:  currentStatus,
+					Title:    title,
 				})
 			case currentStatus == StatusReady:
 				changes = append(changes, Change{
@@ -127,6 +142,7 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 					Key:      key,
 					Previous: previousStatus,
 					Current:  currentStatus,
+					Title:    title,
 				})
 			case previousStatus == StatusBlocked:
 				changes = append(changes, Change{
@@ -134,15 +150,17 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 					Key:      key,
 					Previous: previousStatus,
 					Current:  currentStatus,
+					Title:    title,
 				})
 			}
 		}
 	}
 
-	for key, previousStatus := range w.tracked {
+	for key, previousSnapshot := range w.tracked {
 		if _, ok := currentByKey[key]; ok {
 			continue
 		}
+		previousStatus := previousSnapshot.Status
 		if previousStatus != StatusBlocked {
 			continue
 		}
@@ -150,6 +168,7 @@ func (w *Watchlist) Apply(current []Snapshot, options ApplyOptions) []Change {
 			Kind:     ChangeBlockedRemoved,
 			Key:      key,
 			Previous: previousStatus,
+			Title:    previousSnapshot.Title,
 		})
 	}
 

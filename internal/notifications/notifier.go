@@ -26,11 +26,12 @@ func (k PRKey) String() string {
 }
 
 type Notification struct {
-	Key         PRKey
-	Kind        Kind
-	Reason      string
-	Repeat      bool
-	RepeatEvery time.Duration
+	Key              PRKey
+	Kind             Kind
+	Reason           string
+	PullRequestTitle string
+	Repeat           bool
+	RepeatEvery      time.Duration
 }
 
 type scheduledNotification struct {
@@ -177,6 +178,9 @@ func (n *Notifier) send(notification Notification) {
 
 func buildPayload(notification Notification) (title, body, soundPath string) {
 	title = notification.Key.Repo
+	if prTitle := strings.TrimSpace(notification.PullRequestTitle); prTitle != "" {
+		title = fmt.Sprintf("%s: %s", notification.Key.Repo, prTitle)
+	}
 
 	switch notification.Kind {
 	case KindBlocked:

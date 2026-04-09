@@ -41,12 +41,12 @@ func TestNotificationCoordinator_BlockedTransitionUpsertsBlocked(t *testing.T) {
 
 	coordinator := NewNotificationCoordinator(nil)
 	_ = coordinator.Sync([]Snapshot{
-		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusReview},
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusReview, Title: "Improve API docs"},
 	}, ApplyOptions{Seed: true}, nil)
 
 	sink := &fakeNotificationSink{}
 	changes := coordinator.Sync([]Snapshot{
-		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusBlocked},
+		{Key: Key{Owner: "acme", Repo: "api", Number: 12}, Status: StatusBlocked, Title: "Improve API docs"},
 	}, ApplyOptions{}, sink)
 
 	if len(changes) != 1 || changes[0].Kind != ChangeBecameBlocked {
@@ -57,6 +57,9 @@ func TestNotificationCoordinator_BlockedTransitionUpsertsBlocked(t *testing.T) {
 	}
 	if sink.upserts[0].Kind != notifications.KindBlocked {
 		t.Fatalf("kind = %q, want %q", sink.upserts[0].Kind, notifications.KindBlocked)
+	}
+	if sink.upserts[0].PullRequestTitle != "Improve API docs" {
+		t.Fatalf("pull request title = %q, want %q", sink.upserts[0].PullRequestTitle, "Improve API docs")
 	}
 }
 

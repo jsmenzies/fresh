@@ -245,3 +245,61 @@ func TestWatchlist_IgnoresInvalidKeys(t *testing.T) {
 		t.Fatalf("changes = %d, want 0", len(changes))
 	}
 }
+
+func TestWatchlist_ChangeIncludesPullRequestTitle(t *testing.T) {
+	t.Parallel()
+
+	watchlist := NewWatchlist()
+	watchlist.Apply([]Snapshot{
+		{
+			Key:    Key{Owner: "acme", Repo: "api", Number: 12},
+			Status: StatusReview,
+			Title:  "Improve API docs",
+		},
+	}, ApplyOptions{Seed: true})
+
+	changes := watchlist.Apply([]Snapshot{
+		{
+			Key:    Key{Owner: "acme", Repo: "api", Number: 12},
+			Status: StatusBlocked,
+			Title:  "Improve API docs",
+		},
+	}, ApplyOptions{})
+
+	if len(changes) != 1 {
+		t.Fatalf("changes = %d, want 1", len(changes))
+	}
+	if changes[0].Title != "Improve API docs" {
+		t.Fatalf("title = %q, want %q", changes[0].Title, "Improve API docs")
+	}
+}
+
+func TestWatchlist_ChangeRetainsPreviousTitleWhenCurrentSnapshotOmitsIt(t *testing.T) {
+	t.Parallel()
+
+	watchlist := NewWatchlist()
+	watchlist.Apply([]Snapshot{
+		{
+			Key:    Key{Owner: "acme", Repo: "api", Number: 12},
+			Status: StatusBlocked,
+			Title:  "Fix flaky checks",
+		},
+	}, ApplyOptions{Seed: true})
+
+	changes := watchlist.Apply([]Snapshot{
+		{
+			Key:    Key{Owner: "acme", Repo: "api", Number: 12},
+			Status: StatusChecks,
+		},
+	}, ApplyOptions{})
+
+	if len(changes) != 1 {
+		t.Fatalf("changes = %d, want 1", len(changes))
+	}
+	if changes[0].Kind != ChangeBecameUnblocked {
+		t.Fatalf("kind = %q, want %q", changes[0].Kind, ChangeBecameUnblocked)
+	}
+	if changes[0].Title != "Fix flaky checks" {
+		t.Fatalf("title = %q, want %q", changes[0].Title, "Fix flaky checks")
+	}
+}
