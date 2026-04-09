@@ -125,9 +125,9 @@ func TestClassifyMyPullRequestDecisionMatrix(t *testing.T) {
 			want: pullrequests.StatusChecks,
 		},
 		{
-			name: "default requires review",
+			name: "default with no review decision is ready",
 			node: makePRNode(),
-			want: pullrequests.StatusReview,
+			want: pullrequests.StatusReady,
 		},
 	}
 
