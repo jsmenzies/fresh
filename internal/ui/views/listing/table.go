@@ -75,6 +75,9 @@ func buildPullRequestAlert(state domain.PullRequestState, runtime InfoRuntime) s
 	if !ok || s.MyBlocked <= 0 {
 		return baseStyle.Render("")
 	}
+	if runtime.PullRequestSyncing {
+		return baseStyle.Render("")
+	}
 
 	frame := runtime.BlockedSpinner
 	if frame == "" {
@@ -214,10 +217,6 @@ func buildPullRequestStatus(state domain.PullRequestState, runtime InfoRuntime) 
 	baseStyle := common.PullRequestStatusBaseStyle.
 		Width(PRWidth).
 		MaxWidth(PRWidth)
-
-	if runtime.PullRequestSyncing {
-		return baseStyle.Render(runtime.PullRequestSpinner)
-	}
 
 	switch s := state.(type) {
 	case domain.PullRequestCount:
