@@ -235,59 +235,38 @@ func TestBuildRemoteStatus(t *testing.T) {
 		contains []string
 	}{
 		{
-			name: "synced shows synced icon",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Synced{},
-			},
+			name:     "synced shows synced icon",
+			repo:     makeTestRepository("repo"),
 			contains: []string{common.IconSynced},
 		},
 		{
-			name: "ahead shows ahead icon with count",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Ahead{Count: 3},
-			},
+			name:     "ahead shows ahead icon with count",
+			repo:     makeTestRepository("repo", withRepoRemoteState(domain.Ahead{Count: 3})),
 			contains: []string{common.IconAhead, "3"},
 		},
 		{
-			name: "behind shows behind icon with count",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Behind{Count: 5},
-			},
+			name:     "behind shows behind icon with count",
+			repo:     makeTestRepository("repo", withRepoRemoteState(domain.Behind{Count: 5})),
 			contains: []string{common.IconBehind, "5"},
 		},
 		{
-			name: "diverged shows both ahead and behind counts",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Diverged{AheadCount: 2, BehindCount: 7},
-			},
+			name:     "diverged shows both ahead and behind counts",
+			repo:     makeTestRepository("repo", withRepoRemoteState(domain.Diverged{AheadCount: 2, BehindCount: 7})),
 			contains: []string{common.IconAhead, "2", common.IconBehind, "7"},
 		},
 		{
-			name: "no upstream shows dash",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.NoUpstream{},
-			},
+			name:     "no upstream shows dash",
+			repo:     makeTestRepository("repo", withRepoRemoteState(domain.NoUpstream{})),
 			contains: []string{"-"},
 		},
 		{
-			name: "detached remote shows dash",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.DetachedRemote{},
-			},
+			name:     "detached remote shows dash",
+			repo:     makeTestRepository("repo", withRepoRemoteState(domain.DetachedRemote{})),
 			contains: []string{"-"},
 		},
 		{
-			name: "remote error shows error icon",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.RemoteError{Message: "timeout"},
-			},
+			name:     "remote error shows error icon",
+			repo:     makeTestRepository("repo", withRepoRemoteState(domain.RemoteError{Message: "timeout"})),
 			contains: []string{common.IconRemoteError},
 		},
 	}
@@ -532,7 +511,7 @@ func TestBuildMyPullRequestSummary_BlockedIsPinned(t *testing.T) {
 func TestBuildInfo_UsesRecentActivityOverStatus(t *testing.T) {
 	t.Parallel()
 
-	repo := makeTestRepository("demo")
+	repo := makeTestRepository("demo", withRepoPath("/tmp/demo"))
 
 	runtime := InfoRuntime{
 		Phase:                0,
@@ -560,136 +539,80 @@ func TestBuildInfo(t *testing.T) {
 	}{
 		{
 			name: "idle with my pr summary shows summary in info",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Synced{},
-				PullRequests: domain.PullRequestCount{
+			repo: makeTestRepository(
+				"repo",
+				withRepoPullRequests(domain.PullRequestCount{
 					MyReady:   0,
 					MyBlocked: 1,
 					MyChecks:  2,
-				},
-				Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}},
-			},
+				}),
+			),
 			contains: []string{"My PRs:", "1 blocked", "2 checks"},
 		},
 		{
 			name: "idle with synced remote shows empty info",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Synced{},
-				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-			},
+			repo: makeTestRepository("repo"),
 		},
 		{
-			name: "idle with remote error shows error message",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.RemoteError{Message: "connection timed out"},
-				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-			},
+			name:     "idle with remote error shows error message",
+			repo:     makeTestRepository("repo", withRepoRemoteState(domain.RemoteError{Message: "connection timed out"})),
 			contains: []string{"connection timed out"},
 		},
 		{
-			name: "idle with no upstream shows no upstream message",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.NoUpstream{},
-				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-			},
+			name:     "idle with no upstream shows no upstream message",
+			repo:     makeTestRepository("repo", withRepoRemoteState(domain.NoUpstream{})),
 			contains: []string{common.LabelNoUpstream},
 		},
 		{
-			name: "idle with detached remote shows detached message",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.DetachedRemote{},
-				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-			},
+			name:     "idle with detached remote shows detached message",
+			repo:     makeTestRepository("repo", withRepoRemoteState(domain.DetachedRemote{})),
 			contains: []string{common.LabelDetached},
 		},
 		{
-			name: "idle with diverged remote shows diverged message",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Diverged{AheadCount: 1, BehindCount: 2},
-				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-			},
+			name:     "idle with diverged remote shows diverged message",
+			repo:     makeTestRepository("repo", withRepoRemoteState(domain.Diverged{AheadCount: 1, BehindCount: 2})),
 			contains: []string{common.StatusDiverged},
 		},
 		{
-			name: "idle with prunable branches shows prune count",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Synced{},
-				Branches: domain.Branches{
-					Current: domain.OnBranch{Name: "main"},
-					Merged:  []string{"feature-a", "feature-b"},
-				},
-			},
+			name:     "idle with prunable branches shows prune count",
+			repo:     makeTestRepository("repo", withRepoMergedBranches("feature-a", "feature-b")),
 			contains: []string{"2 prunable branches"},
 		},
 		{
-			name: "idle with single prunable branch uses singular",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Synced{},
-				Branches: domain.Branches{
-					Current: domain.OnBranch{Name: "main"},
-					Merged:  []string{"feature-a"},
-				},
-			},
+			name:     "idle with single prunable branch uses singular",
+			repo:     makeTestRepository("repo", withRepoMergedBranches("feature-a")),
 			contains: []string{"1 prunable branch"},
 		},
 		{
-			name: "idle with one stash uses singular stash label",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Synced{},
-				StashCount:  1,
-				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-			},
+			name:     "idle with one stash uses singular stash label",
+			repo:     makeTestRepository("repo", withRepoStashCount(1)),
 			contains: []string{"1 stash"},
 		},
 		{
-			name: "idle with multiple stashes uses plural stash label",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Synced{},
-				StashCount:  3,
-				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-			},
+			name:     "idle with multiple stashes uses plural stash label",
+			repo:     makeTestRepository("repo", withRepoStashCount(3)),
 			contains: []string{"3 stashes"},
 		},
 		{
 			name: "idle with stash and prunable branches prefers prunable info",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.Synced{},
-				StashCount:  2,
-				Branches: domain.Branches{
-					Current: domain.OnBranch{Name: "main"},
-					Merged:  []string{"feature-a"},
-				},
-			},
+			repo: makeTestRepository("repo", withRepoMutator(func(repo *domain.Repository) {
+				repo.StashCount = 2
+				repo.Branches.Merged = []string{"feature-a"}
+			})),
 			contains: []string{"1 prunable branch"},
 		},
 		{
 			name: "idle with remote error and stash prefers remote error",
-			repo: domain.Repository{
-				Activity:    domain.IdleActivity{},
-				RemoteState: domain.RemoteError{Message: "connection timed out"},
-				StashCount:  4,
-				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-			},
+			repo: makeTestRepository(
+				"repo",
+				withRepoRemoteState(domain.RemoteError{Message: "connection timed out"}),
+				withRepoStashCount(4),
+			),
 			contains: []string{"connection timed out"},
 		},
 		{
 			name: "refreshing in progress shows empty info",
-			repo: domain.Repository{
-				Activity:    &domain.RefreshingActivity{Complete: false},
-				RemoteState: domain.Synced{},
-				Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-			},
+			repo: makeTestRepository("repo", withRepoActivity(&domain.RefreshingActivity{Complete: false})),
 		},
 	}
 
@@ -789,20 +712,10 @@ func TestStylePullOutput(t *testing.T) {
 func TestRepositoryToRow(t *testing.T) {
 	t.Parallel()
 
-	repo := domain.Repository{
-		Name:        "test-repo",
-		Path:        "/tmp/test-repo",
-		Activity:    domain.IdleActivity{},
-		LocalState:  domain.CleanLocalState{},
-		RemoteState: domain.Synced{},
-		PullRequests: domain.PullRequestCount{
-			Open:   2,
-			MyOpen: 1,
-		},
-		Branches: domain.Branches{
-			Current: domain.OnBranch{Name: "main"},
-		},
-	}
+	repo := makeTestRepository("test-repo", withRepoPullRequests(domain.PullRequestCount{
+		Open:   2,
+		MyOpen: 1,
+	}))
 
 	row := repositoryToRow(repo, true, ColumnLayout{ProjectWidth: 30, BranchWidth: 20, InfoWidth: InfoWidth}, InfoRuntime{})
 
@@ -847,20 +760,13 @@ func TestRepositoryToRow(t *testing.T) {
 func TestRepositoryToRow_NotSelected(t *testing.T) {
 	t.Parallel()
 
-	repo := domain.Repository{
-		Name:        "another-repo",
-		Path:        "/tmp/another-repo",
-		Activity:    domain.IdleActivity{},
-		LocalState:  domain.DirtyLocalState{Modified: 2},
-		RemoteState: domain.Behind{Count: 3},
-		PullRequests: domain.PullRequestCount{
-			Open:   1,
-			MyOpen: 0,
-		},
-		Branches: domain.Branches{
-			Current: domain.OnBranch{Name: "develop"},
-		},
-	}
+	repo := makeTestRepository(
+		"another-repo",
+		withRepoLocalState(domain.DirtyLocalState{Modified: 2}),
+		withRepoRemoteState(domain.Behind{Count: 3}),
+		withRepoPullRequests(domain.PullRequestCount{Open: 1, MyOpen: 0}),
+		withRepoCurrentBranch(domain.OnBranch{Name: "develop"}),
+	)
 
 	row := repositoryToRow(repo, false, ColumnLayout{ProjectWidth: 30, BranchWidth: 20, InfoWidth: InfoWidth}, InfoRuntime{})
 

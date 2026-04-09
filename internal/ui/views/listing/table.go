@@ -113,20 +113,9 @@ func buildSelector(isSelected bool) string {
 }
 
 func buildProjectName(name string, isSelected bool, width int) string {
-	if width < 1 {
-		width = 1
-	}
-
-	displayName := name
-	if lipgloss.Width(name) > width {
-		displayName = common.TruncateWithEllipsis(name, width)
-	}
-
 	style := lipgloss.NewStyle().
 		Foreground(common.TextPrimary).
 		Align(lipgloss.Left).
-		Width(width).
-		MaxWidth(width).
 		Height(1).
 		MaxHeight(1).
 		AlignHorizontal(lipgloss.Left)
@@ -135,7 +124,7 @@ func buildProjectName(name string, isSelected bool, width int) string {
 		style = style.Bold(true)
 	}
 
-	return style.Render(displayName)
+	return common.RenderTruncatedText(name, width, style)
 }
 
 func buildBranchName(branch domain.Branch, width int) string {

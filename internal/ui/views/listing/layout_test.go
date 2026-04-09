@@ -131,17 +131,6 @@ func TestDistributeWidth_RespectsMaximums(t *testing.T) {
 func TestCalculateColumnWidths(t *testing.T) {
 	t.Parallel()
 
-	makeRepo := func(name string, branch domain.Branch) domain.Repository {
-		return domain.Repository{
-			Name:        name,
-			Path:        "/tmp/" + name,
-			Activity:    domain.IdleActivity{},
-			LocalState:  domain.CleanLocalState{},
-			RemoteState: domain.Synced{},
-			Branches:    domain.Branches{Current: branch},
-		}
-	}
-
 	tests := []struct {
 		name          string
 		repos         []domain.Repository
@@ -158,7 +147,7 @@ func TestCalculateColumnWidths(t *testing.T) {
 		},
 		{
 			name:          "short names clamped to minimums",
-			repos:         []domain.Repository{makeRepo("app", domain.OnBranch{Name: "main"})},
+			repos:         []domain.Repository{makeTestRepository("app")},
 			terminalWidth: 200,
 			wantProject:   MinProjectWidth,
 			wantBranch:    MinBranchWidth,
@@ -166,7 +155,7 @@ func TestCalculateColumnWidths(t *testing.T) {
 		{
 			name: "long project name clamped to max",
 			repos: []domain.Repository{
-				makeRepo("this-is-a-very-long-repository-name-that-exceeds-the-maximum", domain.OnBranch{Name: "main"}),
+				makeTestRepository("this-is-a-very-long-repository-name-that-exceeds-the-maximum"),
 			},
 			terminalWidth: 200,
 			wantProject:   MaxProjectWidth,
@@ -175,7 +164,10 @@ func TestCalculateColumnWidths(t *testing.T) {
 		{
 			name: "long branch name clamped to max",
 			repos: []domain.Repository{
-				makeRepo("app", domain.OnBranch{Name: "feature/very-long-branch-name-that-is-too-wide"}),
+				makeTestRepository(
+					"app",
+					withRepoCurrentBranch(domain.OnBranch{Name: "feature/very-long-branch-name-that-is-too-wide"}),
+				),
 			},
 			terminalWidth: 200,
 			wantProject:   MinProjectWidth,
@@ -183,7 +175,7 @@ func TestCalculateColumnWidths(t *testing.T) {
 		},
 		{
 			name:          "zero terminal width uses content-based widths",
-			repos:         []domain.Repository{makeRepo("my-project", domain.OnBranch{Name: "develop"})},
+			repos:         []domain.Repository{makeTestRepository("my-project", withRepoCurrentBranch(domain.OnBranch{Name: "develop"}))},
 			terminalWidth: 0,
 			wantProject:   MinProjectWidth,
 			wantBranch:    MinBranchWidth,
@@ -205,14 +197,7 @@ func TestCalculateColumnWidths(t *testing.T) {
 func TestCalculateColumnWidths_NarrowTerminal(t *testing.T) {
 	t.Parallel()
 
-	repo := domain.Repository{
-		Name:        "my-project",
-		Path:        "/tmp/my-project",
-		Activity:    domain.IdleActivity{},
-		LocalState:  domain.CleanLocalState{},
-		RemoteState: domain.Synced{},
-		Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-	}
+	repo := makeTestRepository("my-project")
 
 	// Very narrow terminal — available should go negative, returning minimums
 	project, branch := calculateColumnWidths([]domain.Repository{repo}, 10)
@@ -227,14 +212,7 @@ func TestCalculateColumnWidths_NarrowTerminal(t *testing.T) {
 func TestCalculateColumnWidths_DetachedHead(t *testing.T) {
 	t.Parallel()
 
-	repo := domain.Repository{
-		Name:        "my-project",
-		Path:        "/tmp/my-project",
-		Activity:    domain.IdleActivity{},
-		LocalState:  domain.CleanLocalState{},
-		RemoteState: domain.Synced{},
-		Branches:    domain.Branches{Current: domain.DetachedHead{CommitSHA: "abc123"}},
-	}
+	repo := makeTestRepository("my-project", withRepoCurrentBranch(domain.DetachedHead{CommitSHA: "abc123"}))
 
 	// DetachedHead should use "HEAD" (4 chars) for branch width calculation
 	project, branch := calculateColumnWidths([]domain.Repository{repo}, 200)
@@ -250,18 +228,11 @@ func TestCalculateColumnWidths_MultipleRepos(t *testing.T) {
 	t.Parallel()
 
 	repos := []domain.Repository{
-		{
-			Name: "short", Path: "/tmp/short",
-			Activity: domain.IdleActivity{}, LocalState: domain.CleanLocalState{},
-			RemoteState: domain.Synced{},
-			Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-		},
-		{
-			Name: "this-is-a-medium-length-name", Path: "/tmp/medium",
-			Activity: domain.IdleActivity{}, LocalState: domain.CleanLocalState{},
-			RemoteState: domain.Synced{},
-			Branches:    domain.Branches{Current: domain.OnBranch{Name: "feature/long-branch"}},
-		},
+		makeTestRepository("short"),
+		makeTestRepository(
+			"this-is-a-medium-length-name",
+			withRepoCurrentBranch(domain.OnBranch{Name: "feature/long-branch"}),
+		),
 	}
 
 	project, branch := calculateColumnWidths(repos, 200)

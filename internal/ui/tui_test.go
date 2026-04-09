@@ -23,13 +23,7 @@ func TestMainModel_ScanFinishedMsg_TransitionsToListingView(t *testing.T) {
 	m := New(t.TempDir())
 
 	repos := []domain.Repository{
-		{
-			Name: "test-repo", Path: "/tmp/test-repo",
-			Activity:    domain.IdleActivity{},
-			LocalState:  domain.CleanLocalState{},
-			RemoteState: domain.Synced{},
-			Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-		},
+		makeTestRepository("test-repo"),
 	}
 
 	msg := scanning.ScanFinishedMsg{Repos: repos}
@@ -97,8 +91,8 @@ func TestMainModel_DelegatesKeyMsgToListingInRepoListView(t *testing.T) {
 	m := New(t.TempDir())
 
 	repos := []domain.Repository{
-		{Name: "a", Path: "/a", Activity: domain.IdleActivity{}, LocalState: domain.CleanLocalState{}, RemoteState: domain.Synced{}, Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}}},
-		{Name: "b", Path: "/b", Activity: domain.IdleActivity{}, LocalState: domain.CleanLocalState{}, RemoteState: domain.Synced{}, Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}}},
+		makeTestRepository("a", withRepoPath("/a")),
+		makeTestRepository("b", withRepoPath("/b")),
 	}
 	m.Update(scanning.ScanFinishedMsg{Repos: repos})
 
@@ -116,15 +110,9 @@ func TestMainModel_EnterTransitionsToPullRequestView(t *testing.T) {
 	m := New(t.TempDir())
 
 	repos := []domain.Repository{
-		{
-			Name:        "repo-a",
-			Path:        "/tmp/repo-a",
-			RemoteURL:   "https://github.com/octo/repo-a",
-			Activity:    domain.IdleActivity{},
-			LocalState:  domain.CleanLocalState{},
-			RemoteState: domain.Synced{},
-			Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-		},
+		makeTestRepository("repo-a", withRepoMutator(func(repo *domain.Repository) {
+			repo.RemoteURL = "https://github.com/octo/repo-a"
+		})),
 	}
 	m.Update(scanning.ScanFinishedMsg{Repos: repos})
 
@@ -153,15 +141,7 @@ func TestMainModel_EscapeTransitionsBackToListingView(t *testing.T) {
 	m := New(t.TempDir())
 
 	repos := []domain.Repository{
-		{
-			Name:        "repo-a",
-			Path:        "/tmp/repo-a",
-			RemoteURL:   "https://github.com/octo/repo-a",
-			Activity:    domain.IdleActivity{},
-			LocalState:  domain.CleanLocalState{},
-			RemoteState: domain.Synced{},
-			Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-		},
+		makeTestRepository("repo-a", withRepoRemoteURL("https://github.com/octo/repo-a")),
 	}
 	m.Update(scanning.ScanFinishedMsg{Repos: repos})
 	_, openCmd := m.Update(tea.KeyPressMsg{Code: '\r'})
