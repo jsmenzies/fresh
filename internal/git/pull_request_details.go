@@ -13,11 +13,11 @@ import (
 var ErrPullRequestDetailsUnsupported = errors.New("pull requests are currently only supported for GitHub repositories")
 
 type ghRepoPullRequestRow struct {
-	Number           int    `json:"number"`
-	Title            string `json:"title"`
-	UpdatedAt        string `json:"updatedAt"`
+	Number            int                    `json:"number"`
+	Title             string                 `json:"title"`
+	UpdatedAt         string                 `json:"updatedAt"`
 	StatusCheckRollup []ghStatusCheckContext `json:"statusCheckRollup"`
-	Author           struct {
+	Author            struct {
 		Login string `json:"login"`
 	} `json:"author"`
 }
