@@ -11,10 +11,10 @@ import (
 type BackToRepoListMsg struct{}
 
 type PullRequestsLoadedMsg struct {
-	RepoPath    string
+	RepoPath     string
 	PullRequests []domain.PullRequestDetails
-	Unsupported bool
-	Error       string
+	Unsupported  bool
+	Error        string
 }
 
 type pulseTickMsg struct{}
