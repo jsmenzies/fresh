@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"container/heap"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -36,14 +37,51 @@ type Notification struct {
 type scheduledNotification struct {
 	notification Notification
 	nextDue      time.Time
+	index        int
+}
+
+type notificationHeap []*scheduledNotification
+
+func (h notificationHeap) Len() int {
+	return len(h)
+}
+
+func (h notificationHeap) Less(i, j int) bool {
+	return h[i].nextDue.Before(h[j].nextDue)
+}
+
+func (h notificationHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+	h[i].index = i
+	h[j].index = j
+}
+
+func (h *notificationHeap) Push(value any) {
+	entry := value.(*scheduledNotification)
+	entry.index = len(*h)
+	*h = append(*h, entry)
+}
+
+func (h *notificationHeap) Pop() any {
+	entries := *h
+	last := len(entries) - 1
+	entry := entries[last]
+	entry.index = -1
+	*h = entries[:last]
+	return entry
 }
 
 type Notifier struct {
-	mu      sync.Mutex
-	entries map[string]scheduledNotification
-	stopCh  chan struct{}
-	doneCh  chan struct{}
-	running bool
+	mu       sync.Mutex
+	entries  map[string]*scheduledNotification
+	dueHeap  notificationHeap
+	stopCh   chan struct{}
+	wakeupCh chan struct{}
+	doneCh   chan struct{}
+	running  bool
+
+	now    func() time.Time
+	sendFn func(Notification)
 }
 
 const (
@@ -52,9 +90,12 @@ const (
 )
 
 func NewNotifier() *Notifier {
-	return &Notifier{
-		entries: make(map[string]scheduledNotification),
+	notifier := &Notifier{
+		entries: make(map[string]*scheduledNotification),
+		now:     time.Now,
 	}
+	notifier.sendFn = notifier.send
+	return notifier
 }
 
 func (n *Notifier) Start() {
@@ -66,10 +107,11 @@ func (n *Notifier) Start() {
 	}
 
 	n.stopCh = make(chan struct{})
+	n.wakeupCh = make(chan struct{}, 1)
 	n.doneCh = make(chan struct{})
 	n.running = true
 
-	go n.loop()
+	go n.loop(n.stopCh, n.wakeupCh, n.doneCh)
 }
 
 func (n *Notifier) Stop() {
@@ -82,6 +124,7 @@ func (n *Notifier) Stop() {
 	doneCh := n.doneCh
 	n.running = false
 	n.stopCh = nil
+	n.wakeupCh = nil
 	n.doneCh = nil
 	n.mu.Unlock()
 
@@ -98,62 +141,123 @@ func (n *Notifier) Upsert(notification Notification) {
 		notification.RepeatEvery = 10 * time.Second
 	}
 
-	n.send(notification)
+	n.sendFn(notification)
 
 	if !notification.Repeat {
 		n.Resolve(notification.Key)
 		return
 	}
 
-	entry := scheduledNotification{
-		notification: notification,
-		nextDue:      time.Now().Add(notification.RepeatEvery),
-	}
-
+	key := notification.Key.String()
+	nextDue := n.now().Add(notification.RepeatEvery)
 	n.mu.Lock()
-	n.entries[notification.Key.String()] = entry
+	entry, exists := n.entries[key]
+	if exists {
+		entry.notification = notification
+		entry.nextDue = nextDue
+		heap.Fix(&n.dueHeap, entry.index)
+	} else {
+		entry = &scheduledNotification{
+			notification: notification,
+			nextDue:      nextDue,
+			index:        -1,
+		}
+		heap.Push(&n.dueHeap, entry)
+		n.entries[key] = entry
+	}
+	wakeupCh := n.wakeupCh
+	running := n.running
 	n.mu.Unlock()
+
+	if running {
+		notifyLoop(wakeupCh)
+	}
 }
 
 func (n *Notifier) Resolve(key PRKey) {
 	n.mu.Lock()
-	delete(n.entries, key.String())
+	entry, exists := n.entries[key.String()]
+	if exists {
+		heap.Remove(&n.dueHeap, entry.index)
+		delete(n.entries, key.String())
+	}
+	wakeupCh := n.wakeupCh
+	running := n.running
 	n.mu.Unlock()
+
+	if running {
+		notifyLoop(wakeupCh)
+	}
 }
 
-func (n *Notifier) loop() {
-	defer close(n.doneCh)
+func (n *Notifier) loop(stopCh <-chan struct{}, wakeupCh <-chan struct{}, doneCh chan struct{}) {
+	defer close(doneCh)
 
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+	var timer *time.Timer
+	var timerCh <-chan time.Time
 
 	for {
+		wait, hasDue := n.nextDueWait()
+		if hasDue {
+			if timer == nil {
+				timer = time.NewTimer(wait)
+			} else {
+				resetTimer(timer, wait)
+			}
+			timerCh = timer.C
+		} else {
+			stopTimer(timer)
+			timerCh = nil
+		}
+
 		select {
-		case <-n.stopCh:
+		case <-stopCh:
+			stopTimer(timer)
 			return
-		case <-ticker.C:
-			n.sendDue()
+		case <-wakeupCh:
+			continue
+		case <-timerCh:
+			n.sendDue(n.now())
 		}
 	}
 }
 
-func (n *Notifier) sendDue() {
-	now := time.Now()
+func (n *Notifier) nextDueWait() (time.Duration, bool) {
+	now := n.now()
 
 	n.mu.Lock()
-	due := make([]scheduledNotification, 0)
-	for key, entry := range n.entries {
-		if now.Before(entry.nextDue) {
-			continue
+	defer n.mu.Unlock()
+
+	if len(n.dueHeap) == 0 {
+		return 0, false
+	}
+
+	wait := n.dueHeap[0].nextDue.Sub(now)
+	if wait < 0 {
+		wait = 0
+	}
+
+	return wait, true
+}
+
+func (n *Notifier) sendDue(now time.Time) {
+	due := make([]Notification, 0)
+
+	n.mu.Lock()
+	for len(n.dueHeap) > 0 {
+		entry := n.dueHeap[0]
+		if entry.nextDue.After(now) {
+			break
 		}
-		due = append(due, entry)
+
+		due = append(due, entry.notification)
 		entry.nextDue = now.Add(entry.notification.RepeatEvery)
-		n.entries[key] = entry
+		heap.Fix(&n.dueHeap, entry.index)
 	}
 	n.mu.Unlock()
 
-	for _, entry := range due {
-		n.send(entry.notification)
+	for _, notification := range due {
+		n.sendFn(notification)
 	}
 }
 
@@ -201,4 +305,33 @@ func buildPayload(notification Notification) (title, body, soundPath string) {
 func escapeAppleScriptString(value string) string {
 	value = strings.ReplaceAll(value, "\\", "\\\\")
 	return strings.ReplaceAll(value, "\"", "\\\"")
+}
+
+func notifyLoop(wakeupCh chan struct{}) {
+	if wakeupCh == nil {
+		return
+	}
+
+	select {
+	case wakeupCh <- struct{}{}:
+	default:
+	}
+}
+
+func stopTimer(timer *time.Timer) {
+	if timer == nil {
+		return
+	}
+
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+}
+
+func resetTimer(timer *time.Timer, duration time.Duration) {
+	stopTimer(timer)
+	timer.Reset(duration)
 }
