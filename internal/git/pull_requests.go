@@ -298,6 +298,7 @@ func classifyMyPullRequest(row gqlPullRequestNode) string {
 	if mergeState == "DIRTY" || mergeState == "CONFLICTING" || mergeState == "BLOCKED" || mergeState == "UNKNOWN" {
 		return "blocked"
 	}
+	mergeStateUnstable := mergeState == "UNSTABLE"
 
 	hasChecks := false
 	hasFailingChecks := false
@@ -351,6 +352,19 @@ func classifyMyPullRequest(row gqlPullRequestNode) string {
 	}
 
 	if review == "APPROVED" {
+		return "ready"
+	}
+
+	if review == "REVIEW_REQUIRED" {
+		return "review"
+	}
+
+	if review == "" {
+		// GitHub can return a nil reviewDecision when no approving review is required.
+		// If checks are clear and merge state is otherwise healthy, treat as ready.
+		if mergeStateUnstable {
+			return "checks"
+		}
 		return "ready"
 	}
 

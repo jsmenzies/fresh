@@ -37,6 +37,7 @@ type InfoRuntime struct {
 	PullRequestSyncing   bool
 	PullRequestSpinner   string
 	BlockedSpinner       string
+	ReadySpinner         string
 }
 
 func collectStatusInfoMessages(repo domain.Repository) []InfoMessage {
