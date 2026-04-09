@@ -20,7 +20,6 @@ type listKeyMap struct {
 	pullAll      key.Binding
 	pruneAll     key.Binding
 	openPRs      key.Binding
-	alert        key.Binding
 	toggleLegend key.Binding
 }
 
@@ -45,10 +44,6 @@ func newListKeyMap() *listKeyMap {
 		openPRs: key.NewBinding(
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "view pull requests"),
-		),
-		alert: key.NewBinding(
-			key.WithKeys("a"),
-			key.WithHelp("a", "trigger mock alert"),
 		),
 		toggleLegend: key.NewBinding(
 			key.WithKeys("?"),
@@ -197,10 +192,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 		case key.Matches(msg, m.Keys.toggleLegend):
 			m.ShowLegend = !m.ShowLegend
-			return m, nil
-
-		case key.Matches(msg, m.Keys.alert):
-			m.triggerMockAlert()
 			return m, nil
 
 		case msg.String() == "up", msg.String() == "k":
@@ -429,7 +420,6 @@ func (m *Model) buildFooter() string {
 		watchStatus,
 		"p pull all updates",
 		"b prune merged branches",
-		"a mock alert",
 		"? toggle legend",
 		"q quit",
 	}
@@ -462,22 +452,4 @@ func (m *Model) pruneExpiredRecentActivityInfo(now time.Time) {
 		}
 		m.RecentInfo[repoPath] = filtered
 	}
-}
-
-func (m *Model) triggerMockAlert() {
-	if m.notifier == nil {
-		return
-	}
-
-	m.notifier.Upsert(notifications.Notification{
-		Key: notifications.PRKey{
-			Owner:  "mock-owner",
-			Repo:   "mock-repo",
-			Number: 1,
-		},
-		Kind:        notifications.KindProgress,
-		Reason:      "Mock alert from keypress",
-		Repeat:      true,
-		RepeatEvery: 10 * time.Second,
-	})
 }
