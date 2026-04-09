@@ -3,6 +3,7 @@ package listing
 import (
 	"fresh/internal/domain"
 	"fresh/internal/notifications"
+	"fresh/internal/pullrequests"
 	"fresh/internal/ui/views/common"
 	"sort"
 	"strings"
@@ -57,27 +58,29 @@ func newListKeyMap() *listKeyMap {
 }
 
 type Model struct {
-	Repositories   []domain.Repository
-	Cursor         int
-	Keys           *listKeyMap
-	layout         ColumnLayout
-	width, height  int
-	ShowLegend     bool
-	InfoPhase      uint64
-	RotateEvery    time.Duration
-	ActivityTTL    time.Duration
-	RecentInfo     map[string][]TimedInfoMessage
-	StartupPRSync  bool
-	PRSyncInFlight int
-	PRSyncSpinner  spinner.Model
-	BlockedSpinner spinner.Model
-	ReadySpinner   spinner.Model
-	WatchEnabled   bool
-	WatchToken     uint64
-	WatchBackoff   int
-	WatchEvery     time.Duration
-	WatchMaxEvery  time.Duration
-	notifier       *notifications.Notifier
+	Repositories     []domain.Repository
+	Cursor           int
+	Keys             *listKeyMap
+	layout           ColumnLayout
+	width, height    int
+	ShowLegend       bool
+	InfoPhase        uint64
+	RotateEvery      time.Duration
+	ActivityTTL      time.Duration
+	RecentInfo       map[string][]TimedInfoMessage
+	StartupPRSync    bool
+	PRSyncInFlight   int
+	PRSyncGeneration uint64
+	PRSyncSpinner    spinner.Model
+	BlockedSpinner   spinner.Model
+	ReadySpinner     spinner.Model
+	WatchEnabled     bool
+	WatchToken       uint64
+	WatchBackoff     int
+	WatchEvery       time.Duration
+	WatchMaxEvery    time.Duration
+	prCoordinator    *pullrequests.NotificationCoordinator
+	notifier         *notifications.Notifier
 }
 
 func New(repos []domain.Repository) *Model {
@@ -94,25 +97,27 @@ func NewWithNotifier(repos []domain.Repository, notifier *notifications.Notifier
 	}
 
 	return &Model{
-		Repositories:   repos,
-		Cursor:         0,
-		Keys:           newListKeyMap(),
-		layout:         calculateColumnLayout(repos, 0),
-		ShowLegend:     false,
-		RotateEvery:    10 * time.Second,
-		ActivityTTL:    10 * time.Second,
-		RecentInfo:     make(map[string][]TimedInfoMessage),
-		StartupPRSync:  false,
-		PRSyncInFlight: 0,
-		PRSyncSpinner:  common.NewPullRequestSpinner(),
-		BlockedSpinner: common.NewBlockedPullRequestSpinner(),
-		ReadySpinner:   common.NewReadyPullRequestSpinner(),
-		WatchEnabled:   false,
-		WatchToken:     0,
-		WatchBackoff:   0,
-		WatchEvery:     defaultWatchInterval,
-		WatchMaxEvery:  defaultWatchMaxInterval,
-		notifier:       notifier,
+		Repositories:     repos,
+		Cursor:           0,
+		Keys:             newListKeyMap(),
+		layout:           calculateColumnLayout(repos, 0),
+		ShowLegend:       false,
+		RotateEvery:      10 * time.Second,
+		ActivityTTL:      10 * time.Second,
+		RecentInfo:       make(map[string][]TimedInfoMessage),
+		StartupPRSync:    false,
+		PRSyncInFlight:   0,
+		PRSyncGeneration: 0,
+		PRSyncSpinner:    common.NewPullRequestSpinner(),
+		BlockedSpinner:   common.NewBlockedPullRequestSpinner(),
+		ReadySpinner:     common.NewReadyPullRequestSpinner(),
+		WatchEnabled:     false,
+		WatchToken:       0,
+		WatchBackoff:     0,
+		WatchEvery:       defaultWatchInterval,
+		WatchMaxEvery:    defaultWatchMaxInterval,
+		prCoordinator:    pullrequests.NewNotificationCoordinator(nil),
+		notifier:         notifier,
 	}
 }
 
@@ -218,10 +223,22 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		})
 
 	case PullRequestStatesUpdatedMsg:
+		if msg.Generation != m.PRSyncGeneration {
+			m.completePullRequestSync()
+			if msg.Trigger == pullRequestSyncWatch && m.WatchEnabled {
+				return m, scheduleWatchTick(m.currentWatchInterval(), m.WatchToken)
+			}
+			return m, nil
+		}
+
 		m.applyPullRequestStates(msg.States)
+		syncFailed := hasPullRequestSyncError(msg.States)
+		if !syncFailed {
+			m.applyPullRequestWatchlist(msg.Tracked, msg.Trigger == pullRequestSyncStartup)
+		}
 		m.completePullRequestSync()
 		if msg.Trigger == pullRequestSyncWatch && m.WatchEnabled {
-			m.updateWatchBackoff(hasPullRequestSyncError(msg.States))
+			m.updateWatchBackoff(syncFailed)
 			return m, scheduleWatchTick(m.currentWatchInterval(), m.WatchToken)
 		}
 
@@ -359,6 +376,14 @@ func (m *Model) applyRepoUpdate(index int, next domain.Repository, onUpdate func
 	if onUpdate != nil {
 		onUpdate(repo, activity)
 	}
+}
+
+func (m *Model) applyPullRequestWatchlist(tracked []pullrequests.Snapshot, seed bool) {
+	if m.prCoordinator == nil {
+		return
+	}
+
+	m.prCoordinator.Sync(tracked, pullrequests.ApplyOptions{Seed: seed}, m.notifier)
 }
 
 func (m *Model) View() string {

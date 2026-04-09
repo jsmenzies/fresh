@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"fresh/internal/domain"
+	"fresh/internal/pullrequests"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -22,8 +23,10 @@ const (
 )
 
 type PullRequestStatesUpdatedMsg struct {
-	States  map[string]domain.PullRequestState
-	Trigger PullRequestSyncTrigger
+	Generation uint64
+	States     map[string]domain.PullRequestState
+	Tracked    []pullrequests.Snapshot
+	Trigger    PullRequestSyncTrigger
 }
 
 type OpenPullRequestsMsg struct {
