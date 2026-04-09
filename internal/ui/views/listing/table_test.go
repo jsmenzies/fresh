@@ -366,17 +366,17 @@ func TestBuildPullRequestStatus(t *testing.T) {
 	}
 }
 
-func TestBuildPullRequestStatus_SyncingShowsSpinnerOnly(t *testing.T) {
+func TestBuildPullRequestStatus_SyncingKeepsCurrentStateVisible(t *testing.T) {
 	t.Parallel()
 
 	runtime := InfoRuntime{PullRequestSyncing: true, PullRequestSpinner: "⠋"}
 	got := buildPullRequestStatus(domain.PullRequestCount{Open: 9, MyOpen: 1}, runtime)
 
-	if !strings.Contains(got, "⠋") {
-		t.Fatalf("buildPullRequestStatus() = %q, want spinner", got)
+	if strings.Contains(got, "⠋") {
+		t.Fatalf("buildPullRequestStatus() = %q, want spinner hidden while syncing", got)
 	}
-	if strings.Contains(got, "9") || strings.Contains(got, "(*)") {
-		t.Fatalf("buildPullRequestStatus() = %q, want spinner-only content", got)
+	if !strings.Contains(got, "9") || !strings.Contains(got, "(*)") {
+		t.Fatalf("buildPullRequestStatus() = %q, want existing PR summary preserved", got)
 	}
 }
 
@@ -391,9 +391,9 @@ func TestBuildPullRequestAlert(t *testing.T) {
 		isEmpty  bool
 	}{
 		{
-			name:    "syncing keeps alert empty",
-			state:   domain.PullRequestCount{Open: 9, MyOpen: 1},
-			runtime: InfoRuntime{PullRequestSyncing: true, PullRequestSpinner: "⠋"},
+			name:    "syncing hides alert even when blocked prs exist",
+			state:   domain.PullRequestCount{Open: 9, MyOpen: 1, MyBlocked: 2},
+			runtime: InfoRuntime{PullRequestSyncing: true, PullRequestSpinner: "⠋", BlockedSpinner: "█"},
 			isEmpty: true,
 		},
 		{
