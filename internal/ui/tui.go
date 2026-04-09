@@ -19,13 +19,13 @@ const (
 )
 
 type MainModel struct {
-	currentView       CurrentView
-	scanningView      *scanning.Model
-	listingView       *listing.Model
-	pullRequestsView  *pullrequests.Model
-	pullRequestCache  map[string][]domain.PullRequestDetails
-	notifier          *notifications.Notifier
-	width, height     int
+	currentView      CurrentView
+	scanningView     *scanning.Model
+	listingView      *listing.Model
+	pullRequestsView *pullrequests.Model
+	pullRequestCache map[string][]domain.PullRequestDetails
+	notifier         *notifications.Notifier
+	width, height    int
 }
 
 func New(scanDir string, notifier ...*notifications.Notifier) *MainModel {

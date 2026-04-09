@@ -33,18 +33,18 @@ func newPRListKeyMap() *prListKeyMap {
 }
 
 type Model struct {
-	Repo         domain.Repository
-	PullRequests []domain.PullRequestDetails
-	Cursor       int
-	Keys         *prListKeyMap
-	layout       ColumnLayout
+	Repo          domain.Repository
+	PullRequests  []domain.PullRequestDetails
+	Cursor        int
+	Keys          *prListKeyMap
+	layout        ColumnLayout
 	width, height int
-	Loading      bool
-	Unsupported  bool
-	LoadError    string
-	PulseOn      bool
-	PulseEvery   time.Duration
-	Spinner      spinner.Model
+	Loading       bool
+	Unsupported   bool
+	LoadError     string
+	PulseOn       bool
+	PulseEvery    time.Duration
+	Spinner       spinner.Model
 }
 
 func New(repo domain.Repository, cached []domain.PullRequestDetails) *Model {
