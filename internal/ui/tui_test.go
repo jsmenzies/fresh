@@ -110,7 +110,7 @@ func TestMainModel_EnterTransitionsToPullRequestView(t *testing.T) {
 	m := New(t.TempDir())
 
 	repos := []domain.Repository{
-		makeTestRepository("repo-a", withRepo(domain.Repository{RemoteURL: "https://github.com/octo/repo-a"})),
+		newTestRepository("repo-a").RemoteURL("https://github.com/octo/repo-a").Build(),
 	}
 	m.Update(scanning.ScanFinishedMsg{Repos: repos})
 
@@ -139,7 +139,7 @@ func TestMainModel_EscapeTransitionsBackToListingView(t *testing.T) {
 	m := New(t.TempDir())
 
 	repos := []domain.Repository{
-		makeTestRepository("repo-a", withRepo(domain.Repository{RemoteURL: "https://github.com/octo/repo-a"})),
+		newTestRepository("repo-a").RemoteURL("https://github.com/octo/repo-a").Build(),
 	}
 	m.Update(scanning.ScanFinishedMsg{Repos: repos})
 	_, openCmd := m.Update(tea.KeyPressMsg{Code: '\r'})

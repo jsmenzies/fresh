@@ -164,10 +164,9 @@ func TestCalculateColumnWidths(t *testing.T) {
 		{
 			name: "long branch name clamped to max",
 			repos: []domain.Repository{
-				makeTestRepository(
-					"app",
-					withRepo(domain.Repository{Branches: domain.Branches{Current: domain.OnBranch{Name: "feature/very-long-branch-name-that-is-too-wide"}}}),
-				),
+				newTestRepository("app").
+					CurrentBranch(domain.OnBranch{Name: "feature/very-long-branch-name-that-is-too-wide"}).
+					Build(),
 			},
 			terminalWidth: 200,
 			wantProject:   MinProjectWidth,
@@ -175,7 +174,7 @@ func TestCalculateColumnWidths(t *testing.T) {
 		},
 		{
 			name:          "zero terminal width uses content-based widths",
-			repos:         []domain.Repository{makeTestRepository("my-project", withRepo(domain.Repository{Branches: domain.Branches{Current: domain.OnBranch{Name: "develop"}}}))},
+			repos:         []domain.Repository{newTestRepository("my-project").CurrentBranch(domain.OnBranch{Name: "develop"}).Build()},
 			terminalWidth: 0,
 			wantProject:   MinProjectWidth,
 			wantBranch:    MinBranchWidth,
@@ -212,7 +211,7 @@ func TestCalculateColumnWidths_NarrowTerminal(t *testing.T) {
 func TestCalculateColumnWidths_DetachedHead(t *testing.T) {
 	t.Parallel()
 
-	repo := makeTestRepository("my-project", withRepo(domain.Repository{Branches: domain.Branches{Current: domain.DetachedHead{CommitSHA: "abc123"}}}))
+	repo := newTestRepository("my-project").CurrentBranch(domain.DetachedHead{CommitSHA: "abc123"}).Build()
 
 	// DetachedHead should use "HEAD" (4 chars) for branch width calculation
 	project, branch := calculateColumnWidths([]domain.Repository{repo}, 200)
@@ -229,10 +228,7 @@ func TestCalculateColumnWidths_MultipleRepos(t *testing.T) {
 
 	repos := []domain.Repository{
 		makeTestRepository("short"),
-		makeTestRepository(
-			"this-is-a-medium-length-name",
-			withRepo(domain.Repository{Branches: domain.Branches{Current: domain.OnBranch{Name: "feature/long-branch"}}}),
-		),
+		newTestRepository("this-is-a-medium-length-name").CurrentBranch(domain.OnBranch{Name: "feature/long-branch"}).Build(),
 	}
 
 	project, branch := calculateColumnWidths(repos, 200)

@@ -2,56 +2,77 @@ package listing
 
 import "fresh/internal/domain"
 
-type testRepositoryOption func(*domain.Repository)
-
-func makeTestRepository(name string, opts ...testRepositoryOption) domain.Repository {
-	repo := domain.Repository{
-		Name:        name,
-		Path:        "/tmp/" + name,
-		Activity:    domain.IdleActivity{},
-		LocalState:  domain.CleanLocalState{},
-		RemoteState: domain.Synced{},
-		Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
-	}
-
-	for _, opt := range opts {
-		opt(&repo)
-	}
-
-	return repo
+func makeTestRepository(name string) domain.Repository {
+	return newTestRepository(name).Build()
 }
 
-func withRepo(overrides domain.Repository) testRepositoryOption {
-	return func(repo *domain.Repository) {
-		if overrides.Name != "" {
-			repo.Name = overrides.Name
-		}
-		if overrides.Path != "" {
-			repo.Path = overrides.Path
-		}
-		if overrides.RemoteURL != "" {
-			repo.RemoteURL = overrides.RemoteURL
-		}
-		if overrides.Activity != nil {
-			repo.Activity = overrides.Activity
-		}
-		if overrides.LocalState != nil {
-			repo.LocalState = overrides.LocalState
-		}
-		if overrides.RemoteState != nil {
-			repo.RemoteState = overrides.RemoteState
-		}
-		if overrides.PullRequests != nil {
-			repo.PullRequests = overrides.PullRequests
-		}
-		if overrides.Branches.Current != nil {
-			repo.Branches.Current = overrides.Branches.Current
-		}
-		if overrides.Branches.Merged != nil {
-			repo.Branches.Merged = append([]string(nil), overrides.Branches.Merged...)
-		}
-		if overrides.StashCount != 0 {
-			repo.StashCount = overrides.StashCount
-		}
+type testRepositoryBuilder struct {
+	repo domain.Repository
+}
+
+func newTestRepository(name string) *testRepositoryBuilder {
+	return &testRepositoryBuilder{
+		repo: domain.Repository{
+			Name:        name,
+			Path:        "/tmp/" + name,
+			Activity:    domain.IdleActivity{},
+			LocalState:  domain.CleanLocalState{},
+			RemoteState: domain.Synced{},
+			Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
+		},
 	}
+}
+
+func (b *testRepositoryBuilder) Name(name string) *testRepositoryBuilder {
+	b.repo.Name = name
+	return b
+}
+
+func (b *testRepositoryBuilder) Path(path string) *testRepositoryBuilder {
+	b.repo.Path = path
+	return b
+}
+
+func (b *testRepositoryBuilder) RemoteURL(remoteURL string) *testRepositoryBuilder {
+	b.repo.RemoteURL = remoteURL
+	return b
+}
+
+func (b *testRepositoryBuilder) Activity(activity domain.Activity) *testRepositoryBuilder {
+	b.repo.Activity = activity
+	return b
+}
+
+func (b *testRepositoryBuilder) LocalState(state domain.LocalState) *testRepositoryBuilder {
+	b.repo.LocalState = state
+	return b
+}
+
+func (b *testRepositoryBuilder) RemoteState(state domain.RemoteState) *testRepositoryBuilder {
+	b.repo.RemoteState = state
+	return b
+}
+
+func (b *testRepositoryBuilder) PullRequests(state domain.PullRequestState) *testRepositoryBuilder {
+	b.repo.PullRequests = state
+	return b
+}
+
+func (b *testRepositoryBuilder) CurrentBranch(branch domain.Branch) *testRepositoryBuilder {
+	b.repo.Branches.Current = branch
+	return b
+}
+
+func (b *testRepositoryBuilder) MergedBranches(merged ...string) *testRepositoryBuilder {
+	b.repo.Branches.Merged = append([]string(nil), merged...)
+	return b
+}
+
+func (b *testRepositoryBuilder) StashCount(count int) *testRepositoryBuilder {
+	b.repo.StashCount = count
+	return b
+}
+
+func (b *testRepositoryBuilder) Build() domain.Repository {
+	return b.repo
 }
