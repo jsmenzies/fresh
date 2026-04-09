@@ -15,6 +15,7 @@ import (
 
 type listKeyMap struct {
 	refresh      key.Binding
+	watch        key.Binding
 	pullAll      key.Binding
 	pruneAll     key.Binding
 	alert        key.Binding
@@ -26,6 +27,10 @@ func newListKeyMap() *listKeyMap {
 		refresh: key.NewBinding(
 			key.WithKeys("r"),
 			key.WithHelp("r", "refresh"),
+		),
+		watch: key.NewBinding(
+			key.WithKeys("w"),
+			key.WithHelp("w", "toggle watch mode"),
 		),
 		pullAll: key.NewBinding(
 			key.WithKeys("p"),
@@ -47,18 +52,26 @@ func newListKeyMap() *listKeyMap {
 }
 
 type Model struct {
-	Repositories  []domain.Repository
-	Cursor        int
-	Keys          *listKeyMap
-	layout        ColumnLayout
-	width, height int
-	ShowLegend    bool
-	InfoPhase     uint64
-	RotateEvery   time.Duration
-	ActivityTTL   time.Duration
-	RecentInfo    map[string][]TimedInfoMessage
-	StartupPRSync bool
-	notifier      *notifications.Notifier
+	Repositories   []domain.Repository
+	Cursor         int
+	Keys           *listKeyMap
+	layout         ColumnLayout
+	width, height  int
+	ShowLegend     bool
+	InfoPhase      uint64
+	RotateEvery    time.Duration
+	ActivityTTL    time.Duration
+	RecentInfo     map[string][]TimedInfoMessage
+	StartupPRSync  bool
+	PRSyncInFlight int
+	PRSyncSpinner  spinner.Model
+	BlockedSpinner spinner.Model
+	WatchEnabled   bool
+	WatchToken     uint64
+	WatchBackoff   int
+	WatchEvery     time.Duration
+	WatchMaxEvery  time.Duration
+	notifier       *notifications.Notifier
 }
 
 func New(repos []domain.Repository) *Model {
@@ -75,16 +88,24 @@ func NewWithNotifier(repos []domain.Repository, notifier *notifications.Notifier
 	}
 
 	return &Model{
-		Repositories:  repos,
-		Cursor:        0,
-		Keys:          newListKeyMap(),
-		layout:        calculateColumnLayout(repos, 0),
-		ShowLegend:    false,
-		RotateEvery:   10 * time.Second,
-		ActivityTTL:   10 * time.Second,
-		RecentInfo:    make(map[string][]TimedInfoMessage),
-		StartupPRSync: false,
-		notifier:      notifier,
+		Repositories:   repos,
+		Cursor:         0,
+		Keys:           newListKeyMap(),
+		layout:         calculateColumnLayout(repos, 0),
+		ShowLegend:     false,
+		RotateEvery:    10 * time.Second,
+		ActivityTTL:    10 * time.Second,
+		RecentInfo:     make(map[string][]TimedInfoMessage),
+		StartupPRSync:  false,
+		PRSyncInFlight: 0,
+		PRSyncSpinner:  common.NewPullRequestSpinner(),
+		BlockedSpinner: common.NewBlockedPullRequestSpinner(),
+		WatchEnabled:   false,
+		WatchToken:     0,
+		WatchBackoff:   0,
+		WatchEvery:     defaultWatchInterval,
+		WatchMaxEvery:  defaultWatchMaxInterval,
+		notifier:       notifier,
 	}
 }
 
@@ -98,9 +119,10 @@ func (m *Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, scheduleInfoRotateTick(m.RotateEvery))
 	if !m.StartupPRSync {
-		cmds = append(cmds, performPullRequestSync(m.Repositories))
+		cmds = append(cmds, m.startPullRequestSync(pullRequestSyncStartup)...)
 		m.StartupPRSync = true
 	}
+	cmds = append(cmds, m.BlockedSpinner.Tick)
 	for i := range m.Repositories {
 		repo := &m.Repositories[i]
 		repo.Activity = &domain.RefreshingActivity{
@@ -121,19 +143,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.Keys.refresh):
-			var cmds []tea.Cmd
-			cmds = append(cmds, performPullRequestSync(m.Repositories))
-			for i := range m.Repositories {
-				repo := &m.Repositories[i]
-				if !repo.IsBusy() {
-					repo.Activity = &domain.RefreshingActivity{
-						Spinner: common.NewRefreshSpinner(),
-					}
-					cmds = append(cmds, performRefresh(i, repo.Path))
-					cmds = append(cmds, repo.Activity.(*domain.RefreshingActivity).Spinner.Tick)
-				}
-			}
-			return m, tea.Batch(cmds...)
+			return m, m.startRefreshCycle(pullRequestSyncManual)
+
+		case key.Matches(msg, m.Keys.watch):
+			return m, m.toggleWatchMode()
 
 		case key.Matches(msg, m.Keys.pullAll):
 			var cmds []tea.Cmd
@@ -200,6 +213,17 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 	case PullRequestStatesUpdatedMsg:
 		m.applyPullRequestStates(msg.States)
+		m.completePullRequestSync()
+		if msg.Trigger == pullRequestSyncWatch && m.WatchEnabled {
+			m.updateWatchBackoff(hasPullRequestSyncError(msg.States))
+			return m, scheduleWatchTick(m.currentWatchInterval(), m.WatchToken)
+		}
+
+	case watchTickMsg:
+		if !m.WatchEnabled || msg.Token != m.WatchToken {
+			return m, nil
+		}
+		return m, m.startRefreshCycle(pullRequestSyncWatch)
 
 	case pullWorkState:
 		return m, listenForPullProgress(msg)
@@ -270,6 +294,16 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 	case spinner.TickMsg:
 		var cmds []tea.Cmd
+		if m.isPullRequestSyncInFlight() {
+			var cmd tea.Cmd
+			m.PRSyncSpinner, cmd = m.PRSyncSpinner.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+		var blockedCmd tea.Cmd
+		m.BlockedSpinner, blockedCmd = m.BlockedSpinner.Update(msg)
+		if blockedCmd != nil {
+			cmds = append(cmds, blockedCmd)
+		}
 		for i := range m.Repositories {
 			switch activity := m.Repositories[i].Activity.(type) {
 			case *domain.RefreshingActivity:
@@ -325,11 +359,14 @@ func (m *Model) View() string {
 		Phase:                m.InfoPhase,
 		Now:                  time.Now(),
 		RecentActivityByRepo: m.RecentInfo,
+		PullRequestSyncing:   m.isPullRequestSyncInFlight(),
+		PullRequestSpinner:   m.pullRequestSpinnerView(),
+		BlockedSpinner:       m.BlockedSpinner.View(),
 	}
 	s.WriteString(GenerateTable(m.Repositories, m.Cursor, m.layout, runtime))
 	s.WriteString("\n\n")
 
-	s.WriteString(buildFooter())
+	s.WriteString(m.buildFooter())
 
 	legend := RenderLegend(m.ShowLegend)
 	s.WriteString("\n\n")
@@ -338,10 +375,16 @@ func (m *Model) View() string {
 	return s.String()
 }
 
-func buildFooter() string {
+func (m *Model) buildFooter() string {
+	watchStatus := "w watch off"
+	if m.WatchEnabled {
+		watchStatus = "w watch on (" + m.currentWatchInterval().String() + ")"
+	}
+
 	hotkeys := []string{
 		"↑/↓ navigate",
 		"r refresh",
+		watchStatus,
 		"p pull all updates",
 		"b prune merged branches",
 		"a mock alert",

@@ -21,6 +21,7 @@ const (
 	SelectorWidth  = 2
 	LocalWidth     = 15
 	RemoteWidth    = 11
+	PRAlertWidth   = 2
 	PRWidth        = 8
 	InfoWidth      = 42
 	MinInfoWidth   = 1
@@ -34,7 +35,7 @@ const (
 
 // totalFixedWidth returns the sum of all fixed-width columns plus inter-column gaps.
 func totalFixedWidthWithoutInfo() int {
-	return SelectorWidth + LocalWidth + RemoteWidth + PRWidth + (5 * InterColumnGap)
+	return SelectorWidth + LocalWidth + RemoteWidth + PRAlertWidth + PRWidth + (6 * InterColumnGap)
 }
 
 func calculateColumnLayout(repositories []domain.Repository, terminalWidth int) ColumnLayout {

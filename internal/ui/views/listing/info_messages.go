@@ -20,8 +20,9 @@ const (
 )
 
 type InfoMessage struct {
-	Text string
-	Tone InfoTone
+	Text   string
+	Tone   InfoTone
+	Pinned bool
 }
 
 type TimedInfoMessage struct {
@@ -33,6 +34,9 @@ type InfoRuntime struct {
 	Phase                uint64
 	Now                  time.Time
 	RecentActivityByRepo map[string][]TimedInfoMessage
+	PullRequestSyncing   bool
+	PullRequestSpinner   string
+	BlockedSpinner       string
 }
 
 func collectStatusInfoMessages(repo domain.Repository) []InfoMessage {
@@ -50,8 +54,8 @@ func collectStatusInfoMessages(repo domain.Repository) []InfoMessage {
 		appendMessage(InfoMessage{Text: state.Message, Tone: InfoToneError})
 	}
 
-	if summary := buildMyPullRequestSummary(repo.PullRequests); summary != "" {
-		appendMessage(InfoMessage{Text: summary, Tone: InfoToneSubtle})
+	if summary, pinned := buildMyPullRequestSummary(repo.PullRequests); summary != "" {
+		appendMessage(InfoMessage{Text: summary, Tone: InfoToneSubtle, Pinned: pinned})
 	}
 
 	mergedCount := len(repo.Branches.Merged)
@@ -133,6 +137,16 @@ func collectRecentActivityInfoMessages(runtime InfoRuntime, repoPath string) []I
 	return messages
 }
 
+func filterPinnedInfoMessages(messages []InfoMessage) []InfoMessage {
+	pinned := make([]InfoMessage, 0, len(messages))
+	for _, message := range messages {
+		if message.Pinned {
+			pinned = append(pinned, message)
+		}
+	}
+	return pinned
+}
+
 func buildPullOutputInfoMessage(lastLine string, exitCode int) InfoMessage {
 	lowerLine := strings.ToLower(lastLine)
 
@@ -187,7 +201,6 @@ func renderInfoMessage(msg InfoMessage, infoWidth int) string {
 		return common.TextGrey.Render(text)
 	}
 }
-
 func normalizeInfoWidth(infoWidth int) int {
 	if infoWidth < 1 {
 		return 1
