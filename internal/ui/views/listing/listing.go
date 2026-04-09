@@ -119,7 +119,7 @@ func (m *Model) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, scheduleInfoRotateTick(m.RotateEvery))
 	if !m.StartupPRSync {
-		cmds = append(cmds, m.startPullRequestSync(pullRequestSyncStartup)...)
+		cmds = append(cmds, m.startPullRequestSync(pullRequestSyncStartup))
 		m.StartupPRSync = true
 	}
 	cmds = append(cmds, m.BlockedSpinner.Tick)

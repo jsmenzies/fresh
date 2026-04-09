@@ -46,7 +46,7 @@ func (m *Model) toggleWatchMode() tea.Cmd {
 
 func (m *Model) startRefreshCycle(trigger PullRequestSyncTrigger) tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, m.startPullRequestSync(trigger)...)
+	cmds = append(cmds, m.startPullRequestSync(trigger))
 	for i := range m.Repositories {
 		repo := &m.Repositories[i]
 		if repo.IsBusy() {
