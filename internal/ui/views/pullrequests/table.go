@@ -159,7 +159,7 @@ func buildCheckSummary(checks domain.PullRequestChecks, width int) string {
 		return style.Foreground(common.SubtleGray).Render("No checks")
 	}
 
-	complete := checks.Passed + checks.Failed + checks.Skipped
+	complete := checks.Passed + checks.Skipped
 	summary := fmt.Sprintf("%d/%d complete", complete, checks.Total)
 	switch {
 	case checks.Failed > 0:
