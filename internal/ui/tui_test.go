@@ -3,6 +3,7 @@ package ui
 import (
 	"fresh/internal/domain"
 	"fresh/internal/ui/views/listing"
+	"fresh/internal/ui/views/pullrequests"
 	"fresh/internal/ui/views/scanning"
 	"testing"
 
@@ -118,6 +119,78 @@ func TestMainModel_DelegatesKeyMsgToListingInRepoListView(t *testing.T) {
 	}
 }
 
+func TestMainModel_EnterTransitionsToPullRequestView(t *testing.T) {
+	t.Parallel()
+
+	m := New(t.TempDir())
+
+	repos := []domain.Repository{
+		{
+			Name:        "repo-a",
+			Path:        "/tmp/repo-a",
+			RemoteURL:   "https://github.com/octo/repo-a",
+			Activity:    domain.IdleActivity{},
+			LocalState:  domain.CleanLocalState{},
+			RemoteState: domain.Synced{},
+			Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
+		},
+	}
+	m.Update(scanning.ScanFinishedMsg{Repos: repos})
+
+	_, cmd := m.Update(tea.KeyPressMsg{Code: '\r'})
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd after enter")
+	}
+
+	result, _ := m.Update(cmd())
+	model := result.(*MainModel)
+
+	if model.currentView != RepoPRListView {
+		t.Errorf("view after enter = %d, want RepoPRListView (%d)", model.currentView, RepoPRListView)
+	}
+	if model.pullRequestsView == nil {
+		t.Fatal("expected pullRequestsView to be initialized")
+	}
+	if model.pullRequestsView.Repo.Path != repos[0].Path {
+		t.Errorf("pull request view repo path = %q, want %q", model.pullRequestsView.Repo.Path, repos[0].Path)
+	}
+}
+
+func TestMainModel_EscapeTransitionsBackToListingView(t *testing.T) {
+	t.Parallel()
+
+	m := New(t.TempDir())
+
+	repos := []domain.Repository{
+		{
+			Name:        "repo-a",
+			Path:        "/tmp/repo-a",
+			RemoteURL:   "https://github.com/octo/repo-a",
+			Activity:    domain.IdleActivity{},
+			LocalState:  domain.CleanLocalState{},
+			RemoteState: domain.Synced{},
+			Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
+		},
+	}
+	m.Update(scanning.ScanFinishedMsg{Repos: repos})
+	_, openCmd := m.Update(tea.KeyPressMsg{Code: '\r'})
+	if openCmd == nil {
+		t.Fatal("expected non-nil open command after enter")
+	}
+	m.Update(openCmd())
+
+	_, backCmd := m.Update(tea.KeyPressMsg{Code: 27})
+	if backCmd == nil {
+		t.Fatal("expected non-nil back command after escape")
+	}
+	result, _ := m.Update(backCmd())
+	model := result.(*MainModel)
+
+	if model.currentView != RepoListView {
+		t.Errorf("view after esc = %d, want RepoListView (%d)", model.currentView, RepoListView)
+	}
+}
+
 func TestMainModel_ViewInScanningMode(t *testing.T) {
 	t.Parallel()
 
@@ -183,4 +256,5 @@ func TestMainModel_DefaultViewReturnsEmpty(t *testing.T) {
 // Verify that unused imports don't cause issues — these are needed for
 // the test to compile but the linter may flag them without explicit use.
 var _ = listing.New
+var _ = pullrequests.New
 var _ = scanning.ScanFinishedMsg{}

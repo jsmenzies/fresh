@@ -18,6 +18,7 @@ type listKeyMap struct {
 	watch        key.Binding
 	pullAll      key.Binding
 	pruneAll     key.Binding
+	openPRs      key.Binding
 	alert        key.Binding
 	toggleLegend key.Binding
 }
@@ -39,6 +40,10 @@ func newListKeyMap() *listKeyMap {
 		pruneAll: key.NewBinding(
 			key.WithKeys("b"),
 			key.WithHelp("b", "prune merged branches"),
+		),
+		openPRs: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "view pull requests"),
 		),
 		alert: key.NewBinding(
 			key.WithKeys("a"),
@@ -175,6 +180,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				}
 			}
 			return m, tea.Batch(cmds...)
+
+		case key.Matches(msg, m.Keys.openPRs) || msg.String() == "enter" || msg.Code == '\r':
+			if len(m.Repositories) == 0 || m.Cursor < 0 || m.Cursor >= len(m.Repositories) {
+				return m, nil
+			}
+			return m, openPullRequestsView(m.Repositories[m.Cursor])
 
 		case key.Matches(msg, m.Keys.toggleLegend):
 			m.ShowLegend = !m.ShowLegend
@@ -383,6 +394,7 @@ func (m *Model) buildFooter() string {
 
 	hotkeys := []string{
 		"↑/↓ navigate",
+		"enter view PRs",
 		"r refresh",
 		watchStatus,
 		"p pull all updates",
