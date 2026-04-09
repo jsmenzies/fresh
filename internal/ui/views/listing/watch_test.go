@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"fresh/internal/domain"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 func TestToggleWatchModeTurnsOnAndSchedulesTick(t *testing.T) {
@@ -132,15 +130,8 @@ func TestUpdateWatchTickStartsWatchRefreshCycle(t *testing.T) {
 	if _, ok := newM.Repositories[0].Activity.(*domain.RefreshingActivity); !ok {
 		t.Fatalf("repo activity = %T, want *domain.RefreshingActivity", newM.Repositories[0].Activity)
 	}
-
-	type batchCommand interface {
-		Cmds() []tea.Cmd
-	}
-	if _, ok := any(cmd).(batchCommand); !ok {
-		// Bubble Tea batch cmd type is unexported; tolerate inability to assert internals.
-		if msg := cmd(); msg == nil {
-			t.Fatal("expected non-nil message from watch refresh command")
-		}
+	if m.PRSyncInFlight != 1 {
+		t.Fatalf("PRSyncInFlight = %d, want 1", m.PRSyncInFlight)
 	}
 }
 
