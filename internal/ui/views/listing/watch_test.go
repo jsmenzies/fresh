@@ -12,6 +12,10 @@ import (
 
 func TestToggleWatchModeTurnsOnAndSchedulesTick(t *testing.T) {
 	m := New(nil)
+	var gotInterval time.Duration
+	withImmediateTickMock(t, func(interval time.Duration) {
+		gotInterval = interval
+	})
 	if m.WatchEnabled {
 		t.Fatal("watch mode should start disabled")
 	}
@@ -27,6 +31,9 @@ func TestToggleWatchModeTurnsOnAndSchedulesTick(t *testing.T) {
 	msg := cmd()
 	if _, ok := msg.(watchTickMsg); !ok {
 		t.Fatalf("command message = %T, want watchTickMsg", msg)
+	}
+	if gotInterval != m.WatchEvery {
+		t.Fatalf("scheduled interval = %s, want %s", gotInterval, m.WatchEvery)
 	}
 }
 

@@ -66,12 +66,14 @@ type pruneCompleteMsg struct {
 
 type infoRotateTickMsg struct{}
 
+var scheduleTick = tea.Tick
+
 func scheduleInfoRotateTick(interval time.Duration) tea.Cmd {
 	if interval <= 0 {
 		interval = 10 * time.Second
 	}
 
-	return tea.Tick(interval, func(time.Time) tea.Msg {
+	return scheduleTick(interval, func(time.Time) tea.Msg {
 		return infoRotateTickMsg{}
 	})
 }

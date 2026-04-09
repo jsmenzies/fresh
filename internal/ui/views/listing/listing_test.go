@@ -11,6 +11,10 @@ import (
 
 func TestUpdate_InfoRotateTick_IncrementsPhase(t *testing.T) {
 	m := New(nil)
+	var gotInterval time.Duration
+	withImmediateTickMock(t, func(interval time.Duration) {
+		gotInterval = interval
+	})
 	start := m.InfoPhase
 
 	newM, cmd := m.Update(infoRotateTickMsg{})
@@ -25,6 +29,9 @@ func TestUpdate_InfoRotateTick_IncrementsPhase(t *testing.T) {
 	}
 	if _, ok := cmd().(infoRotateTickMsg); !ok {
 		t.Fatal("rotate command did not return infoRotateTickMsg")
+	}
+	if gotInterval != m.RotateEvery {
+		t.Fatalf("scheduled interval = %s, want %s", gotInterval, m.RotateEvery)
 	}
 }
 

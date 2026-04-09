@@ -24,7 +24,7 @@ func scheduleWatchTick(interval time.Duration, token uint64) tea.Cmd {
 		interval = defaultWatchInterval
 	}
 
-	return tea.Tick(interval, func(time.Time) tea.Msg {
+	return scheduleTick(interval, func(time.Time) tea.Msg {
 		return watchTickMsg{Token: token}
 	})
 }
