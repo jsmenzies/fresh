@@ -1,6 +1,9 @@
 package git
 
-import "testing"
+import (
+	"fresh/internal/pullrequests"
+	"testing"
+)
 
 func strPtr(s string) *string {
 	return &s
@@ -54,7 +57,7 @@ func TestClassifyMyPullRequestDecisionMatrix(t *testing.T) {
 	tests := []struct {
 		name string
 		node gqlPullRequestNode
-		want string
+		want pullrequests.Status
 	}{
 		{
 			name: "draft is blocked",
@@ -62,42 +65,42 @@ func TestClassifyMyPullRequestDecisionMatrix(t *testing.T) {
 				withDraft(),
 				withReviewDecision("APPROVED"),
 			),
-			want: "blocked",
+			want: pullrequests.StatusBlocked,
 		},
 		{
 			name: "merge blocked is blocked",
 			node: makePRNode(
 				withMergeState("BLOCKED"),
 			),
-			want: "blocked",
+			want: pullrequests.StatusBlocked,
 		},
 		{
 			name: "failing checks are blocked",
 			node: makePRNode(
 				withRollup(gqlStatusCheckRollup{State: "FAILURE"}),
 			),
-			want: "blocked",
+			want: pullrequests.StatusBlocked,
 		},
 		{
 			name: "changes requested is blocked",
 			node: makePRNode(
 				withReviewDecision("CHANGES_REQUESTED"),
 			),
-			want: "blocked",
+			want: pullrequests.StatusBlocked,
 		},
 		{
 			name: "pending checks is checks",
 			node: makePRNode(
 				withRollup(gqlStatusCheckRollup{State: "PENDING"}),
 			),
-			want: "checks",
+			want: pullrequests.StatusChecks,
 		},
 		{
 			name: "approved with no pending checks is ready",
 			node: makePRNode(
 				withReviewDecision("APPROVED"),
 			),
-			want: "ready",
+			want: pullrequests.StatusReady,
 		},
 		{
 			name: "review required remains review",
@@ -105,21 +108,26 @@ func TestClassifyMyPullRequestDecisionMatrix(t *testing.T) {
 				withReviewDecision("REVIEW_REQUIRED"),
 				withMergeState("CLEAN"),
 			),
-			want: "review",
+			want: pullrequests.StatusReview,
 		},
 		{
 			name: "no review required and clean merge is ready",
 			node: makePRNode(
 				withMergeState("CLEAN"),
 			),
-			want: "ready",
+			want: pullrequests.StatusReady,
 		},
 		{
 			name: "unstable merge without rollup details stays checks",
 			node: makePRNode(
 				withMergeState("UNSTABLE"),
 			),
-			want: "checks",
+			want: pullrequests.StatusChecks,
+		},
+		{
+			name: "default with no review decision is ready",
+			node: makePRNode(),
+			want: pullrequests.StatusReady,
 		},
 	}
 
@@ -149,8 +157,8 @@ func TestClassifyMyPullRequest_ContextDrivenPendingChecks(t *testing.T) {
 	)
 
 	got := classifyMyPullRequest(node)
-	if got != "checks" {
-		t.Fatalf("classifyMyPullRequest() = %q, want %q", got, "checks")
+	if got != pullrequests.StatusChecks {
+		t.Fatalf("classifyMyPullRequest() = %q, want %q", got, pullrequests.StatusChecks)
 	}
 }
 
@@ -169,7 +177,7 @@ func TestClassifyMyPullRequest_ContextDrivenFailingChecks(t *testing.T) {
 	)
 
 	got := classifyMyPullRequest(node)
-	if got != "blocked" {
-		t.Fatalf("classifyMyPullRequest() = %q, want %q", got, "blocked")
+	if got != pullrequests.StatusBlocked {
+		t.Fatalf("classifyMyPullRequest() = %q, want %q", got, pullrequests.StatusBlocked)
 	}
 }

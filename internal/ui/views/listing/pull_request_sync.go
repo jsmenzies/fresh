@@ -4,9 +4,11 @@ import tea "charm.land/bubbletea/v2"
 
 func (m *Model) startPullRequestSync(trigger PullRequestSyncTrigger) tea.Cmd {
 	m.PRSyncInFlight++
+	m.PRSyncGeneration++
+	generation := m.PRSyncGeneration
 
 	return tea.Batch(
-		performPullRequestSync(m.Repositories, trigger),
+		performPullRequestSync(m.Repositories, trigger, generation),
 		m.PRSyncSpinner.Tick,
 	)
 }

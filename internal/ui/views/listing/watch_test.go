@@ -204,3 +204,29 @@ func TestPullRequestWatchSuccessResetsBackoff(t *testing.T) {
 		t.Fatalf("currentWatchInterval() = %s, want %s", got, time.Minute)
 	}
 }
+
+func TestStaleWatchSyncStillReschedulesTick(t *testing.T) {
+	m := New(nil)
+	_ = m.toggleWatchMode()
+	m.WatchBackoff = 2
+	m.PRSyncGeneration = 3
+
+	newM, cmd := m.Update(PullRequestStatesUpdatedMsg{
+		Generation: 2, // stale
+		States: map[string]domain.PullRequestState{
+			"/repo/a": domain.PullRequestError{Message: "gh: timeout"},
+		},
+		Trigger: pullRequestSyncWatch,
+	})
+
+	if newM == nil {
+		t.Fatal("expected updated model")
+	}
+	if cmd == nil {
+		t.Fatal("expected watch reschedule command from stale watch response")
+	}
+	// Stale responses should not modify backoff state.
+	if m.WatchBackoff != 2 {
+		t.Fatalf("WatchBackoff = %d, want 2", m.WatchBackoff)
+	}
+}

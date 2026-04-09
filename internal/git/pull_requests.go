@@ -5,16 +5,22 @@ import (
 	"fmt"
 	"fresh/internal/config"
 	"fresh/internal/domain"
+	"fresh/internal/pullrequests"
 	"os/exec"
 	"sort"
 	"strings"
 )
 
 type PullRequestService interface {
-	GetPullRequestStates(repos []domain.Repository) map[string]domain.PullRequestState
+	GetPullRequestSync(repos []domain.Repository) PullRequestSync
 }
 
 type GhPullRequestService struct{}
+
+type PullRequestSync struct {
+	States  map[string]domain.PullRequestState
+	Tracked []pullrequests.Snapshot
+}
 
 type myPullRequestSummary struct {
 	MyOpen    int
@@ -42,6 +48,7 @@ type gqlPullRequestNode struct {
 	Repository struct {
 		NameWithOwner string `json:"nameWithOwner"`
 	} `json:"repository"`
+	Number           int     `json:"number"`
 	IsDraft          bool    `json:"isDraft"`
 	ReviewDecision   *string `json:"reviewDecision"`
 	MergeStateStatus *string `json:"mergeStateStatus"`
@@ -77,12 +84,16 @@ func SetPullRequestService(service PullRequestService) {
 	pullRequestService = service
 }
 
-func GetPullRequestStates(repos []domain.Repository) map[string]domain.PullRequestState {
-	return pullRequestService.GetPullRequestStates(repos)
+func GetPullRequestSync(repos []domain.Repository) PullRequestSync {
+	return pullRequestService.GetPullRequestSync(repos)
 }
 
-func (GhPullRequestService) GetPullRequestStates(repos []domain.Repository) map[string]domain.PullRequestState {
+func (GhPullRequestService) GetPullRequestSync(repos []domain.Repository) PullRequestSync {
 	states := make(map[string]domain.PullRequestState, len(repos))
+	result := PullRequestSync{
+		States:  states,
+		Tracked: nil,
+	}
 
 	githubByPath, ownerRepos := collectGitHubRepos(repos)
 	for _, repo := range repos {
@@ -94,17 +105,19 @@ func (GhPullRequestService) GetPullRequestStates(repos []domain.Repository) map[
 	}
 
 	if len(ownerRepos) == 0 {
-		return states
+		return result
 	}
 
 	openCounts, err := queryOpenPullRequestCounts(ownerRepos)
 	if err != nil {
-		return markGitHubReposError(states, githubByPath, err)
+		result.States = markGitHubReposError(states, githubByPath, err)
+		return result
 	}
 
-	mySummaries, err := queryMyPullRequestSummaries(ownerRepos)
+	tracked, mySummaries, err := queryMyPullRequests(ownerRepos)
 	if err != nil {
-		return markGitHubReposError(states, githubByPath, err)
+		result.States = markGitHubReposError(states, githubByPath, err)
+		return result
 	}
 
 	for path, ownerRepo := range githubByPath {
@@ -120,7 +133,8 @@ func (GhPullRequestService) GetPullRequestStates(repos []domain.Repository) map[
 		states[path] = state
 	}
 
-	return states
+	result.Tracked = tracked
+	return result
 }
 
 func collectGitHubRepos(repos []domain.Repository) (map[string]string, []string) {
@@ -176,6 +190,19 @@ func parseGitHubRemote(remoteURL string) (owner string, repo string, ok bool) {
 	return parts[0], parts[1], true
 }
 
+func parseNameWithOwner(nameWithOwner string) (owner string, repo string, ok bool) {
+	if strings.TrimSpace(nameWithOwner) == "" {
+		return "", "", false
+	}
+
+	parts := strings.Split(nameWithOwner, "/")
+	if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+		return "", "", false
+	}
+
+	return parts[0], parts[1], true
+}
+
 func queryOpenPullRequestCounts(ownerRepos []string) (map[string]int, error) {
 	args := []string{"search", "prs", "--state", "open", "--limit", "100", "--json", "repository"}
 	for _, ownerRepo := range ownerRepos {
@@ -205,7 +232,7 @@ func queryOpenPullRequestCounts(ownerRepos []string) (map[string]int, error) {
 	return counts, nil
 }
 
-func queryMyPullRequestSummaries(ownerRepos []string) (map[string]myPullRequestSummary, error) {
+func queryMyPullRequests(ownerRepos []string) ([]pullrequests.Snapshot, map[string]myPullRequestSummary, error) {
 	queryText := "is:pr is:open author:@me " + strings.Join(prefixRepoQualifiers(ownerRepos), " ")
 
 	query := `
@@ -216,6 +243,7 @@ query($q: String!) {
         repository {
           nameWithOwner
         }
+        number
         isDraft
         reviewDecision
         mergeStateStatus
@@ -254,30 +282,42 @@ query($q: String!) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, normalizeGhError(err)
+		return nil, nil, normalizeGhError(err)
 	}
 
 	var response gqlSearchResponse
 	if err := json.Unmarshal(output, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse gh my-pr response: %w", err)
+		return nil, nil, fmt.Errorf("failed to parse gh my-pr response: %w", err)
 	}
 
+	tracked := make([]pullrequests.Snapshot, 0, len(response.Data.Search.Nodes))
 	summaries := make(map[string]myPullRequestSummary)
 	for _, row := range response.Data.Search.Nodes {
 		ownerRepo := row.Repository.NameWithOwner
-		if ownerRepo == "" {
+		owner, repo, ok := parseNameWithOwner(ownerRepo)
+		if !ok || row.Number <= 0 {
 			continue
 		}
+
+		classification := classifyMyPullRequest(row)
+		tracked = append(tracked, pullrequests.Snapshot{
+			Key: pullrequests.Key{
+				Owner:  owner,
+				Repo:   repo,
+				Number: row.Number,
+			},
+			Status: classification,
+		})
 
 		summary := summaries[ownerRepo]
 		summary.MyOpen++
 
-		switch classifyMyPullRequest(row) {
-		case "ready":
+		switch classification {
+		case pullrequests.StatusReady:
 			summary.MyReady++
-		case "blocked":
+		case pullrequests.StatusBlocked:
 			summary.MyBlocked++
-		case "review":
+		case pullrequests.StatusReview:
 			summary.MyReview++
 		default:
 			summary.MyChecks++
@@ -286,17 +326,21 @@ query($q: String!) {
 		summaries[ownerRepo] = summary
 	}
 
-	return summaries, nil
+	sort.Slice(tracked, func(i, j int) bool {
+		return tracked[i].Key.String() < tracked[j].Key.String()
+	})
+
+	return tracked, summaries, nil
 }
 
-func classifyMyPullRequest(row gqlPullRequestNode) string {
+func classifyMyPullRequest(row gqlPullRequestNode) pullrequests.Status {
 	if row.IsDraft {
-		return "blocked"
+		return pullrequests.StatusBlocked
 	}
 
 	mergeState := strings.ToUpper(strings.TrimSpace(derefString(row.MergeStateStatus)))
 	if mergeState == "DIRTY" || mergeState == "CONFLICTING" || mergeState == "BLOCKED" || mergeState == "UNKNOWN" {
-		return "blocked"
+		return pullrequests.StatusBlocked
 	}
 	mergeStateUnstable := mergeState == "UNSTABLE"
 
@@ -339,36 +383,36 @@ func classifyMyPullRequest(row gqlPullRequestNode) string {
 	}
 
 	if hasFailingChecks {
-		return "blocked"
+		return pullrequests.StatusBlocked
 	}
 
 	review := strings.ToUpper(strings.TrimSpace(derefString(row.ReviewDecision)))
 	if review == "CHANGES_REQUESTED" {
-		return "blocked"
+		return pullrequests.StatusBlocked
 	}
 
 	if hasChecks && hasPendingChecks {
-		return "checks"
+		return pullrequests.StatusChecks
 	}
 
 	if review == "APPROVED" {
-		return "ready"
+		return pullrequests.StatusReady
 	}
 
 	if review == "REVIEW_REQUIRED" {
-		return "review"
+		return pullrequests.StatusReview
 	}
 
 	if review == "" {
 		// GitHub can return a nil reviewDecision when no approving review is required.
 		// If checks are clear and merge state is otherwise healthy, treat as ready.
 		if mergeStateUnstable {
-			return "checks"
+			return pullrequests.StatusChecks
 		}
-		return "ready"
+		return pullrequests.StatusReady
 	}
 
-	return "review"
+	return pullrequests.StatusReview
 }
 
 func latestStatusCheckRollup(row gqlPullRequestNode) *gqlStatusCheckRollup {
