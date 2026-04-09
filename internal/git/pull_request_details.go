@@ -3,7 +3,6 @@ package git
 import (
 	"encoding/json"
 	"errors"
-	"fresh/internal/config"
 	"fresh/internal/domain"
 	"sort"
 	"strings"
@@ -43,7 +42,7 @@ func GetRepositoryPullRequests(repo domain.Repository) ([]domain.PullRequestDeta
 		"--json", "number,title,updatedAt,author,statusCheckRollup",
 	}
 
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "gh", args...)
+	cmd := createCommand(defaultConfig.Timeout.Default, "gh", args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, normalizeGhError(err)
@@ -81,7 +80,7 @@ func GetRepositoryPullRequests(repo domain.Repository) ([]domain.PullRequestDeta
 }
 
 func queryGitHubLogin() string {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "gh", "api", "user", "--jq", ".login")
+	cmd := createCommand(defaultConfig.Timeout.Default, "gh", "api", "user", "--jq", ".login")
 	output, err := cmd.Output()
 	if err != nil {
 		return ""

@@ -3,7 +3,6 @@ package git
 import (
 	"encoding/json"
 	"fmt"
-	"fresh/internal/config"
 	"fresh/internal/domain"
 	"fresh/internal/pullrequests"
 	"os/exec"
@@ -210,7 +209,7 @@ func queryOpenPullRequestCounts(ownerRepos []string) (map[string]int, error) {
 	}
 	args = append(args, "--")
 
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "gh", args...)
+	cmd := createCommand(defaultConfig.Timeout.Default, "gh", args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, normalizeGhError(err)
@@ -274,7 +273,7 @@ query($q: String!) {
 `
 
 	cmd := createCommand(
-		config.DefaultConfig().Timeout.Default,
+		defaultConfig.Timeout.Default,
 		"gh", "api", "graphql",
 		"-f", "query="+query,
 		"-F", "q="+queryText,
