@@ -54,6 +54,7 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case scanning.ScanFinishedMsg:
 		m.currentView = RepoListView
 		m.listingView = listing.New(msg.Repos)
+		m.listingView.SetSize(m.width, m.height)
 		return m, m.listingView.Init()
 	}
 
@@ -73,6 +74,9 @@ func (m *MainModel) View() tea.View {
 	case ScanningView:
 		v.SetContent(m.scanningView.View())
 	case RepoListView:
+		if m.listingView == nil {
+			return v
+		}
 		v.SetContent(m.listingView.View())
 	}
 	return v

@@ -38,8 +38,8 @@ func TestTotalFixedWidth(t *testing.T) {
 	t.Parallel()
 
 	// totalFixedWidth should return the sum of all fixed columns + gaps
-	expected := SelectorWidth + LocalWidth + RemoteWidth + InfoWidth +
-		LastCommitWidth + LinksWidth + (6 * InterColumnGap)
+	expected := SelectorWidth + LocalWidth + RemoteWidth + PRWidth +
+		InfoWidth + (5 * InterColumnGap)
 
 	got := totalFixedWidth()
 	if got != expected {

@@ -36,12 +36,11 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 	repoName := filepath.Base(path)
 
 	type result struct {
-		localState     domain.LocalState
-		remoteState    domain.RemoteState
-		lastCommitTime time.Time
-		remoteURL      string
-		branches       domain.Branches
-		stashCount     int
+		localState  domain.LocalState
+		remoteState domain.RemoteState
+		remoteURL   string
+		branches    domain.Branches
+		stashCount  int
 	}
 
 	var res result
@@ -49,20 +48,19 @@ func BuildRepository(path string, cfg *config.Config) domain.Repository {
 	Parallel(
 		func() { res.localState, res.stashCount = GetLocalState(path) },
 		func() { res.remoteState = GetRemoteState(path) },
-		func() { res.lastCommitTime = GetLastCommitTime(path) },
 		func() { res.remoteURL = GetRemoteURL(path) },
 		func() { res.branches = BuildBranches(path, cfg.ProtectedBranches) },
 	)
 
 	return domain.Repository{
-		Name:           repoName,
-		Path:           path,
-		Branches:       res.branches,
-		StashCount:     res.stashCount,
-		LocalState:     res.localState,
-		LastCommitTime: res.lastCommitTime,
-		RemoteURL:      res.remoteURL,
-		RemoteState:    res.remoteState,
+		Name:         repoName,
+		Path:         path,
+		Branches:     res.branches,
+		StashCount:   res.stashCount,
+		LocalState:   res.localState,
+		RemoteURL:    res.remoteURL,
+		RemoteState:  res.remoteState,
+		PullRequests: domain.PullRequestUnavailable{},
 	}
 }
 
@@ -216,27 +214,6 @@ func GetRemoteState(repoPath string) domain.RemoteState {
 	}
 
 	return domain.Synced{}
-}
-
-func GetLastCommitTime(repoPath string) time.Time {
-	cmd := createCommand(config.DefaultConfig().Timeout.Default, "git", "log", "-1", "--format=%ct")
-	cmd.Dir = repoPath
-	output, err := cmd.Output()
-	if err != nil {
-		return time.Time{}
-	}
-
-	timestampStr := strings.TrimSpace(string(output))
-	if timestampStr == "" {
-		return time.Time{}
-	}
-
-	timestamp := int64(0)
-	if _, err := fmt.Sscanf(timestampStr, "%d", &timestamp); err != nil {
-		return time.Time{}
-	}
-
-	return time.Unix(timestamp, 0)
 }
 
 func Fetch(repoPath string) error {

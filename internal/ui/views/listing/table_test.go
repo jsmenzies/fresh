@@ -1,7 +1,6 @@
 package listing
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -256,20 +255,20 @@ func TestBuildRemoteStatus(t *testing.T) {
 			contains: []string{common.IconAhead, "2", common.IconBehind, "7"},
 		},
 		{
-			name: "no upstream shows error icon",
+			name: "no upstream shows dash",
 			repo: domain.Repository{
 				Activity:    domain.IdleActivity{},
 				RemoteState: domain.NoUpstream{},
 			},
-			contains: []string{common.IconRemoteError},
+			contains: []string{"-"},
 		},
 		{
-			name: "detached remote shows error icon",
+			name: "detached remote shows dash",
 			repo: domain.Repository{
 				Activity:    domain.IdleActivity{},
 				RemoteState: domain.DetachedRemote{},
 			},
-			contains: []string{common.IconRemoteError},
+			contains: []string{"-"},
 		},
 		{
 			name: "remote error shows error icon",
@@ -296,6 +295,155 @@ func TestBuildRemoteStatus(t *testing.T) {
 }
 
 // ============================================================================
+// buildPullRequestStatus tests
+// ============================================================================
+
+func TestBuildPullRequestStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		state    domain.PullRequestState
+		contains []string
+	}{
+		{
+			name:     "open pull requests show icon and count",
+			state:    domain.PullRequestCount{Open: 3, MyOpen: 0},
+			contains: []string{"3"},
+		},
+		{
+			name:     "zero pull requests shows icon and zero",
+			state:    domain.PullRequestCount{Open: 0, MyOpen: 0},
+			contains: []string{"0"},
+		},
+		{
+			name:     "my open pull request still shows icon and count",
+			state:    domain.PullRequestCount{Open: 2, MyOpen: 1},
+			contains: []string{"2(*)"},
+		},
+		{
+			name:     "unavailable pull requests show dash",
+			state:    domain.PullRequestUnavailable{},
+			contains: []string{"-"},
+		},
+		{
+			name:     "error state shows remote error icon",
+			state:    domain.PullRequestError{Message: "gh not available"},
+			contains: []string{common.IconRemoteError},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := buildPullRequestStatus(tt.state)
+			for _, want := range tt.contains {
+				if !strings.Contains(got, want) {
+					t.Errorf("buildPullRequestStatus(%q) = %q, want it to contain %q", tt.name, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestBuildMyPullRequestSummary(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		state    domain.PullRequestState
+		contains []string
+		isEmpty  bool
+	}{
+		{
+			name: "shows base summary",
+			state: domain.PullRequestCount{
+				MyReady:   1,
+				MyBlocked: 2,
+				MyChecks:  3,
+			},
+			contains: []string{"My PRs:", "1 ready", "2 blocked", "3 checks"},
+		},
+		{
+			name: "includes review when non-zero",
+			state: domain.PullRequestCount{
+				MyReady:   0,
+				MyBlocked: 1,
+				MyChecks:  2,
+				MyReview:  1,
+			},
+			contains: []string{"1 review"},
+		},
+		{
+			name: "hides zero-count buckets",
+			state: domain.PullRequestCount{
+				MyReady:   0,
+				MyBlocked: 2,
+				MyChecks:  0,
+				MyReview:  0,
+			},
+			contains: []string{"My PRs:", "2 blocked"},
+		},
+		{
+			name: "all zero my-pr buckets returns empty",
+			state: domain.PullRequestCount{
+				MyReady:   0,
+				MyBlocked: 0,
+				MyChecks:  0,
+				MyReview:  0,
+			},
+			isEmpty: true,
+		},
+		{
+			name:    "unavailable returns empty",
+			state:   domain.PullRequestUnavailable{},
+			isEmpty: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := buildMyPullRequestSummary(tt.state)
+			if tt.isEmpty {
+				if got != "" {
+					t.Errorf("buildMyPullRequestSummary(%q) = %q, want empty", tt.name, got)
+				}
+				return
+			}
+			for _, want := range tt.contains {
+				if !strings.Contains(got, want) {
+					t.Errorf("buildMyPullRequestSummary(%q) = %q, want it to contain %q", tt.name, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestBuildInfo_UsesRecentActivityOverStatus(t *testing.T) {
+	t.Parallel()
+
+	repo := domain.Repository{
+		Name:        "demo",
+		Path:        "/tmp/demo",
+		Activity:    domain.IdleActivity{},
+		RemoteState: domain.Synced{},
+		Branches:    domain.Branches{Current: domain.OnBranch{Name: "main"}},
+	}
+
+	runtime := InfoRuntime{
+		Phase:                0,
+		Now:                  time.Now(),
+		RecentActivityByRepo: map[string][]TimedInfoMessage{"/tmp/demo": {{Message: InfoMessage{Text: "Deleted 2 branches", Tone: InfoToneSuccess}, ExpiresAt: time.Now().Add(time.Minute)}}},
+	}
+
+	got := buildInfo(repo, InfoWidth, runtime)
+	if !strings.Contains(got, "Deleted 2 branches") {
+		t.Fatalf("buildInfo() = %q, want recent activity message", got)
+	}
+}
+
+// ============================================================================
 // buildInfo tests
 // ============================================================================
 
@@ -307,6 +455,20 @@ func TestBuildInfo(t *testing.T) {
 		repo     domain.Repository
 		contains []string
 	}{
+		{
+			name: "idle with my pr summary shows summary in info",
+			repo: domain.Repository{
+				Activity:    domain.IdleActivity{},
+				RemoteState: domain.Synced{},
+				PullRequests: domain.PullRequestCount{
+					MyReady:   0,
+					MyBlocked: 1,
+					MyChecks:  2,
+				},
+				Branches: domain.Branches{Current: domain.OnBranch{Name: "main"}},
+			},
+			contains: []string{"My PRs:", "1 blocked", "2 checks"},
+		},
 		{
 			name: "idle with synced remote shows empty info",
 			repo: domain.Repository{
@@ -507,7 +669,7 @@ func TestBuildInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := buildInfo(tt.repo)
+			got := buildInfo(tt.repo, InfoWidth, InfoRuntime{})
 			for _, want := range tt.contains {
 				if !strings.Contains(got, want) {
 					t.Errorf("buildInfo(%q) = %q, want it to contain %q",
@@ -584,195 +746,12 @@ func TestStylePullOutput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := stylePullOutput(tt.lastLine, tt.exitCode)
+			got := stylePullOutput(tt.lastLine, tt.exitCode, InfoWidth)
 			if !strings.Contains(got, tt.contains) {
 				t.Errorf("stylePullOutput(%q, %d) = %q, want it to contain %q",
 					tt.lastLine, tt.exitCode, got, tt.contains)
 			}
 		})
-	}
-}
-
-// ============================================================================
-// buildLastUpdate tests
-// ============================================================================
-
-func TestBuildLastUpdate(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		repo     domain.Repository
-		contains string
-		isEmpty  bool
-	}{
-		{
-			name:    "zero time returns empty",
-			repo:    domain.Repository{},
-			isEmpty: true,
-		},
-		{
-			name: "recent time shows time ago",
-			repo: domain.Repository{
-				LastCommitTime: time.Now().Add(-5 * time.Minute),
-			},
-			contains: common.IconClock,
-		},
-		{
-			name: "old time shows time ago with clock icon",
-			repo: domain.Repository{
-				LastCommitTime: time.Now().Add(-48 * time.Hour),
-			},
-			contains: common.IconClock,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := buildLastUpdate(tt.repo)
-			if tt.isEmpty {
-				if got != "" {
-					t.Errorf("buildLastUpdate(%q) = %q, want empty", tt.name, got)
-				}
-				return
-			}
-			if !strings.Contains(got, tt.contains) {
-				t.Errorf("buildLastUpdate(%q) = %q, want it to contain %q",
-					tt.name, got, tt.contains)
-			}
-		})
-	}
-}
-
-// ============================================================================
-// buildLinks tests
-// ============================================================================
-
-func TestBuildLinks(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		url      string
-		branch   domain.Branch
-		contains []string
-		isEmpty  bool
-	}{
-		{
-			name:    "empty URL returns empty",
-			url:     "",
-			branch:  domain.OnBranch{Name: "main"},
-			isEmpty: true,
-		},
-		{
-			name:    "non-GitHub URL returns empty",
-			url:     "git@gitlab.com:user/repo.git",
-			branch:  domain.OnBranch{Name: "main"},
-			isEmpty: true,
-		},
-		{
-			name:   "GitHub SSH URL renders link icons",
-			url:    "git@github.com:octocat/hello-world.git",
-			branch: domain.OnBranch{Name: "main"},
-			contains: []string{
-				common.IconCode,
-				common.IconPullRequests,
-				common.IconOpenPR,
-			},
-		},
-		{
-			name:   "GitHub HTTPS URL renders link icons",
-			url:    "https://github.com/octocat/hello-world.git",
-			branch: domain.OnBranch{Name: "feature-x"},
-			contains: []string{
-				common.IconCode,
-				common.IconPullRequests,
-				common.IconOpenPR,
-			},
-		},
-		{
-			name:   "detached head still renders links",
-			url:    "git@github.com:octocat/hello-world.git",
-			branch: domain.DetachedHead{CommitSHA: "abc123"},
-			contains: []string{
-				common.IconCode,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := buildLinks(tt.url, tt.branch)
-			if tt.isEmpty {
-				if got != "" {
-					t.Errorf("buildLinks(%q, %v) = %q, want empty", tt.url, tt.branch, got)
-				}
-				return
-			}
-			for _, want := range tt.contains {
-				if !strings.Contains(got, want) {
-					t.Errorf("buildLinks(%q, %v) = %q, want it to contain %q",
-						tt.url, tt.branch, got, want)
-				}
-			}
-		})
-	}
-}
-
-// ============================================================================
-// MakeClickableURL tests
-// ============================================================================
-
-func TestMakeClickableURL(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name        string
-		url         string
-		displayText string
-		contains    string
-	}{
-		{
-			name:        "empty URL returns display text only",
-			url:         "",
-			displayText: "click me",
-			contains:    "click me",
-		},
-		{
-			name:        "valid URL wraps in OSC8 escape sequence",
-			url:         "https://github.com/foo/bar",
-			displayText: "code",
-			contains:    "https://github.com/foo/bar",
-		},
-		{
-			name:        "display text is present in output",
-			url:         "https://github.com/foo/bar",
-			displayText: "code",
-			contains:    "code",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := MakeClickableURL(tt.url, tt.displayText)
-			if !strings.Contains(got, tt.contains) {
-				t.Errorf("MakeClickableURL(%q, %q) = %q, want it to contain %q",
-					tt.url, tt.displayText, got, tt.contains)
-			}
-		})
-	}
-}
-
-func TestMakeClickableURL_OSC8Format(t *testing.T) {
-	t.Parallel()
-
-	got := MakeClickableURL("https://example.com", "link")
-	expected := fmt.Sprintf("\033]8;;%s\033\\%s\033]8;;\033\\", "https://example.com", "link")
-	if got != expected {
-		t.Errorf("MakeClickableURL OSC8 format: got %q, want %q", got, expected)
 	}
 }
 
@@ -789,16 +768,19 @@ func TestRepositoryToRow(t *testing.T) {
 		Activity:    domain.IdleActivity{},
 		LocalState:  domain.CleanLocalState{},
 		RemoteState: domain.Synced{},
+		PullRequests: domain.PullRequestCount{
+			Open:   2,
+			MyOpen: 1,
+		},
 		Branches: domain.Branches{
 			Current: domain.OnBranch{Name: "main"},
 		},
-		LastCommitTime: time.Now().Add(-10 * time.Minute),
 	}
 
-	row := repositoryToRow(repo, true, 30, 20)
+	row := repositoryToRow(repo, true, ColumnLayout{ProjectWidth: 30, BranchWidth: 20, InfoWidth: InfoWidth}, InfoRuntime{})
 
-	if len(row) != 8 {
-		t.Fatalf("repositoryToRow returned %d columns, want 8", len(row))
+	if len(row) != 7 {
+		t.Fatalf("repositoryToRow returned %d columns, want 7", len(row))
 	}
 
 	// Selector should have the icon since isSelected=true
@@ -826,9 +808,8 @@ func TestRepositoryToRow(t *testing.T) {
 		t.Errorf("row[4] (remote) = %q, want it to contain %q", row[4], common.IconSynced)
 	}
 
-	// Last commit should have clock icon
-	if !strings.Contains(row[6], common.IconClock) {
-		t.Errorf("row[6] (last commit) = %q, want it to contain %q", row[6], common.IconClock)
+	if !strings.Contains(row[5], "2(*)") {
+		t.Errorf("row[5] (prs) = %q, want it to contain %q", row[5], "2(*)")
 	}
 }
 
@@ -841,12 +822,16 @@ func TestRepositoryToRow_NotSelected(t *testing.T) {
 		Activity:    domain.IdleActivity{},
 		LocalState:  domain.DirtyLocalState{Modified: 2},
 		RemoteState: domain.Behind{Count: 3},
+		PullRequests: domain.PullRequestCount{
+			Open:   1,
+			MyOpen: 0,
+		},
 		Branches: domain.Branches{
 			Current: domain.OnBranch{Name: "develop"},
 		},
 	}
 
-	row := repositoryToRow(repo, false, 30, 20)
+	row := repositoryToRow(repo, false, ColumnLayout{ProjectWidth: 30, BranchWidth: 20, InfoWidth: InfoWidth}, InfoRuntime{})
 
 	// Selector should NOT have the icon
 	if strings.Contains(row[0], common.IconSelector) {

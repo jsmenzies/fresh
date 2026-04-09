@@ -76,6 +76,11 @@ var RemoteStatusBaseStyle = lipgloss.NewStyle().
 var RemoteStatusCountsStyle = RemoteStatusBaseStyle.
 	Foreground(Blue)
 
+var PullRequestStatusBaseStyle = lipgloss.NewStyle().
+	Height(1).
+	MaxHeight(1).
+	AlignHorizontal(lipgloss.Left)
+
 func RemoteStatusCounts(behind int, ahead int, width int) string {
 	content := ""
 	if behind > 0 && ahead > 0 {
@@ -98,18 +103,9 @@ var RemoteStatusErrorText = lipgloss.NewStyle().
 var RemoteStatusErrorHelpText = lipgloss.NewStyle().
 	Foreground(SubtleGray)
 
-var LinkStyle = lipgloss.NewStyle().
-	Foreground(TextSecondary).
-	Bold(true)
-
-var LinksStyle = lipgloss.NewStyle()
-
 var BadgeStyle = lipgloss.NewStyle().
 	Inline(true).
 	MarginLeft(2)
-
-var TimeAgoStyle = lipgloss.NewStyle().
-	Foreground(TextSecondary)
 
 var PullOutputSuccess = lipgloss.NewStyle().
 	Foreground(Green).
@@ -179,24 +175,18 @@ func FormatPullProgress(spinnerView string, lastLine string, width int) string {
 }
 
 const (
-	IconGit         = "\uF115"
-	IconClock       = "\uF017"
-	IconClean       = "\uF00C"
-	IconDirty       = "\uF071"
-	IconWarning     = "\uF071"
-	IconUntracked   = "?"
-	IconDiverged    = "⊘"
-	IconRemoteError = "\U000F04E7"
-	IconBehind      = "\uF063"
-	IconAhead       = "\uF062"
-	//IconPullRequests = "\uE726"
-	IconPullRequests = "\uF03A"
-	IconCode         = "\uF09B"
-	IconIssues       = "\uEA60"
-	//IconOpenPR       = "\uF013"
-	IconOpenPR   = "\U000F04C2"
-	IconSynced   = "\U000F12D6"
-	IconSelector = "▶"
+	IconGit          = "\uF115"
+	IconClean        = "\uF00C"
+	IconDirty        = "\uF071"
+	IconWarning      = "\uF071"
+	IconUntracked    = "?"
+	IconDiverged     = "⊘"
+	IconRemoteError  = "\U000F04E7"
+	IconBehind       = "\uF063"
+	IconAhead        = "\uF062"
+	IconPullRequests = "\uF407"
+	IconSynced       = "\U000F12D6"
+	IconSelector     = "▶"
 )
 
 const (

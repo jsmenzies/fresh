@@ -1,10 +1,20 @@
 package listing
 
-import "fresh/internal/domain"
+import (
+	"time"
+
+	"fresh/internal/domain"
+
+	tea "charm.land/bubbletea/v2"
+)
 
 type RepoUpdatedMsg struct {
 	Repo  domain.Repository
 	Index int
+}
+
+type PullRequestStatesUpdatedMsg struct {
+	States map[string]domain.PullRequestState
 }
 
 type pullLineMsg struct {
@@ -42,4 +52,16 @@ type pruneCompleteMsg struct {
 	exitCode     int
 	Repo         domain.Repository
 	DeletedCount int
+}
+
+type infoRotateTickMsg struct{}
+
+func scheduleInfoRotateTick(interval time.Duration) tea.Cmd {
+	if interval <= 0 {
+		interval = 10 * time.Second
+	}
+
+	return tea.Tick(interval, func(time.Time) tea.Msg {
+		return infoRotateTickMsg{}
+	})
 }

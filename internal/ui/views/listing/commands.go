@@ -135,3 +135,10 @@ func listenForPruneProgress(state pruneWorkState) tea.Cmd {
 		}
 	}
 }
+
+func performPullRequestSync(repos []domain.Repository) tea.Cmd {
+	return func() tea.Msg {
+		states := git.GetPullRequestStates(repos)
+		return PullRequestStatesUpdatedMsg{States: states}
+	}
+}

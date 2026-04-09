@@ -19,7 +19,6 @@ var (
 
 type Config struct {
 	ScanDir string
-	NoIcons bool
 }
 
 type Action int
@@ -59,7 +58,6 @@ func parseCliFlags() (Action, *Config, error) {
 	var showVersion bool
 	var showHelp bool
 	var dirPath string
-	var noIcons bool
 
 	var defaultDir, _ = os.Getwd()
 
@@ -69,7 +67,6 @@ func parseCliFlags() (Action, *Config, error) {
 	flag.BoolVar(&showHelp, "h", false, "Show help message (shorthand)")
 	flag.StringVar(&dirPath, "dir", defaultDir, "Specify the directory to scan (shorthand: -d)")
 	flag.StringVar(&dirPath, "d", defaultDir, "Specify the directory to scan (shorthand for --dir)")
-	flag.BoolVar(&noIcons, "no-icons", false, "Disable icon display")
 
 	flag.Parse()
 
@@ -83,19 +80,18 @@ func parseCliFlags() (Action, *Config, error) {
 	case showHelp:
 		return ActionHelp, nil, nil
 	default:
-		cfg, err := buildConfig(dirPath, noIcons)
+		cfg, err := buildConfig(dirPath)
 		return ActionRun, cfg, err
 	}
 }
 
-func buildConfig(dirPath string, noIcons bool) (*Config, error) {
+func buildConfig(dirPath string) (*Config, error) {
 	if err := validateScanDir(dirPath); err != nil {
 		return nil, err
 	}
 
 	cfg := &Config{
 		ScanDir: dirPath,
-		NoIcons: noIcons,
 	}
 	return cfg, nil
 }
@@ -135,7 +131,6 @@ func formatUsageOutput() {
 		fmt.Println("\nOptions:")
 		fmt.Println("  --help -h           	Show this help message")
 		fmt.Println("  --dir -d <path>     	Specify the directory to scan for git repositories")
-		fmt.Println("  --no-icons		Disable icon usage in the UI")
 		fmt.Println("  --version -v   	Print version information")
 		fmt.Println("\nExample:")
 		fmt.Printf("  fresh --dir ~/projects \n\n")
