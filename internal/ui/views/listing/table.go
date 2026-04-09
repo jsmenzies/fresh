@@ -58,7 +58,13 @@ func repositoryToRow(repo domain.Repository, isSelected bool, layout ColumnLayou
 }
 
 func buildPullRequestAlert(state domain.PullRequestState, runtime InfoRuntime) string {
-	style := lipgloss.NewStyle().
+	baseStyle := lipgloss.NewStyle().
+		Width(PRAlertWidth).
+		MaxWidth(PRAlertWidth).
+		Height(1).
+		MaxHeight(1).
+		Align(lipgloss.Left)
+	alertStyle := common.AlertSpinnerStyle.
 		Width(PRAlertWidth).
 		MaxWidth(PRAlertWidth).
 		Height(1).
@@ -67,15 +73,15 @@ func buildPullRequestAlert(state domain.PullRequestState, runtime InfoRuntime) s
 
 	s, ok := state.(domain.PullRequestCount)
 	if !ok || s.MyBlocked <= 0 {
-		return style.Render("")
+		return baseStyle.Render("")
 	}
 
 	frame := runtime.BlockedSpinner
 	if frame == "" {
-		return style.Foreground(common.SubtleRed).Render(common.IconWarning)
+		return alertStyle.Render(common.IconWarning)
 	}
 
-	return style.Foreground(common.SubtleRed).Render(frame)
+	return alertStyle.Render(frame)
 }
 
 func buildSelector(isSelected bool) string {
