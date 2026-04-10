@@ -2,12 +2,11 @@ package pullrequests
 
 import (
 	"fmt"
-	"fresh/internal/notifications"
 )
 
 type NotificationSink interface {
-	Upsert(notification notifications.Notification)
-	Resolve(key notifications.PRKey)
+	Upsert(notification Notification)
+	Resolve(key Key)
 }
 
 type NotificationCoordinator struct {
@@ -37,24 +36,24 @@ func (c *NotificationCoordinator) Sync(tracked []Snapshot, options ApplyOptions,
 	for _, change := range changes {
 		switch change.Kind {
 		case ChangeBecameBlocked:
-			sink.Upsert(notifications.Notification{
+			sink.Upsert(Notification{
 				Key:              change.Key,
-				Kind:             notifications.KindBlocked,
+				Kind:             NotificationKindBlocked,
 				Reason:           fmt.Sprintf("%s is blocked", change.Key.String()),
 				PullRequestTitle: change.Title,
 			})
 		case ChangeBecameMergeable:
-			sink.Upsert(notifications.Notification{
+			sink.Upsert(Notification{
 				Key:              change.Key,
-				Kind:             notifications.KindProgress,
+				Kind:             NotificationKindProgress,
 				Reason:           fmt.Sprintf("%s is mergeable", change.Key.String()),
 				PullRequestTitle: change.Title,
 			})
 		case ChangeBecameUnblocked:
 			sink.Resolve(change.Key)
-			sink.Upsert(notifications.Notification{
+			sink.Upsert(Notification{
 				Key:              change.Key,
-				Kind:             notifications.KindProgress,
+				Kind:             NotificationKindProgress,
 				Reason:           fmt.Sprintf("%s is no longer blocked", change.Key.String()),
 				PullRequestTitle: change.Title,
 			})
