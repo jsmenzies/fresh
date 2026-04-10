@@ -51,7 +51,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 	case repoFoundMsg:
 		path := string(msg)
-		repo := git.BuildRepository(path, cfg)
+		repo := git.RefreshRepository(path, cfg, git.RefreshRepositoryOptions{
+			Mode: git.RefreshModeBuildOnly,
+		})
 		m.Repositories = append(m.Repositories, repo)
 		return m, waitForRepo(m.scanner.GetRepoChannel())
 
