@@ -2,37 +2,23 @@ package notifications
 
 import (
 	"fmt"
+	"fresh/internal/pullrequests"
 	"os/exec"
 	"strings"
 	"sync"
 	"time"
 )
 
-type Kind string
+type Kind = pullrequests.NotificationKind
 
 const (
-	KindProgress Kind = "progress"
-	KindBlocked  Kind = "blocked"
+	KindProgress Kind = pullrequests.NotificationKindProgress
+	KindBlocked  Kind = pullrequests.NotificationKindBlocked
 )
 
-type PRKey struct {
-	Owner  string
-	Repo   string
-	Number int
-}
+type PRKey = pullrequests.Key
 
-func (k PRKey) String() string {
-	return fmt.Sprintf("%s/%s#%d", k.Owner, k.Repo, k.Number)
-}
-
-type Notification struct {
-	Key              PRKey
-	Kind             Kind
-	Reason           string
-	PullRequestTitle string
-	Repeat           bool
-	RepeatEvery      time.Duration
-}
+type Notification = pullrequests.Notification
 
 type scheduledNotification struct {
 	notification Notification
@@ -91,7 +77,7 @@ func (n *Notifier) Stop() {
 }
 
 func (n *Notifier) Upsert(notification Notification) {
-	if notification.Key.Owner == "" || notification.Key.Repo == "" || notification.Key.Number <= 0 {
+	if !notification.Key.IsValid() {
 		return
 	}
 

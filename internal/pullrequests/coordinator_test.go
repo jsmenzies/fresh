@@ -1,20 +1,19 @@
 package pullrequests
 
 import (
-	"fresh/internal/notifications"
 	"testing"
 )
 
 type fakeNotificationSink struct {
-	upserts  []notifications.Notification
-	resolves []notifications.PRKey
+	upserts  []Notification
+	resolves []Key
 }
 
-func (f *fakeNotificationSink) Upsert(notification notifications.Notification) {
+func (f *fakeNotificationSink) Upsert(notification Notification) {
 	f.upserts = append(f.upserts, notification)
 }
 
-func (f *fakeNotificationSink) Resolve(key notifications.PRKey) {
+func (f *fakeNotificationSink) Resolve(key Key) {
 	f.resolves = append(f.resolves, key)
 }
 
@@ -55,8 +54,8 @@ func TestNotificationCoordinator_BlockedTransitionUpsertsBlocked(t *testing.T) {
 	if len(sink.upserts) != 1 {
 		t.Fatalf("upserts = %d, want 1", len(sink.upserts))
 	}
-	if sink.upserts[0].Kind != notifications.KindBlocked {
-		t.Fatalf("kind = %q, want %q", sink.upserts[0].Kind, notifications.KindBlocked)
+	if sink.upserts[0].Kind != NotificationKindBlocked {
+		t.Fatalf("kind = %q, want %q", sink.upserts[0].Kind, NotificationKindBlocked)
 	}
 	if sink.upserts[0].PullRequestTitle != "Improve API docs" {
 		t.Fatalf("pull request title = %q, want %q", sink.upserts[0].PullRequestTitle, "Improve API docs")
@@ -85,8 +84,8 @@ func TestNotificationCoordinator_UnblockedTransitionResolvesThenProgress(t *test
 	if len(sink.upserts) != 1 {
 		t.Fatalf("upserts = %d, want 1", len(sink.upserts))
 	}
-	if sink.upserts[0].Kind != notifications.KindProgress {
-		t.Fatalf("kind = %q, want %q", sink.upserts[0].Kind, notifications.KindProgress)
+	if sink.upserts[0].Kind != NotificationKindProgress {
+		t.Fatalf("kind = %q, want %q", sink.upserts[0].Kind, NotificationKindProgress)
 	}
 }
 
@@ -112,8 +111,8 @@ func TestNotificationCoordinator_MergeableTransitionUpsertsProgress(t *testing.T
 	if len(sink.upserts) != 1 {
 		t.Fatalf("upserts = %d, want 1", len(sink.upserts))
 	}
-	if sink.upserts[0].Kind != notifications.KindProgress {
-		t.Fatalf("kind = %q, want %q", sink.upserts[0].Kind, notifications.KindProgress)
+	if sink.upserts[0].Kind != NotificationKindProgress {
+		t.Fatalf("kind = %q, want %q", sink.upserts[0].Kind, NotificationKindProgress)
 	}
 }
 
