@@ -173,21 +173,56 @@ func buildPullOutputInfoMessage(lastLine string, exitCode int) InfoMessage {
 	return InfoMessage{Text: lastLine, Tone: InfoToneWarn}
 }
 
+func buildPullCompletionInfoMessage(activity domain.PullingActivity) (InfoMessage, bool) {
+	if !activity.Complete {
+		return InfoMessage{}, false
+	}
+
+	if activity.ExitCode != 0 {
+		reason := strings.TrimSpace(activity.FailureReason)
+		if reason == "" {
+			reason = strings.TrimSpace(activity.GetLastLine())
+		}
+		if reason == "" {
+			reason = "pull failed"
+		}
+		return InfoMessage{Text: fmt.Sprintf("Pull failed: %s", reason), Tone: InfoToneWarn}, true
+	}
+
+	successText := strings.TrimSpace(activity.GetLastLine())
+	if successText == "" {
+		successText = "Pull successful"
+	}
+
+	return InfoMessage{Text: successText, Tone: InfoToneSuccess}, true
+}
+
 func buildPruneCompletionInfoMessage(activity domain.PruningActivity) (InfoMessage, bool) {
 	if !activity.Complete {
 		return InfoMessage{}, false
 	}
 
-	if activity.DeletedCount == 0 {
-		for _, line := range activity.Lines {
-			if strings.HasPrefix(line, "Failed: ") {
-				return InfoMessage{Text: strings.TrimPrefix(line, "Failed: "), Tone: InfoToneError}, true
+	if activity.ExitCode != 0 {
+		reason := strings.TrimSpace(activity.FailureReason)
+		if reason == "" {
+			for _, line := range activity.Lines {
+				if strings.HasPrefix(line, "Failed: ") {
+					reason = strings.TrimSpace(strings.TrimPrefix(line, "Failed: "))
+					break
+				}
 			}
 		}
-		return InfoMessage{Text: "No branches to prune", Tone: InfoToneWarn}, true
+		if reason == "" {
+			reason = "one or more branches could not be pruned"
+		}
+		return InfoMessage{Text: fmt.Sprintf("Prune failed: %s", reason), Tone: InfoToneWarn}, true
 	}
 
-	return InfoMessage{Text: fmt.Sprintf("Deleted %d branches", activity.DeletedCount), Tone: InfoToneSuccess}, true
+	if activity.DeletedCount == 1 {
+		return InfoMessage{Text: "Pruned 1 branch", Tone: InfoToneSuccess}, true
+	}
+
+	return InfoMessage{Text: fmt.Sprintf("Pruned %d branches", activity.DeletedCount), Tone: InfoToneSuccess}, true
 }
 
 func renderInfoMessage(msg InfoMessage, infoWidth int) string {

@@ -256,8 +256,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case pullCompleteMsg:
 		m.applyRepoUpdate(msg.Index, msg.Repo, func(repo *domain.Repository, activity domain.Activity) {
 			if pulling, ok := activity.(*domain.PullingActivity); ok {
-				pulling.MarkComplete(msg.exitCode)
-				m.storeRecentActivityInfo(repo.Path, buildPullOutputInfoMessage(pulling.GetLastLine(), pulling.ExitCode))
+				pulling.MarkComplete(msg.exitCode, msg.failureReason)
+				if info, ok := buildPullCompletionInfoMessage(*pulling); ok {
+					m.storeRecentActivityInfo(repo.Path, info)
+				}
 				repo.Activity = &domain.IdleActivity{}
 			}
 		})
@@ -279,7 +281,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case pruneCompleteMsg:
 		m.applyRepoUpdate(msg.Index, msg.Repo, func(repo *domain.Repository, activity domain.Activity) {
 			if pruning, ok := activity.(*domain.PruningActivity); ok {
-				pruning.MarkComplete(msg.exitCode, msg.DeletedCount)
+				pruning.MarkComplete(msg.exitCode, msg.DeletedCount, msg.failedCount, msg.failureReason)
 				if info, ok := buildPruneCompletionInfoMessage(*pruning); ok {
 					m.storeRecentActivityInfo(repo.Path, info)
 				}

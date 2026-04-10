@@ -43,34 +43,40 @@ func (lb *LineBuffer) GetLastLine() string {
 
 type PullingActivity struct {
 	LineBuffer
-	Spinner  spinner.Model
-	ExitCode int
-	Complete bool
+	Spinner       spinner.Model
+	ExitCode      int
+	FailureReason string
+	Complete      bool
 }
 
 func (*PullingActivity) isActivity() {}
 
-func (p *PullingActivity) MarkComplete(exitCode int) {
+func (p *PullingActivity) MarkComplete(exitCode int, failureReason string) {
 	p.Complete = true
 	p.ExitCode = exitCode
+	p.FailureReason = failureReason
 }
 
 func (p *PullingActivity) IsInProgress() bool { return !p.Complete }
 
 type PruningActivity struct {
 	LineBuffer
-	Spinner      spinner.Model
-	DeletedCount int
-	ExitCode     int
-	Complete     bool
+	Spinner       spinner.Model
+	DeletedCount  int
+	FailedCount   int
+	ExitCode      int
+	FailureReason string
+	Complete      bool
 }
 
 func (*PruningActivity) isActivity() {}
 
-func (p *PruningActivity) MarkComplete(exitCode int, deletedCount int) {
+func (p *PruningActivity) MarkComplete(exitCode int, deletedCount int, failedCount int, failureReason string) {
 	p.Complete = true
 	p.ExitCode = exitCode
 	p.DeletedCount = deletedCount
+	p.FailedCount = failedCount
+	p.FailureReason = failureReason
 }
 
 func (p *PruningActivity) IsInProgress() bool { return !p.Complete }

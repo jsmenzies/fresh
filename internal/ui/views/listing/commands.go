@@ -41,7 +41,7 @@ func performPull(index int, repoPath string) tea.Cmd {
 		doneChan := make(chan pullCompleteMsg, 1)
 
 		go func() {
-			exitCode := git.Pull(repoPath, func(line string) {
+			exitCode, failureReason := git.Pull(repoPath, func(line string) {
 				lineChan <- line
 			})
 
@@ -50,9 +50,10 @@ func performPull(index int, repoPath string) tea.Cmd {
 			repo := git.BuildRepository(repoPath, cfg)
 
 			doneChan <- pullCompleteMsg{
-				Index:    index,
-				exitCode: exitCode,
-				Repo:     repo,
+				Index:         index,
+				exitCode:      exitCode,
+				failureReason: failureReason,
+				Repo:          repo,
 			}
 			close(doneChan)
 		}()
@@ -95,17 +96,19 @@ func performPrune(index int, repoPath string, branches []string) tea.Cmd {
 				lineChan <- line
 			}
 
-			_, deleted := git.DeleteBranches(repoPath, branches, lineCallback)
+			exitCode, deleted, failed, failureReason := git.DeleteBranches(repoPath, branches, lineCallback)
 
 			close(lineChan)
 
 			repo := git.BuildRepository(repoPath, cfg)
 
 			doneChan <- pruneCompleteMsg{
-				Index:        index,
-				exitCode:     0,
-				Repo:         repo,
-				DeletedCount: deleted,
+				Index:         index,
+				exitCode:      exitCode,
+				failureReason: failureReason,
+				Repo:          repo,
+				DeletedCount:  deleted,
+				failedCount:   failed,
 			}
 			close(doneChan)
 		}()

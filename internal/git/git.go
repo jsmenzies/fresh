@@ -242,31 +242,54 @@ func RefreshRemoteStatusWithFetch(repo *domain.Repository) error {
 	return nil
 }
 
-func Pull(repoPath string, lineCallback func(string)) int {
+func Pull(repoPath string, lineCallback func(string)) (exitCode int, failureReason string) {
 	cmd := createCommand(defaultConfig.Timeout.Pull, "git", "pull", "--rebase", "--progress")
 	cmd.Dir = repoPath
 
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
+		msg := fmt.Sprintf("Failed to get stderr pipe: %v", err)
 		if lineCallback != nil {
-			lineCallback(fmt.Sprintf("Failed to get stderr pipe: %v", err))
+			lineCallback(msg)
 		}
-		return 1
+		return 1, msg
 	}
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
+		msg := fmt.Sprintf("Failed to get stdout pipe: %v", err)
 		if lineCallback != nil {
-			lineCallback(fmt.Sprintf("Failed to get stdout pipe: %v", err))
+			lineCallback(msg)
 		}
-		return 1
+		return 1, msg
 	}
 
 	if err := cmd.Start(); err != nil {
+		msg := fmt.Sprintf("Failed to start command: %v", err)
 		if lineCallback != nil {
-			lineCallback(fmt.Sprintf("Failed to start command: %v", err))
+			lineCallback(msg)
 		}
-		return 1
+		return 1, msg
+	}
+
+	var linesMu sync.Mutex
+	lastLine := ""
+	firstErrorLine := ""
+	recordLine := func(line string) {
+		lineStr := strings.TrimSpace(line)
+		if lineStr == "" {
+			return
+		}
+		linesMu.Lock()
+		lastLine = lineStr
+		lower := strings.ToLower(lineStr)
+		if firstErrorLine == "" && (strings.Contains(lower, "error") || strings.Contains(lower, "fatal")) {
+			firstErrorLine = lineStr
+		}
+		linesMu.Unlock()
+		if lineCallback != nil {
+			lineCallback(lineStr)
+		}
 	}
 
 	stderrDone := make(chan struct{})
@@ -276,19 +299,13 @@ func Pull(repoPath string, lineCallback func(string)) int {
 		scanner.Split(splitOnCROrLF)
 
 		for scanner.Scan() {
-			lineStr := strings.TrimSpace(scanner.Text())
-			if lineStr != "" && lineCallback != nil {
-				lineCallback(lineStr)
-			}
+			recordLine(scanner.Text())
 		}
 	}()
 
 	stdoutScanner := bufio.NewScanner(stdoutPipe)
 	for stdoutScanner.Scan() {
-		lineStr := strings.TrimSpace(stdoutScanner.Text())
-		if lineStr != "" && lineCallback != nil {
-			lineCallback(lineStr)
-		}
+		recordLine(stdoutScanner.Text())
 	}
 
 	cmdErr := cmd.Wait()
@@ -297,12 +314,24 @@ func Pull(repoPath string, lineCallback func(string)) int {
 
 	if cmdErr != nil {
 		if exitErr, ok := cmdErr.(*exec.ExitError); ok {
-			return exitErr.ExitCode()
+			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = 1
 		}
-		return 1
+		linesMu.Lock()
+		switch {
+		case firstErrorLine != "":
+			failureReason = firstErrorLine
+		case lastLine != "":
+			failureReason = lastLine
+		default:
+			failureReason = strings.TrimSpace(cmdErr.Error())
+		}
+		linesMu.Unlock()
+		return exitCode, failureReason
 	}
 
-	return 0
+	return 0, ""
 }
 
 func splitOnCROrLF(data []byte, atEOF bool) (advance int, token []byte, err error) {
@@ -403,7 +432,7 @@ func FilterMergedBranches(repoPath string, branches []string) []string {
 	return merged
 }
 
-func DeleteBranches(repoPath string, branches []string, lineCallback func(string)) (exitCode int, deletedCount int) {
+func DeleteBranches(repoPath string, branches []string, lineCallback func(string)) (exitCode int, deletedCount int, failedCount int, failureReason string) {
 	deletedCount = 0
 
 	for _, branch := range branches {
@@ -413,6 +442,21 @@ func DeleteBranches(repoPath string, branches []string, lineCallback func(string
 		outputStr := strings.TrimSpace(string(output))
 
 		if err != nil {
+			failedCount++
+			if exitCode == 0 {
+				exitCode = 1
+				if exitErr, ok := err.(*exec.ExitError); ok {
+					if code := exitErr.ExitCode(); code != 0 {
+						exitCode = code
+					}
+				}
+			}
+			if failureReason == "" {
+				failureReason = outputStr
+				if failureReason == "" {
+					failureReason = err.Error()
+				}
+			}
 			if lineCallback != nil {
 				lineCallback(fmt.Sprintf("Failed: %s (%s)", branch, outputStr))
 			}
@@ -425,5 +469,5 @@ func DeleteBranches(repoPath string, branches []string, lineCallback func(string
 		}
 	}
 
-	return 0, deletedCount
+	return exitCode, deletedCount, failedCount, failureReason
 }

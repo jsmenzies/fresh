@@ -40,9 +40,10 @@ type pullLineMsg struct {
 }
 
 type pullCompleteMsg struct {
-	Index    int
-	exitCode int
-	Repo     domain.Repository
+	Index         int
+	exitCode      int
+	failureReason string
+	Repo          domain.Repository
 }
 
 type pullWorkState struct {
@@ -64,10 +65,12 @@ type pruneLineMsg struct {
 }
 
 type pruneCompleteMsg struct {
-	Index        int
-	exitCode     int
-	Repo         domain.Repository
-	DeletedCount int
+	Index         int
+	exitCode      int
+	failureReason string
+	Repo          domain.Repository
+	DeletedCount  int
+	failedCount   int
 }
 
 type infoRotateTickMsg struct{}
