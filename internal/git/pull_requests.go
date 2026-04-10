@@ -353,32 +353,19 @@ func classifyMyPullRequest(row gqlPullRequestNode) pullrequests.Status {
 	rollup := latestStatusCheckRollup(row)
 	if rollup != nil {
 		hasChecks = true
-		state := strings.ToUpper(strings.TrimSpace(rollup.State))
-		if state == "FAILURE" || state == "ERROR" {
+		rollupGate := classifyRollupGate(rollup.State)
+		if rollupGate == pullRequestCheckGateFailing {
 			hasFailingChecks = true
 		}
-		if state == "PENDING" || state == "EXPECTED" {
+		if rollupGate == pullRequestCheckGatePending {
 			hasPendingChecks = true
 		}
 
 		for _, node := range rollup.Contexts.Nodes {
-			conclusion := strings.ToUpper(strings.TrimSpace(node.Conclusion))
-			status := strings.ToUpper(strings.TrimSpace(node.Status))
-			nodeState := strings.ToUpper(strings.TrimSpace(node.State))
-
-			switch conclusion {
-			case "FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE":
+			switch classifyCheckGate(node.Conclusion, node.Status, node.State) {
+			case pullRequestCheckGateFailing:
 				hasFailingChecks = true
-			case "":
-				if status != "COMPLETED" {
-					hasPendingChecks = true
-				}
-			}
-
-			if nodeState == "FAILURE" || nodeState == "ERROR" {
-				hasFailingChecks = true
-			}
-			if nodeState == "PENDING" || nodeState == "EXPECTED" {
+			case pullRequestCheckGatePending:
 				hasPendingChecks = true
 			}
 		}
