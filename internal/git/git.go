@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"fresh/internal/config"
 	"fresh/internal/domain"
@@ -16,10 +17,45 @@ import (
 
 var defaultConfig = config.DefaultConfig()
 
-func createCommand(timeout time.Duration, name string, args ...string) *exec.Cmd {
+type command struct {
+	*exec.Cmd
+	cancel context.CancelFunc
+}
+
+func createCommand(timeout time.Duration, name string, args ...string) *command {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	_ = cancel
-	return exec.CommandContext(ctx, name, args...)
+	return &command{
+		Cmd:    exec.CommandContext(ctx, name, args...),
+		cancel: cancel,
+	}
+}
+
+func (c *command) Run() error {
+	defer c.cancel()
+	return c.Cmd.Run()
+}
+
+func (c *command) Output() ([]byte, error) {
+	defer c.cancel()
+	return c.Cmd.Output()
+}
+
+func (c *command) CombinedOutput() ([]byte, error) {
+	defer c.cancel()
+	return c.Cmd.CombinedOutput()
+}
+
+func (c *command) Start() error {
+	err := c.Cmd.Start()
+	if err != nil {
+		c.cancel()
+	}
+	return err
+}
+
+func (c *command) Wait() error {
+	defer c.cancel()
+	return c.Cmd.Wait()
 }
 
 func Parallel(fns ...func()) {
@@ -181,7 +217,15 @@ func GetRemoteState(repoPath string) domain.RemoteState {
 	output, err := cmd.Output()
 
 	if err != nil {
-		errStr := string(err.(*exec.ExitError).Stderr)
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			return domain.RemoteError{Message: err.Error()}
+		}
+
+		errStr := string(exitErr.Stderr)
+		if errStr == "" {
+			errStr = exitErr.Error()
+		}
 
 		if strings.Contains(errStr, "no upstream") {
 			return domain.NoUpstream{}
