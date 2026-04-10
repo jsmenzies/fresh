@@ -1,6 +1,10 @@
 package git
 
-import "testing"
+import (
+	"errors"
+	"testing"
+	"time"
+)
 
 func TestClassifyCheckContext(t *testing.T) {
 	t.Parallel()
@@ -86,5 +90,86 @@ func TestSummarizePullRequestChecks(t *testing.T) {
 	}
 	if summary.Skipped != 1 {
 		t.Fatalf("skipped = %d, want 1", summary.Skipped)
+	}
+}
+
+func TestGitHubLoginCacheGet_UsesCachedValueWithinTTL(t *testing.T) {
+	t.Parallel()
+
+	var cache githubLoginCache
+	now := time.Date(2026, time.January, 2, 10, 0, 0, 0, time.UTC)
+	loadCalls := 0
+
+	loader := func() (string, error) {
+		loadCalls++
+		return "octocat\n", nil
+	}
+
+	first := cache.get(now, time.Hour, loader)
+	second := cache.get(now.Add(30*time.Minute), time.Hour, loader)
+
+	if first != "octocat" {
+		t.Fatalf("first = %q, want %q", first, "octocat")
+	}
+	if second != "octocat" {
+		t.Fatalf("second = %q, want %q", second, "octocat")
+	}
+	if loadCalls != 1 {
+		t.Fatalf("loader calls = %d, want 1", loadCalls)
+	}
+}
+
+func TestGitHubLoginCacheGet_RefreshesAfterTTL(t *testing.T) {
+	t.Parallel()
+
+	var cache githubLoginCache
+	now := time.Date(2026, time.January, 2, 10, 0, 0, 0, time.UTC)
+	loadCalls := 0
+
+	loader := func() (string, error) {
+		loadCalls++
+		if loadCalls == 1 {
+			return "octocat", nil
+		}
+		return "monalisa", nil
+	}
+
+	first := cache.get(now, time.Hour, loader)
+	second := cache.get(now.Add(61*time.Minute), time.Hour, loader)
+
+	if first != "octocat" {
+		t.Fatalf("first = %q, want %q", first, "octocat")
+	}
+	if second != "monalisa" {
+		t.Fatalf("second = %q, want %q", second, "monalisa")
+	}
+	if loadCalls != 2 {
+		t.Fatalf("loader calls = %d, want 2", loadCalls)
+	}
+}
+
+func TestGitHubLoginCacheGet_CachesEmptyValueOnLoaderError(t *testing.T) {
+	t.Parallel()
+
+	var cache githubLoginCache
+	now := time.Date(2026, time.January, 2, 10, 0, 0, 0, time.UTC)
+	loadCalls := 0
+
+	loader := func() (string, error) {
+		loadCalls++
+		return "", errors.New("boom")
+	}
+
+	first := cache.get(now, time.Hour, loader)
+	second := cache.get(now.Add(30*time.Minute), time.Hour, loader)
+
+	if first != "" {
+		t.Fatalf("first = %q, want empty", first)
+	}
+	if second != "" {
+		t.Fatalf("second = %q, want empty", second)
+	}
+	if loadCalls != 1 {
+		t.Fatalf("loader calls = %d, want 1", loadCalls)
 	}
 }
