@@ -1,7 +1,6 @@
 package pullrequests
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 )
@@ -14,20 +13,6 @@ const (
 	StatusReview  Status = "review"
 	StatusChecks  Status = "checks"
 )
-
-type Key struct {
-	Owner  string
-	Repo   string
-	Number int
-}
-
-func (k Key) String() string {
-	return fmt.Sprintf("%s/%s#%d", k.Owner, k.Repo, k.Number)
-}
-
-func (k Key) IsValid() bool {
-	return k.Owner != "" && k.Repo != "" && k.Number > 0
-}
 
 type Snapshot struct {
 	Key    Key

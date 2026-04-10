@@ -25,6 +25,10 @@ func (k PRKey) String() string {
 	return fmt.Sprintf("%s/%s#%d", k.Owner, k.Repo, k.Number)
 }
 
+func (k PRKey) IsValid() bool {
+	return k.Owner != "" && k.Repo != "" && k.Number > 0
+}
+
 type Notification struct {
 	Key              PRKey
 	Kind             Kind
@@ -91,7 +95,7 @@ func (n *Notifier) Stop() {
 }
 
 func (n *Notifier) Upsert(notification Notification) {
-	if notification.Key.Owner == "" || notification.Key.Repo == "" || notification.Key.Number <= 0 {
+	if !notification.Key.IsValid() {
 		return
 	}
 
