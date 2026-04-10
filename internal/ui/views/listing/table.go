@@ -311,7 +311,3 @@ func buildMyPullRequestSummary(state domain.PullRequestState) (string, bool) {
 
 	return "My PRs: " + strings.Join(parts, ", "), hasPinned
 }
-
-func stylePullOutput(lastLine string, exitCode int, infoWidth int) string {
-	return renderInfoMessage(buildPullOutputInfoMessage(lastLine, exitCode), normalizeInfoWidth(infoWidth))
-}

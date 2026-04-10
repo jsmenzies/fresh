@@ -391,7 +391,6 @@ func (m *Model) View() string {
 		Now:                  time.Now(),
 		RecentActivityByRepo: m.RecentInfo,
 		PullRequestSyncing:   m.isPullRequestSyncInFlight(),
-		PullRequestSpinner:   m.pullRequestSpinnerView(),
 		BlockedSpinner:       m.BlockedSpinner.View(),
 		ReadySpinner:         m.ReadySpinner.View(),
 	}
