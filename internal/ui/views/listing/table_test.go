@@ -350,7 +350,7 @@ func TestBuildPullRequestStatus(t *testing.T) {
 func TestBuildPullRequestStatus_SyncingKeepsCurrentStateVisible(t *testing.T) {
 	t.Parallel()
 
-	runtime := InfoRuntime{PullRequestSyncing: true, PullRequestSpinner: "⠋"}
+	runtime := InfoRuntime{PullRequestSyncing: true}
 	got := buildPullRequestStatus(domain.PullRequestCount{Open: 9, MyOpen: 1}, runtime)
 
 	if strings.Contains(got, "⠋") {
@@ -374,7 +374,7 @@ func TestBuildPullRequestAlert(t *testing.T) {
 		{
 			name:    "syncing hides alert even when blocked prs exist",
 			state:   domain.PullRequestCount{Open: 9, MyOpen: 1, MyBlocked: 2},
-			runtime: InfoRuntime{PullRequestSyncing: true, PullRequestSpinner: "⠋", BlockedSpinner: "█"},
+			runtime: InfoRuntime{PullRequestSyncing: true, BlockedSpinner: "█"},
 			isEmpty: true,
 		},
 		{
@@ -681,81 +681,6 @@ func TestBuildInfo(t *testing.T) {
 					t.Errorf("buildInfo(%q) = %q, want it to contain %q",
 						tt.name, got, want)
 				}
-			}
-		})
-	}
-}
-
-// ============================================================================
-// stylePullOutput tests
-// ============================================================================
-
-func TestStylePullOutput(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		lastLine string
-		exitCode int
-		contains string
-	}{
-		{
-			name:     "error keyword in output",
-			lastLine: "error: could not apply patch",
-			exitCode: 1,
-			contains: "error: could not apply patch",
-		},
-		{
-			name:     "fatal keyword in output",
-			lastLine: "fatal: remote origin not found",
-			exitCode: 128,
-			contains: "fatal: remote origin not found",
-		},
-		{
-			name:     "success with up to date",
-			lastLine: "Already up to date.",
-			exitCode: 0,
-			contains: "Already up to date.",
-		},
-		{
-			name:     "success with up-to-date hyphenated",
-			lastLine: "Already up-to-date.",
-			exitCode: 0,
-			contains: "Already up-to-date.",
-		},
-		{
-			name:     "success with done message",
-			lastLine: "done.",
-			exitCode: 0,
-			contains: "done.",
-		},
-		{
-			name:     "success with file changed",
-			lastLine: "1 file changed, 5 insertions(+)",
-			exitCode: 0,
-			contains: "1 file changed",
-		},
-		{
-			name:     "non-zero exit unknown text falls through to warn",
-			lastLine: "something unexpected happened",
-			exitCode: 1,
-			contains: "something unexpected happened",
-		},
-		{
-			name:     "zero exit with unknown text falls through to warn",
-			lastLine: "some other output",
-			exitCode: 0,
-			contains: "some other output",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := stylePullOutput(tt.lastLine, tt.exitCode, InfoWidth)
-			if !strings.Contains(got, tt.contains) {
-				t.Errorf("stylePullOutput(%q, %d) = %q, want it to contain %q",
-					tt.lastLine, tt.exitCode, got, tt.contains)
 			}
 		})
 	}

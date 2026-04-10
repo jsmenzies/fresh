@@ -16,10 +16,9 @@ import (
 var cfg = config.DefaultConfig()
 
 type Model struct {
-	Repositories  []domain.Repository
-	scanner       *scanner.Scanner
-	Spinner       spinner.Model
-	width, height int
+	Repositories []domain.Repository
+	scanner      *scanner.Scanner
+	Spinner      spinner.Model
 }
 
 func New(scanDir string) *Model {
@@ -41,14 +40,6 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		return m, nil
-
-	case tea.KeyPressMsg:
-		// Handle any key messages (optional, can be removed if not needed)
-
 	case repoFoundMsg:
 		path := string(msg)
 		repo := git.BuildRepository(path, cfg)

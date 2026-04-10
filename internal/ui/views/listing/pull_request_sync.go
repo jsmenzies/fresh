@@ -25,11 +25,3 @@ func (m *Model) completePullRequestSync() {
 func (m *Model) isPullRequestSyncInFlight() bool {
 	return m.PRSyncInFlight > 0
 }
-
-func (m *Model) pullRequestSpinnerView() string {
-	if !m.isPullRequestSyncInFlight() {
-		return ""
-	}
-
-	return m.PRSyncSpinner.View()
-}

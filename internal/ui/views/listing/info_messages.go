@@ -38,7 +38,6 @@ type InfoRuntime struct {
 	Now                  time.Time
 	RecentActivityByRepo map[string][]TimedInfoMessage
 	PullRequestSyncing   bool
-	PullRequestSpinner   string
 	BlockedSpinner       string
 	ReadySpinner         string
 }

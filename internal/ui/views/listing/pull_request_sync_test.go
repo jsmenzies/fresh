@@ -115,13 +115,6 @@ func TestUpdatePullRequestStatesIgnoresStaleGeneration(t *testing.T) {
 	}
 }
 
-func TestPullRequestSpinnerViewEmptyWhenNotSyncing(t *testing.T) {
-	m := New(nil)
-	if got := m.pullRequestSpinnerView(); got != "" {
-		t.Fatalf("pullRequestSpinnerView() = %q, want empty", got)
-	}
-}
-
 func TestStartRefreshCycleStartsPRSyncAndRepoRefresh(t *testing.T) {
 	m := New(sampleWatchRepos())
 
