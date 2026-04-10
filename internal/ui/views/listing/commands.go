@@ -37,100 +37,96 @@ func performRefresh(index int, repoPath string) tea.Cmd {
 
 func performPull(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
-		lineChan := make(chan string, 10)
-		doneChan := make(chan pullCompleteMsg, 1)
-
-		go func() {
-			exitCode, failureReason := git.Pull(repoPath, func(line string) {
-				lineChan <- line
-			})
-
-			close(lineChan)
-
-			repo := git.BuildRepository(repoPath, cfg)
-
-			doneChan <- pullCompleteMsg{
-				Index:         index,
-				exitCode:      exitCode,
-				failureReason: failureReason,
-				Repo:          repo,
-			}
-			close(doneChan)
-		}()
-
-		return pullWorkState{
-			Index:    index,
-			lineChan: lineChan,
-			doneChan: doneChan,
-		}
+		return startStreamedRepoCommand(
+			index,
+			repoPath,
+			func(lineCallback func(string)) domain.CommandOutcome {
+				return git.Pull(repoPath, lineCallback)
+			},
+			func(index int, repo domain.Repository, outcome domain.CommandOutcome) pullCompleteMsg {
+				return pullCompleteMsg{
+					Index:   index,
+					outcome: outcome,
+					Repo:    repo,
+				}
+			},
+		)
 	}
 }
 
 func listenForPullProgress(state pullWorkState) tea.Cmd {
-	return func() tea.Msg {
-		select {
-		case line, ok := <-state.lineChan:
-			if ok {
-				return pullLineMsg{
-					Index: state.Index,
-					line:  line,
-					state: &state,
-				}
-			}
-			return <-state.doneChan
-		case complete := <-state.doneChan:
-			return complete
+	return listenForStreamedProgress(state, func(index int, line string, next *pullWorkState) tea.Msg {
+		return pullLineMsg{
+			Index: index,
+			line:  line,
+			state: next,
 		}
-	}
+	})
 }
 
 func performPrune(index int, repoPath string, branches []string) tea.Cmd {
 	return func() tea.Msg {
-		// Note: branches are pre-fetched and passed in
-
-		lineChan := make(chan string, 10)
-		doneChan := make(chan pruneCompleteMsg, 1)
-
-		go func() {
-			lineCallback := func(line string) {
-				lineChan <- line
-			}
-
-			exitCode, deleted, failed, failureReason := git.DeleteBranches(repoPath, branches, lineCallback)
-
-			close(lineChan)
-
-			repo := git.BuildRepository(repoPath, cfg)
-
-			doneChan <- pruneCompleteMsg{
-				Index:         index,
-				exitCode:      exitCode,
-				failureReason: failureReason,
-				Repo:          repo,
-				DeletedCount:  deleted,
-				failedCount:   failed,
-			}
-			close(doneChan)
-		}()
-
-		return pruneWorkState{
-			Index:    index,
-			lineChan: lineChan,
-			doneChan: doneChan,
-		}
+		return startStreamedRepoCommand(
+			index,
+			repoPath,
+			func(lineCallback func(string)) domain.PruneOutcome {
+				return git.DeleteBranches(repoPath, branches, lineCallback)
+			},
+			func(index int, repo domain.Repository, outcome domain.PruneOutcome) pruneCompleteMsg {
+				return pruneCompleteMsg{
+					Index:   index,
+					outcome: outcome,
+					Repo:    repo,
+				}
+			},
+		)
 	}
 }
 
 func listenForPruneProgress(state pruneWorkState) tea.Cmd {
+	return listenForStreamedProgress(state, func(index int, line string, next *pruneWorkState) tea.Msg {
+		return pruneLineMsg{
+			Index: index,
+			line:  line,
+			state: next,
+		}
+	})
+}
+
+func startStreamedRepoCommand[R any, M any](
+	index int,
+	repoPath string,
+	execute func(lineCallback func(string)) R,
+	buildDone func(index int, repo domain.Repository, result R) M,
+) streamedWorkState[M] {
+	lineChan := make(chan string, 10)
+	doneChan := make(chan M, 1)
+
+	go func() {
+		result := execute(func(line string) {
+			lineChan <- line
+		})
+
+		close(lineChan)
+
+		repo := git.BuildRepository(repoPath, cfg)
+		doneChan <- buildDone(index, repo, result)
+		close(doneChan)
+	}()
+
+	return streamedWorkState[M]{
+		Index:    index,
+		lineChan: lineChan,
+		doneChan: doneChan,
+	}
+}
+
+func listenForStreamedProgress[M any](state streamedWorkState[M], toLineMsg func(index int, line string, next *streamedWorkState[M]) tea.Msg) tea.Cmd {
 	return func() tea.Msg {
 		select {
 		case line, ok := <-state.lineChan:
 			if ok {
-				return pruneLineMsg{
-					Index: state.Index,
-					line:  line,
-					state: &state,
-				}
+				return toLineMsg(state.Index, line, &state)
 			}
 			return <-state.doneChan
 		case complete := <-state.doneChan:

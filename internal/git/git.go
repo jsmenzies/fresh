@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"fresh/internal/config"
 	"fresh/internal/domain"
+	"fresh/internal/textutil"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -242,7 +243,7 @@ func RefreshRemoteStatusWithFetch(repo *domain.Repository) error {
 	return nil
 }
 
-func Pull(repoPath string, lineCallback func(string)) (exitCode int, failureReason string) {
+func Pull(repoPath string, lineCallback func(string)) domain.CommandOutcome {
 	cmd := createCommand(defaultConfig.Timeout.Pull, "git", "pull", "--rebase", "--progress")
 	cmd.Dir = repoPath
 
@@ -252,7 +253,7 @@ func Pull(repoPath string, lineCallback func(string)) (exitCode int, failureReas
 		if lineCallback != nil {
 			lineCallback(msg)
 		}
-		return 1, msg
+		return domain.CommandOutcome{ExitCode: 1, FailureReason: msg}
 	}
 
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -261,7 +262,7 @@ func Pull(repoPath string, lineCallback func(string)) (exitCode int, failureReas
 		if lineCallback != nil {
 			lineCallback(msg)
 		}
-		return 1, msg
+		return domain.CommandOutcome{ExitCode: 1, FailureReason: msg}
 	}
 
 	if err := cmd.Start(); err != nil {
@@ -269,7 +270,7 @@ func Pull(repoPath string, lineCallback func(string)) (exitCode int, failureReas
 		if lineCallback != nil {
 			lineCallback(msg)
 		}
-		return 1, msg
+		return domain.CommandOutcome{ExitCode: 1, FailureReason: msg}
 	}
 
 	var linesMu sync.Mutex
@@ -313,25 +314,18 @@ func Pull(repoPath string, lineCallback func(string)) (exitCode int, failureReas
 	<-stderrDone
 
 	if cmdErr != nil {
+		exitCode := 1
 		if exitErr, ok := cmdErr.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
-		} else {
-			exitCode = 1
 		}
+		failureReason := ""
 		linesMu.Lock()
-		switch {
-		case firstErrorLine != "":
-			failureReason = firstErrorLine
-		case lastLine != "":
-			failureReason = lastLine
-		default:
-			failureReason = strings.TrimSpace(cmdErr.Error())
-		}
+		failureReason = textutil.FirstNonEmptyTrimmed(firstErrorLine, lastLine, cmdErr.Error())
 		linesMu.Unlock()
-		return exitCode, failureReason
+		return domain.CommandOutcome{ExitCode: exitCode, FailureReason: failureReason}
 	}
 
-	return 0, ""
+	return domain.CommandOutcome{}
 }
 
 func splitOnCROrLF(data []byte, atEOF bool) (advance int, token []byte, err error) {
@@ -432,8 +426,8 @@ func FilterMergedBranches(repoPath string, branches []string) []string {
 	return merged
 }
 
-func DeleteBranches(repoPath string, branches []string, lineCallback func(string)) (exitCode int, deletedCount int, failedCount int, failureReason string) {
-	deletedCount = 0
+func DeleteBranches(repoPath string, branches []string, lineCallback func(string)) domain.PruneOutcome {
+	outcome := domain.PruneOutcome{}
 
 	for _, branch := range branches {
 		cmd := createCommand(defaultConfig.Timeout.Default, "git", "branch", "-d", branch)
@@ -442,20 +436,17 @@ func DeleteBranches(repoPath string, branches []string, lineCallback func(string
 		outputStr := strings.TrimSpace(string(output))
 
 		if err != nil {
-			failedCount++
-			if exitCode == 0 {
-				exitCode = 1
+			outcome.FailedCount++
+			if outcome.ExitCode == 0 {
+				outcome.ExitCode = 1
 				if exitErr, ok := err.(*exec.ExitError); ok {
 					if code := exitErr.ExitCode(); code != 0 {
-						exitCode = code
+						outcome.ExitCode = code
 					}
 				}
 			}
-			if failureReason == "" {
-				failureReason = outputStr
-				if failureReason == "" {
-					failureReason = err.Error()
-				}
+			if outcome.FailureReason == "" {
+				outcome.FailureReason = textutil.FirstNonEmptyTrimmed(outputStr, err.Error())
 			}
 			if lineCallback != nil {
 				lineCallback(fmt.Sprintf("Failed: %s (%s)", branch, outputStr))
@@ -463,11 +454,11 @@ func DeleteBranches(repoPath string, branches []string, lineCallback func(string
 			continue
 		}
 
-		deletedCount++
+		outcome.DeletedCount++
 		if lineCallback != nil {
 			lineCallback(fmt.Sprintf("Deleted: %s", branch))
 		}
 	}
 
-	return exitCode, deletedCount, failedCount, failureReason
+	return outcome
 }

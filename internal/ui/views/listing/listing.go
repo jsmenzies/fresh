@@ -254,14 +254,14 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 
 	case pullCompleteMsg:
-		m.applyRepoUpdate(msg.Index, msg.Repo, func(repo *domain.Repository, activity domain.Activity) {
-			if pulling, ok := activity.(*domain.PullingActivity); ok {
-				pulling.MarkComplete(msg.exitCode, msg.failureReason)
-				if info, ok := buildPullCompletionInfoMessage(*pulling); ok {
-					m.storeRecentActivityInfo(repo.Path, info)
-				}
-				repo.Activity = &domain.IdleActivity{}
+		m.finalizeRepoActivity(msg.Index, msg.Repo, func(activity domain.Activity) (InfoMessage, bool, bool) {
+			pulling, ok := activity.(*domain.PullingActivity)
+			if !ok {
+				return InfoMessage{}, false, false
 			}
+			pulling.MarkComplete(msg.outcome)
+			info, hasInfo := buildPullCompletionInfoMessage(*pulling)
+			return info, hasInfo, true
 		})
 
 	case pruneWorkState:
@@ -279,14 +279,14 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 
 	case pruneCompleteMsg:
-		m.applyRepoUpdate(msg.Index, msg.Repo, func(repo *domain.Repository, activity domain.Activity) {
-			if pruning, ok := activity.(*domain.PruningActivity); ok {
-				pruning.MarkComplete(msg.exitCode, msg.DeletedCount, msg.failedCount, msg.failureReason)
-				if info, ok := buildPruneCompletionInfoMessage(*pruning); ok {
-					m.storeRecentActivityInfo(repo.Path, info)
-				}
-				repo.Activity = &domain.IdleActivity{}
+		m.finalizeRepoActivity(msg.Index, msg.Repo, func(activity domain.Activity) (InfoMessage, bool, bool) {
+			pruning, ok := activity.(*domain.PruningActivity)
+			if !ok {
+				return InfoMessage{}, false, false
 			}
+			pruning.MarkComplete(msg.outcome)
+			info, hasInfo := buildPruneCompletionInfoMessage(*pruning)
+			return info, hasInfo, true
 		})
 
 	case infoRotateTickMsg:
@@ -377,6 +377,19 @@ func (m *Model) applyPullRequestWatchlist(tracked []pullrequests.Snapshot, seed 
 	}
 
 	m.prCoordinator.Sync(tracked, pullrequests.ApplyOptions{Seed: seed}, m.notifier)
+}
+
+func (m *Model) finalizeRepoActivity(index int, next domain.Repository, complete func(activity domain.Activity) (InfoMessage, bool, bool)) {
+	m.applyRepoUpdate(index, next, func(repo *domain.Repository, activity domain.Activity) {
+		info, hasInfo, completed := complete(activity)
+		if !completed {
+			return
+		}
+		if hasInfo {
+			m.storeRecentActivityInfo(repo.Path, info)
+		}
+		repo.Activity = &domain.IdleActivity{}
+	})
 }
 
 func (m *Model) View() string {

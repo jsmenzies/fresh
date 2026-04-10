@@ -40,23 +40,19 @@ type pullLineMsg struct {
 }
 
 type pullCompleteMsg struct {
-	Index         int
-	exitCode      int
-	failureReason string
-	Repo          domain.Repository
+	Index   int
+	outcome domain.CommandOutcome
+	Repo    domain.Repository
 }
 
-type pullWorkState struct {
+type streamedWorkState[T any] struct {
 	Index    int
 	lineChan chan string
-	doneChan chan pullCompleteMsg
+	doneChan chan T
 }
 
-type pruneWorkState struct {
-	Index    int
-	lineChan chan string
-	doneChan chan pruneCompleteMsg
-}
+type pullWorkState = streamedWorkState[pullCompleteMsg]
+type pruneWorkState = streamedWorkState[pruneCompleteMsg]
 
 type pruneLineMsg struct {
 	Index int
@@ -65,12 +61,9 @@ type pruneLineMsg struct {
 }
 
 type pruneCompleteMsg struct {
-	Index         int
-	exitCode      int
-	failureReason string
-	Repo          domain.Repository
-	DeletedCount  int
-	failedCount   int
+	Index   int
+	outcome domain.PruneOutcome
+	Repo    domain.Repository
 }
 
 type infoRotateTickMsg struct{}

@@ -2,6 +2,7 @@ package listing
 
 import (
 	"fmt"
+	"fresh/internal/textutil"
 	"strings"
 	"time"
 
@@ -153,48 +154,17 @@ func filterPinnedInfoMessages(messages []InfoMessage) []InfoMessage {
 	return pinned
 }
 
-func buildPullOutputInfoMessage(lastLine string, exitCode int) InfoMessage {
-	lowerLine := strings.ToLower(lastLine)
-
-	if strings.Contains(lowerLine, "error") || strings.Contains(lowerLine, "fatal") {
-		return InfoMessage{Text: lastLine, Tone: InfoToneError}
-	}
-
-	if exitCode == 0 {
-		if strings.Contains(lowerLine, "up to date") || strings.Contains(lowerLine, "up-to-date") {
-			return InfoMessage{Text: lastLine, Tone: InfoTonePrimary}
-		}
-		if strings.Contains(lowerLine, "done") ||
-			(strings.Contains(lowerLine, "file") && strings.Contains(lowerLine, "changed")) {
-			return InfoMessage{Text: lastLine, Tone: InfoToneSuccess}
-		}
-	}
-
-	return InfoMessage{Text: lastLine, Tone: InfoToneWarn}
-}
-
 func buildPullCompletionInfoMessage(activity domain.PullingActivity) (InfoMessage, bool) {
 	if !activity.Complete {
 		return InfoMessage{}, false
 	}
 
-	if activity.ExitCode != 0 {
-		reason := strings.TrimSpace(activity.FailureReason)
-		if reason == "" {
-			reason = strings.TrimSpace(activity.GetLastLine())
-		}
-		if reason == "" {
-			reason = "pull failed"
-		}
+	if !activity.Outcome.IsSuccess() {
+		reason := textutil.FirstNonEmptyTrimmed(activity.Outcome.FailureReason, activity.GetLastLine(), "pull failed")
 		return InfoMessage{Text: fmt.Sprintf("Pull failed: %s", reason), Tone: InfoToneWarn}, true
 	}
 
-	successText := strings.TrimSpace(activity.GetLastLine())
-	if successText == "" {
-		successText = "Pull successful"
-	}
-
-	return InfoMessage{Text: successText, Tone: InfoToneSuccess}, true
+	return InfoMessage{Text: "Pull completed successfully", Tone: InfoToneSuccess}, true
 }
 
 func buildPruneCompletionInfoMessage(activity domain.PruningActivity) (InfoMessage, bool) {
@@ -202,19 +172,12 @@ func buildPruneCompletionInfoMessage(activity domain.PruningActivity) (InfoMessa
 		return InfoMessage{}, false
 	}
 
-	if activity.ExitCode != 0 {
-		reason := strings.TrimSpace(activity.FailureReason)
-		if reason == "" {
-			for _, line := range activity.Lines {
-				if strings.HasPrefix(line, "Failed: ") {
-					reason = strings.TrimSpace(strings.TrimPrefix(line, "Failed: "))
-					break
-				}
-			}
-		}
-		if reason == "" {
-			reason = "one or more branches could not be pruned"
-		}
+	if !activity.Outcome.IsSuccess() {
+		reason := textutil.FirstNonEmptyTrimmed(
+			activity.Outcome.FailureReason,
+			firstLineWithPrefixTrimmed(activity.Lines, "Failed: "),
+			"one or more branches could not be pruned",
+		)
 		return InfoMessage{Text: fmt.Sprintf("Prune failed: %s", reason), Tone: InfoToneWarn}, true
 	}
 
@@ -223,6 +186,15 @@ func buildPruneCompletionInfoMessage(activity domain.PruningActivity) (InfoMessa
 	}
 
 	return InfoMessage{Text: fmt.Sprintf("Pruned %d branches", activity.DeletedCount), Tone: InfoToneSuccess}, true
+}
+
+func firstLineWithPrefixTrimmed(lines []string, prefix string) string {
+	for _, line := range lines {
+		if strings.HasPrefix(line, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(line, prefix))
+		}
+	}
+	return ""
 }
 
 func renderInfoMessage(msg InfoMessage, infoWidth int) string {

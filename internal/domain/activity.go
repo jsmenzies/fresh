@@ -41,42 +41,46 @@ func (lb *LineBuffer) GetLastLine() string {
 	return lb.Lines[len(lb.Lines)-1]
 }
 
+type CommandCompletion struct {
+	Outcome  CommandOutcome
+	Complete bool
+}
+
+func (c *CommandCompletion) MarkComplete(outcome CommandOutcome) {
+	c.Complete = true
+	c.Outcome = outcome
+}
+
+func (c *CommandCompletion) IsInProgress() bool { return !c.Complete }
+
 type PullingActivity struct {
 	LineBuffer
-	Spinner       spinner.Model
-	ExitCode      int
-	FailureReason string
-	Complete      bool
+	Spinner spinner.Model
+	CommandCompletion
 }
 
 func (*PullingActivity) isActivity() {}
 
-func (p *PullingActivity) MarkComplete(exitCode int, failureReason string) {
-	p.Complete = true
-	p.ExitCode = exitCode
-	p.FailureReason = failureReason
+func (p *PullingActivity) MarkComplete(outcome CommandOutcome) {
+	p.CommandCompletion.MarkComplete(outcome)
 }
 
-func (p *PullingActivity) IsInProgress() bool { return !p.Complete }
+func (p *PullingActivity) IsInProgress() bool { return p.CommandCompletion.IsInProgress() }
 
 type PruningActivity struct {
 	LineBuffer
-	Spinner       spinner.Model
-	DeletedCount  int
-	FailedCount   int
-	ExitCode      int
-	FailureReason string
-	Complete      bool
+	Spinner spinner.Model
+	CommandCompletion
+	DeletedCount int
+	FailedCount  int
 }
 
 func (*PruningActivity) isActivity() {}
 
-func (p *PruningActivity) MarkComplete(exitCode int, deletedCount int, failedCount int, failureReason string) {
-	p.Complete = true
-	p.ExitCode = exitCode
-	p.DeletedCount = deletedCount
-	p.FailedCount = failedCount
-	p.FailureReason = failureReason
+func (p *PruningActivity) MarkComplete(outcome PruneOutcome) {
+	p.CommandCompletion.MarkComplete(outcome.CommandOutcome)
+	p.DeletedCount = outcome.DeletedCount
+	p.FailedCount = outcome.FailedCount
 }
 
-func (p *PruningActivity) IsInProgress() bool { return !p.Complete }
+func (p *PruningActivity) IsInProgress() bool { return p.CommandCompletion.IsInProgress() }
