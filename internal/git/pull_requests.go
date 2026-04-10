@@ -10,10 +10,6 @@ import (
 	"strings"
 )
 
-type PullRequestService interface {
-	GetPullRequestSync(repos []domain.Repository) PullRequestSync
-}
-
 type GhPullRequestService struct{}
 
 type PullRequestSync struct {
@@ -74,18 +70,8 @@ type gqlStatusContextNode struct {
 	State      string `json:"state"`
 }
 
-var pullRequestService PullRequestService = GhPullRequestService{}
-
-func SetPullRequestService(service PullRequestService) {
-	if service == nil {
-		pullRequestService = GhPullRequestService{}
-		return
-	}
-	pullRequestService = service
-}
-
 func GetPullRequestSync(repos []domain.Repository) PullRequestSync {
-	return pullRequestService.GetPullRequestSync(repos)
+	return GhPullRequestService{}.GetPullRequestSync(repos)
 }
 
 func (GhPullRequestService) GetPullRequestSync(repos []domain.Repository) PullRequestSync {
