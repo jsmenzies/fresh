@@ -6,10 +6,22 @@ import (
 	"fresh/internal/domain"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
 var ErrPullRequestDetailsUnsupported = errors.New("pull requests are currently only supported for GitHub repositories")
+
+const githubLoginCacheTTL = time.Hour
+
+var cachedGitHubLogin githubLoginCache
+
+type githubLoginCache struct {
+	mu          sync.Mutex
+	login       string
+	expiresAt   time.Time
+	initialized bool
+}
 
 type ghRepoPullRequestRow struct {
 	Number            int                    `json:"number"`
@@ -80,12 +92,32 @@ func GetRepositoryPullRequests(repo domain.Repository) ([]domain.PullRequestDeta
 }
 
 func queryGitHubLogin() string {
-	cmd := createCommand(defaultConfig.Timeout.Default, "gh", "api", "user", "--jq", ".login")
-	output, err := cmd.Output()
-	if err != nil {
-		return ""
+	return cachedGitHubLogin.get(time.Now(), githubLoginCacheTTL, func() (string, error) {
+		cmd := createCommand(defaultConfig.Timeout.Default, "gh", "api", "user", "--jq", ".login")
+		output, err := cmd.Output()
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(string(output)), nil
+	})
+}
+
+func (c *githubLoginCache) get(now time.Time, ttl time.Duration, loader func() (string, error)) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.initialized && now.Before(c.expiresAt) {
+		return c.login
 	}
-	return strings.TrimSpace(string(output))
+
+	login, err := loader()
+	if err != nil {
+		login = ""
+	}
+	c.login = strings.TrimSpace(login)
+	c.expiresAt = now.Add(ttl)
+	c.initialized = true
+	return c.login
 }
 
 func summarizePullRequestChecks(contexts []ghStatusCheckContext) domain.PullRequestChecks {
