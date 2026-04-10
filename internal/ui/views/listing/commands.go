@@ -12,8 +12,10 @@ var cfg = config.DefaultConfig()
 
 func performInitialRefresh(index int, existingRepo domain.Repository) tea.Cmd {
 	return func() tea.Msg {
-		repo := existingRepo
-		_ = git.RefreshRemoteStatusWithFetch(&repo)
+		repo := git.RefreshRepository(existingRepo.Path, cfg, git.RefreshRepositoryOptions{
+			Mode:     git.RefreshModeFetchRemoteOnly,
+			Existing: &existingRepo,
+		})
 
 		return RepoUpdatedMsg{
 			Repo:  repo,
@@ -24,9 +26,9 @@ func performInitialRefresh(index int, existingRepo domain.Repository) tea.Cmd {
 
 func performRefresh(index int, repoPath string) tea.Cmd {
 	return func() tea.Msg {
-		// Fetch first, then build the repo to get fresh status (avoids 3x GetStatus calls)
-		git.Fetch(repoPath)
-		repo := git.BuildRepository(repoPath, cfg)
+		repo := git.RefreshRepository(repoPath, cfg, git.RefreshRepositoryOptions{
+			Mode: git.RefreshModeFetchAndBuild,
+		})
 
 		return RepoUpdatedMsg{
 			Repo:  repo,

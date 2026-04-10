@@ -16,6 +16,44 @@ import (
 
 var defaultConfig = config.DefaultConfig()
 
+type RefreshMode int
+
+const (
+	RefreshModeBuildOnly RefreshMode = iota + 1
+	RefreshModeFetchRemoteOnly
+	RefreshModeFetchAndBuild
+)
+
+type RefreshRepositoryOptions struct {
+	Mode     RefreshMode
+	Existing *domain.Repository
+}
+
+func RefreshRepository(path string, cfg *config.Config, opts RefreshRepositoryOptions) domain.Repository {
+	switch opts.Mode {
+	case RefreshModeBuildOnly:
+		return BuildRepository(path, cfg)
+
+	case RefreshModeFetchRemoteOnly:
+		var repo domain.Repository
+		if opts.Existing != nil {
+			repo = *opts.Existing
+		} else {
+			repo = BuildRepository(path, cfg)
+		}
+
+		_ = RefreshRemoteStatusWithFetch(&repo)
+		return repo
+
+	case RefreshModeFetchAndBuild:
+		_ = Fetch(path)
+		return BuildRepository(path, cfg)
+
+	default:
+		return BuildRepository(path, cfg)
+	}
+}
+
 func createCommand(timeout time.Duration, name string, args ...string) *exec.Cmd {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	_ = cancel
