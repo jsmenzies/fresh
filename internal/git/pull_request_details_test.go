@@ -8,42 +8,42 @@ func TestClassifyCheckContext(t *testing.T) {
 	tests := []struct {
 		name    string
 		context ghStatusCheckContext
-		want    string
+		want    checkSummaryClass
 	}{
 		{
 			name:    "success conclusion is passed",
 			context: ghStatusCheckContext{Conclusion: "SUCCESS"},
-			want:    "passed",
+			want:    checkSummaryPassed,
 		},
 		{
 			name:    "failed conclusion is failed",
 			context: ghStatusCheckContext{Conclusion: "FAILURE"},
-			want:    "failed",
+			want:    checkSummaryFailed,
 		},
 		{
 			name:    "skipped conclusion is skipped",
 			context: ghStatusCheckContext{Conclusion: "SKIPPED"},
-			want:    "skipped",
+			want:    checkSummarySkipped,
 		},
 		{
 			name:    "in progress status is running",
 			context: ghStatusCheckContext{Status: "IN_PROGRESS"},
-			want:    "running",
+			want:    checkSummaryRunning,
 		},
 		{
 			name:    "queued status is waiting",
 			context: ghStatusCheckContext{Status: "QUEUED"},
-			want:    "waiting",
+			want:    checkSummaryWaiting,
 		},
 		{
 			name:    "pending state is waiting",
 			context: ghStatusCheckContext{State: "PENDING"},
-			want:    "waiting",
+			want:    checkSummaryWaiting,
 		},
 		{
 			name:    "failure state is failed",
 			context: ghStatusCheckContext{State: "FAILURE"},
-			want:    "failed",
+			want:    checkSummaryFailed,
 		},
 	}
 

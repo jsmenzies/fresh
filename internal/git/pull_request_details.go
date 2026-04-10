@@ -92,13 +92,13 @@ func summarizePullRequestChecks(contexts []ghStatusCheckContext) domain.PullRequ
 	summary := domain.PullRequestChecks{Total: len(contexts)}
 	for _, context := range contexts {
 		switch classifyCheckContext(context) {
-		case "passed":
+		case checkSummaryPassed:
 			summary.Passed++
-		case "running":
+		case checkSummaryRunning:
 			summary.Running++
-		case "failed":
+		case checkSummaryFailed:
 			summary.Failed++
-		case "skipped":
+		case checkSummarySkipped:
 			summary.Skipped++
 		default:
 			summary.Waiting++
@@ -107,38 +107,6 @@ func summarizePullRequestChecks(contexts []ghStatusCheckContext) domain.PullRequ
 	return summary
 }
 
-func classifyCheckContext(context ghStatusCheckContext) string {
-	conclusion := strings.ToUpper(strings.TrimSpace(context.Conclusion))
-	switch conclusion {
-	case "SUCCESS":
-		return "passed"
-	case "SKIPPED", "NEUTRAL":
-		return "skipped"
-	case "FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE", "STALE":
-		return "failed"
-	}
-
-	status := strings.ToUpper(strings.TrimSpace(context.Status))
-	if status != "" && status != "COMPLETED" {
-		if status == "IN_PROGRESS" {
-			return "running"
-		}
-		return "waiting"
-	}
-
-	state := strings.ToUpper(strings.TrimSpace(context.State))
-	switch state {
-	case "SUCCESS":
-		return "passed"
-	case "FAILURE", "ERROR":
-		return "failed"
-	case "PENDING", "EXPECTED":
-		return "waiting"
-	}
-
-	if status == "COMPLETED" {
-		return "passed"
-	}
-
-	return "waiting"
+func classifyCheckContext(context ghStatusCheckContext) checkSummaryClass {
+	return classifyCheckSummary(context.Conclusion, context.Status, context.State)
 }
