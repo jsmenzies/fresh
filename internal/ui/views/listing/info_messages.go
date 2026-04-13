@@ -189,7 +189,7 @@ func buildPruneCompletionInfoMessage(activity domain.PruningActivity) InfoMessag
 	if !activity.Outcome.IsSuccess() {
 		reason := textutil.FirstNonEmptyTrimmed(
 			activity.Outcome.FailureReason,
-			firstLineWithPrefixTrimmed(activity.Lines, "Failed: "),
+			textutil.FirstLineWithPrefixTrimmed(activity.Lines, "Failed: "),
 			"one or more branches could not be pruned",
 		)
 		return InfoMessageResult{
@@ -209,15 +209,6 @@ func buildPruneCompletionInfoMessage(activity domain.PruningActivity) InfoMessag
 		Message: InfoMessage{Text: fmt.Sprintf("Pruned %d branches", activity.DeletedCount), Tone: InfoToneSuccess},
 		OK:      true,
 	}
-}
-
-func firstLineWithPrefixTrimmed(lines []string, prefix string) string {
-	for _, line := range lines {
-		if strings.HasPrefix(line, prefix) {
-			return strings.TrimSpace(strings.TrimPrefix(line, prefix))
-		}
-	}
-	return ""
 }
 
 func renderInfoMessage(msg InfoMessage, infoWidth int) string {

@@ -10,3 +10,12 @@ func FirstNonEmptyTrimmed(values ...string) string {
 	}
 	return ""
 }
+
+func FirstLineWithPrefixTrimmed(lines []string, prefix string) string {
+	for _, line := range lines {
+		if strings.HasPrefix(line, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(line, prefix))
+		}
+	}
+	return ""
+}

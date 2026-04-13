@@ -45,15 +45,6 @@ type pullCompleteMsg struct {
 	Repo    domain.Repository
 }
 
-type streamedWorkState[T any] struct {
-	Index    int
-	lineChan chan string
-	doneChan chan T
-}
-
-type pullWorkState = streamedWorkState[pullCompleteMsg]
-type pruneWorkState = streamedWorkState[pruneCompleteMsg]
-
 type pruneLineMsg struct {
 	Index int
 	line  string
