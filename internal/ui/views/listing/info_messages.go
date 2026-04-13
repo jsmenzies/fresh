@@ -2,6 +2,7 @@ package listing
 
 import (
 	"fmt"
+	"fresh/internal/textutil"
 	"strings"
 	"time"
 
@@ -40,6 +41,11 @@ type InfoRuntime struct {
 	PullRequestSyncing   bool
 	BlockedSpinner       string
 	ReadySpinner         string
+}
+
+type InfoMessageResult struct {
+	Message InfoMessage
+	OK      bool
 }
 
 func collectStatusInfoMessages(repo domain.Repository) []InfoMessage {
@@ -91,7 +97,7 @@ func collectStatusInfoMessages(repo domain.Repository) []InfoMessage {
 	return messages
 }
 
-func collectActiveActivityInfoMessage(repo domain.Repository, infoWidth int) (InfoMessage, bool) {
+func collectActiveActivityInfoMessage(repo domain.Repository, infoWidth int) InfoMessageResult {
 	infoWidth = normalizeInfoWidth(infoWidth)
 
 	switch activity := repo.Activity.(type) {
@@ -100,20 +106,23 @@ func collectActiveActivityInfoMessage(repo domain.Repository, infoWidth int) (In
 	case *domain.PruningActivity:
 		return formatActiveProgressInfoMessage(activity.Complete, activity.Spinner.View(), activity.GetLastLine(), infoWidth)
 	default:
-		return InfoMessage{}, false
+		return InfoMessageResult{}
 	}
 }
 
-func formatActiveProgressInfoMessage(complete bool, spinnerView, lastLine string, infoWidth int) (InfoMessage, bool) {
+func formatActiveProgressInfoMessage(complete bool, spinnerView, lastLine string, infoWidth int) InfoMessageResult {
 	if complete {
-		return InfoMessage{}, false
+		return InfoMessageResult{}
 	}
 
 	truncated := common.TruncateWithEllipsis(lastLine, max(1, infoWidth-3))
-	return InfoMessage{
-		Text: common.FormatPullProgress(spinnerView, truncated, max(1, infoWidth-2)),
-		Tone: InfoTonePrimary,
-	}, true
+	return InfoMessageResult{
+		Message: InfoMessage{
+			Text: common.FormatPullProgress(spinnerView, truncated, max(1, infoWidth-2)),
+			Tone: InfoTonePrimary,
+		},
+		OK: true,
+	}
 }
 
 func collectRecentActivityInfoMessages(runtime InfoRuntime, repoPath string) []InfoMessage {
@@ -152,41 +161,53 @@ func filterPinnedInfoMessages(messages []InfoMessage) []InfoMessage {
 	return pinned
 }
 
-func buildPullOutputInfoMessage(lastLine string, exitCode int) InfoMessage {
-	lowerLine := strings.ToLower(lastLine)
-
-	if strings.Contains(lowerLine, "error") || strings.Contains(lowerLine, "fatal") {
-		return InfoMessage{Text: lastLine, Tone: InfoToneError}
+func buildPullCompletionInfoMessage(activity domain.PullingActivity) InfoMessageResult {
+	if !activity.Complete {
+		return InfoMessageResult{}
 	}
 
-	if exitCode == 0 {
-		if strings.Contains(lowerLine, "up to date") || strings.Contains(lowerLine, "up-to-date") {
-			return InfoMessage{Text: lastLine, Tone: InfoTonePrimary}
-		}
-		if strings.Contains(lowerLine, "done") ||
-			(strings.Contains(lowerLine, "file") && strings.Contains(lowerLine, "changed")) {
-			return InfoMessage{Text: lastLine, Tone: InfoToneSuccess}
+	if !activity.Outcome.IsSuccess() {
+		reason := textutil.FirstNonEmptyTrimmed(activity.Outcome.FailureReason, activity.GetLastLine(), "pull failed")
+		return InfoMessageResult{
+			Message: InfoMessage{Text: fmt.Sprintf("Pull failed: %s", reason), Tone: InfoToneWarn},
+			OK:      true,
 		}
 	}
 
-	return InfoMessage{Text: lastLine, Tone: InfoToneWarn}
+	return InfoMessageResult{
+		Message: InfoMessage{Text: "Pull completed successfully", Tone: InfoToneSuccess},
+		OK:      true,
+	}
 }
 
-func buildPruneCompletionInfoMessage(activity domain.PruningActivity) (InfoMessage, bool) {
+func buildPruneCompletionInfoMessage(activity domain.PruningActivity) InfoMessageResult {
 	if !activity.Complete {
-		return InfoMessage{}, false
+		return InfoMessageResult{}
 	}
 
-	if activity.DeletedCount == 0 {
-		for _, line := range activity.Lines {
-			if strings.HasPrefix(line, "Failed: ") {
-				return InfoMessage{Text: strings.TrimPrefix(line, "Failed: "), Tone: InfoToneError}, true
-			}
+	if !activity.Outcome.IsSuccess() {
+		reason := textutil.FirstNonEmptyTrimmed(
+			activity.Outcome.FailureReason,
+			textutil.FirstLineWithPrefixTrimmed(activity.Lines, "Failed: "),
+			"one or more branches could not be pruned",
+		)
+		return InfoMessageResult{
+			Message: InfoMessage{Text: fmt.Sprintf("Prune failed: %s", reason), Tone: InfoToneWarn},
+			OK:      true,
 		}
-		return InfoMessage{Text: "No branches to prune", Tone: InfoToneWarn}, true
 	}
 
-	return InfoMessage{Text: fmt.Sprintf("Deleted %d branches", activity.DeletedCount), Tone: InfoToneSuccess}, true
+	if activity.DeletedCount == 1 {
+		return InfoMessageResult{
+			Message: InfoMessage{Text: "Pruned 1 branch", Tone: InfoToneSuccess},
+			OK:      true,
+		}
+	}
+
+	return InfoMessageResult{
+		Message: InfoMessage{Text: fmt.Sprintf("Pruned %d branches", activity.DeletedCount), Tone: InfoToneSuccess},
+		OK:      true,
+	}
 }
 
 func renderInfoMessage(msg InfoMessage, infoWidth int) string {

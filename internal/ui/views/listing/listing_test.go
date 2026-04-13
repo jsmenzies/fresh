@@ -56,8 +56,10 @@ func TestBuildInfo_CompletedActivityRequiresRecentInfo(t *testing.T) {
 	repo := makeTestRepository("demo")
 	repo.Activity = &domain.PullingActivity{
 		LineBuffer: domain.LineBuffer{Lines: []string{"Already up to date."}},
-		Complete:   true,
-		ExitCode:   0,
+		CommandCompletion: domain.CommandCompletion{
+			Complete: true,
+			Outcome:  domain.CommandOutcome{},
+		},
 	}
 
 	withoutRecent := buildInfo(repo, InfoWidth, InfoRuntime{})

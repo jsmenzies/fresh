@@ -254,11 +254,15 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 
 	case pullCompleteMsg:
-		m.applyRepoUpdate(msg.Index, msg.Repo, func(repo *domain.Repository, activity domain.Activity) {
-			if pulling, ok := activity.(*domain.PullingActivity); ok {
-				pulling.MarkComplete(msg.exitCode)
-				m.storeRecentActivityInfo(repo.Path, buildPullOutputInfoMessage(pulling.GetLastLine(), pulling.ExitCode))
-				repo.Activity = &domain.IdleActivity{}
+		m.finalizeRepoActivity(msg.Index, msg.Repo, func(activity domain.Activity) ActivityFinalizeResult {
+			pulling, ok := activity.(*domain.PullingActivity)
+			if !ok {
+				return ActivityFinalizeResult{}
+			}
+			pulling.MarkComplete(msg.outcome)
+			return ActivityFinalizeResult{
+				Completed: true,
+				Info:      buildPullCompletionInfoMessage(*pulling),
 			}
 		})
 
@@ -277,13 +281,15 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		}
 
 	case pruneCompleteMsg:
-		m.applyRepoUpdate(msg.Index, msg.Repo, func(repo *domain.Repository, activity domain.Activity) {
-			if pruning, ok := activity.(*domain.PruningActivity); ok {
-				pruning.MarkComplete(msg.exitCode, msg.DeletedCount)
-				if info, ok := buildPruneCompletionInfoMessage(*pruning); ok {
-					m.storeRecentActivityInfo(repo.Path, info)
-				}
-				repo.Activity = &domain.IdleActivity{}
+		m.finalizeRepoActivity(msg.Index, msg.Repo, func(activity domain.Activity) ActivityFinalizeResult {
+			pruning, ok := activity.(*domain.PruningActivity)
+			if !ok {
+				return ActivityFinalizeResult{}
+			}
+			pruning.MarkComplete(msg.outcome)
+			return ActivityFinalizeResult{
+				Completed: true,
+				Info:      buildPruneCompletionInfoMessage(*pruning),
 			}
 		})
 

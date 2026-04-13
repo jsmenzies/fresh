@@ -250,8 +250,8 @@ func buildInfo(repo domain.Repository, infoWidth int, runtime InfoRuntime) strin
 		MaxWidth(infoWidth)
 
 	if repo.Activity.IsInProgress() {
-		if active, ok := collectActiveActivityInfoMessage(repo, infoWidth); ok {
-			return infoStyle.Render(renderInfoMessage(active, infoWidth))
+		if active := collectActiveActivityInfoMessage(repo, infoWidth); active.OK {
+			return infoStyle.Render(renderInfoMessage(active.Message, infoWidth))
 		}
 		return infoStyle.Render("")
 	}

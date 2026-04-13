@@ -2,11 +2,11 @@ package git
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"fresh/internal/config"
 	"fresh/internal/domain"
+	"fresh/internal/textutil"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -280,91 +280,6 @@ func RefreshRemoteStatusWithFetch(repo *domain.Repository) error {
 	return nil
 }
 
-func Pull(repoPath string, lineCallback func(string)) int {
-	cmd := createCommand(defaultConfig.Timeout.Pull, "git", "pull", "--rebase", "--progress")
-	cmd.Dir = repoPath
-
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		if lineCallback != nil {
-			lineCallback(fmt.Sprintf("Failed to get stderr pipe: %v", err))
-		}
-		return 1
-	}
-
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		if lineCallback != nil {
-			lineCallback(fmt.Sprintf("Failed to get stdout pipe: %v", err))
-		}
-		return 1
-	}
-
-	if err := cmd.Start(); err != nil {
-		if lineCallback != nil {
-			lineCallback(fmt.Sprintf("Failed to start command: %v", err))
-		}
-		return 1
-	}
-
-	stderrDone := make(chan struct{})
-	go func() {
-		defer close(stderrDone)
-		scanner := bufio.NewScanner(stderrPipe)
-		scanner.Split(splitOnCROrLF)
-
-		for scanner.Scan() {
-			lineStr := strings.TrimSpace(scanner.Text())
-			if lineStr != "" && lineCallback != nil {
-				lineCallback(lineStr)
-			}
-		}
-	}()
-
-	stdoutScanner := bufio.NewScanner(stdoutPipe)
-	for stdoutScanner.Scan() {
-		lineStr := strings.TrimSpace(stdoutScanner.Text())
-		if lineStr != "" && lineCallback != nil {
-			lineCallback(lineStr)
-		}
-	}
-
-	cmdErr := cmd.Wait()
-
-	<-stderrDone
-
-	if cmdErr != nil {
-		if exitErr, ok := cmdErr.(*exec.ExitError); ok {
-			return exitErr.ExitCode()
-		}
-		return 1
-	}
-
-	return 0
-}
-
-func splitOnCROrLF(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	if atEOF && len(data) == 0 {
-		return 0, nil, nil
-	}
-
-	if i := bytes.IndexAny(data, "\r\n"); i >= 0 {
-		if data[i] == '\r' {
-			if i+1 < len(data) && data[i+1] == '\n' {
-				return i + 2, data[0:i], nil
-			}
-			return i + 1, data[0:i], nil
-		}
-		return i + 1, data[0:i], nil
-	}
-
-	if atEOF {
-		return len(data), data, nil
-	}
-
-	return 0, nil, nil
-}
-
 func BuildBranches(repoPath string, excludedBranches []string) domain.Branches {
 	branches := domain.Branches{}
 
@@ -441,8 +356,8 @@ func FilterMergedBranches(repoPath string, branches []string) []string {
 	return merged
 }
 
-func DeleteBranches(repoPath string, branches []string, lineCallback func(string)) (exitCode int, deletedCount int) {
-	deletedCount = 0
+func DeleteBranches(repoPath string, branches []string, lineCallback func(string)) domain.PruneOutcome {
+	outcome := domain.PruneOutcome{}
 
 	for _, branch := range branches {
 		cmd := createCommand(defaultConfig.Timeout.Default, "git", "branch", "-d", branch)
@@ -451,17 +366,29 @@ func DeleteBranches(repoPath string, branches []string, lineCallback func(string
 		outputStr := strings.TrimSpace(string(output))
 
 		if err != nil {
+			outcome.FailedCount++
+			if outcome.ExitCode == 0 {
+				outcome.ExitCode = 1
+				if exitErr, ok := err.(*exec.ExitError); ok {
+					if code := exitErr.ExitCode(); code != 0 {
+						outcome.ExitCode = code
+					}
+				}
+			}
+			if outcome.FailureReason == "" {
+				outcome.FailureReason = textutil.FirstNonEmptyTrimmed(outputStr, err.Error())
+			}
 			if lineCallback != nil {
 				lineCallback(fmt.Sprintf("Failed: %s (%s)", branch, outputStr))
 			}
 			continue
 		}
 
-		deletedCount++
+		outcome.DeletedCount++
 		if lineCallback != nil {
 			lineCallback(fmt.Sprintf("Deleted: %s", branch))
 		}
 	}
 
-	return 0, deletedCount
+	return outcome
 }
