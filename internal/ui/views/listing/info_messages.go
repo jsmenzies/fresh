@@ -20,7 +20,13 @@ const (
 	InfoToneSuccess
 	InfoToneWarn
 	InfoToneError
+	InfoTonePullFailure
 	InfoTonePullRequestSummary
+)
+
+const (
+	pullFailedLabel = "Pull Failed"
+	errorPrefix     = "error:"
 )
 
 type InfoMessage struct {
@@ -167,9 +173,9 @@ func buildPullCompletionInfoMessage(activity domain.PullingActivity) InfoMessage
 	}
 
 	if !activity.Outcome.IsSuccess() {
-		reason := textutil.FirstNonEmptyTrimmed(activity.Outcome.FailureReason, activity.GetLastLine(), "pull failed")
+		reason := sanitizePullFailureReason(textutil.FirstNonEmptyTrimmed(activity.Outcome.FailureReason, activity.GetLastLine(), "pull failed"))
 		return InfoMessageResult{
-			Message: InfoMessage{Text: fmt.Sprintf("Pull failed: %s", reason), Tone: InfoToneWarn},
+			Message: InfoMessage{Text: reason, Tone: InfoTonePullFailure},
 			OK:      true,
 		}
 	}
@@ -212,22 +218,48 @@ func buildPruneCompletionInfoMessage(activity domain.PruningActivity) InfoMessag
 
 func renderInfoMessage(msg InfoMessage, infoWidth int) string {
 	infoWidth = normalizeInfoWidth(infoWidth)
-	text := common.TruncateWithEllipsis(msg.Text, infoWidth)
 
 	switch msg.Tone {
 	case InfoTonePrimary:
+		text := common.TruncateWithEllipsis(msg.Text, infoWidth)
 		return common.PullOutputUpToDate.Width(infoWidth).Render(text)
 	case InfoToneSuccess:
+		text := common.TruncateWithEllipsis(msg.Text, infoWidth)
 		return common.PullOutputSuccess.Width(infoWidth).Render(text)
 	case InfoToneWarn:
+		text := common.TruncateWithEllipsis(msg.Text, infoWidth)
 		return common.PullOutputWarn.Width(infoWidth).Render(text)
 	case InfoToneError:
+		text := common.TruncateWithEllipsis(msg.Text, infoWidth)
 		return common.PullOutputError.Width(infoWidth).Render(text)
+	case InfoTonePullFailure:
+		return renderPullFailureInfoMessage(msg.Text, infoWidth)
 	case InfoTonePullRequestSummary:
+		text := common.TruncateWithEllipsis(msg.Text, infoWidth)
 		return renderMyPullRequestSummaryInfo(text, infoWidth)
 	default:
+		text := common.TruncateWithEllipsis(msg.Text, infoWidth)
 		return common.TextGrey.Render(text)
 	}
+}
+
+func sanitizePullFailureReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if len(reason) >= len(errorPrefix) && strings.EqualFold(reason[:len(errorPrefix)], errorPrefix) {
+		reason = strings.TrimSpace(reason[len(errorPrefix):])
+	}
+	return textutil.FirstNonEmptyTrimmed(reason, "pull failed")
+}
+
+func renderPullFailureInfoMessage(reason string, infoWidth int) string {
+	full := common.TruncateWithEllipsis(fmt.Sprintf("%s: %s", pullFailedLabel, reason), infoWidth)
+	if !strings.HasPrefix(full, pullFailedLabel) || len(full) <= len(pullFailedLabel) {
+		return common.PullOutputError.Width(infoWidth).Render(full)
+	}
+
+	label := common.PullOutputError.Render(pullFailedLabel)
+	detail := common.PullOutputUpToDate.Render(full[len(pullFailedLabel):])
+	return common.InfoStyle.Width(infoWidth).MaxWidth(infoWidth).Render(label + detail)
 }
 
 func renderMyPullRequestSummaryInfo(text string, infoWidth int) string {
