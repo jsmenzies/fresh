@@ -44,6 +44,11 @@ type InfoRuntime struct {
 	ReadySpinner         string
 }
 
+type InfoMessageResult struct {
+	Message InfoMessage
+	OK      bool
+}
+
 func collectStatusInfoMessages(repo domain.Repository) []InfoMessage {
 	messages := make([]InfoMessage, 0, 8)
 
@@ -93,7 +98,7 @@ func collectStatusInfoMessages(repo domain.Repository) []InfoMessage {
 	return messages
 }
 
-func collectActiveActivityInfoMessage(repo domain.Repository, infoWidth int) (InfoMessage, bool) {
+func collectActiveActivityInfoMessage(repo domain.Repository, infoWidth int) InfoMessageResult {
 	infoWidth = normalizeInfoWidth(infoWidth)
 
 	switch activity := repo.Activity.(type) {
@@ -102,20 +107,23 @@ func collectActiveActivityInfoMessage(repo domain.Repository, infoWidth int) (In
 	case *domain.PruningActivity:
 		return formatActiveProgressInfoMessage(activity.Complete, activity.Spinner.View(), activity.GetLastLine(), infoWidth)
 	default:
-		return InfoMessage{}, false
+		return InfoMessageResult{}
 	}
 }
 
-func formatActiveProgressInfoMessage(complete bool, spinnerView, lastLine string, infoWidth int) (InfoMessage, bool) {
+func formatActiveProgressInfoMessage(complete bool, spinnerView, lastLine string, infoWidth int) InfoMessageResult {
 	if complete {
-		return InfoMessage{}, false
+		return InfoMessageResult{}
 	}
 
 	truncated := common.TruncateWithEllipsis(lastLine, max(1, infoWidth-3))
-	return InfoMessage{
-		Text: common.FormatPullProgress(spinnerView, truncated, max(1, infoWidth-2)),
-		Tone: InfoTonePrimary,
-	}, true
+	return InfoMessageResult{
+		Message: InfoMessage{
+			Text: common.FormatPullProgress(spinnerView, truncated, max(1, infoWidth-2)),
+			Tone: InfoTonePrimary,
+		},
+		OK: true,
+	}
 }
 
 func collectRecentActivityInfoMessages(runtime InfoRuntime, repoPath string) []InfoMessage {
@@ -154,22 +162,28 @@ func filterPinnedInfoMessages(messages []InfoMessage) []InfoMessage {
 	return pinned
 }
 
-func buildPullCompletionInfoMessage(activity domain.PullingActivity) (InfoMessage, bool) {
+func buildPullCompletionInfoMessage(activity domain.PullingActivity) InfoMessageResult {
 	if !activity.Complete {
-		return InfoMessage{}, false
+		return InfoMessageResult{}
 	}
 
 	if !activity.Outcome.IsSuccess() {
 		reason := textutil.FirstNonEmptyTrimmed(activity.Outcome.FailureReason, activity.GetLastLine(), "pull failed")
-		return InfoMessage{Text: fmt.Sprintf("Pull failed: %s", reason), Tone: InfoToneWarn}, true
+		return InfoMessageResult{
+			Message: InfoMessage{Text: fmt.Sprintf("Pull failed: %s", reason), Tone: InfoToneWarn},
+			OK:      true,
+		}
 	}
 
-	return InfoMessage{Text: "Pull completed successfully", Tone: InfoToneSuccess}, true
+	return InfoMessageResult{
+		Message: InfoMessage{Text: "Pull completed successfully", Tone: InfoToneSuccess},
+		OK:      true,
+	}
 }
 
-func buildPruneCompletionInfoMessage(activity domain.PruningActivity) (InfoMessage, bool) {
+func buildPruneCompletionInfoMessage(activity domain.PruningActivity) InfoMessageResult {
 	if !activity.Complete {
-		return InfoMessage{}, false
+		return InfoMessageResult{}
 	}
 
 	if !activity.Outcome.IsSuccess() {
@@ -178,14 +192,23 @@ func buildPruneCompletionInfoMessage(activity domain.PruningActivity) (InfoMessa
 			firstLineWithPrefixTrimmed(activity.Lines, "Failed: "),
 			"one or more branches could not be pruned",
 		)
-		return InfoMessage{Text: fmt.Sprintf("Prune failed: %s", reason), Tone: InfoToneWarn}, true
+		return InfoMessageResult{
+			Message: InfoMessage{Text: fmt.Sprintf("Prune failed: %s", reason), Tone: InfoToneWarn},
+			OK:      true,
+		}
 	}
 
 	if activity.DeletedCount == 1 {
-		return InfoMessage{Text: "Pruned 1 branch", Tone: InfoToneSuccess}, true
+		return InfoMessageResult{
+			Message: InfoMessage{Text: "Pruned 1 branch", Tone: InfoToneSuccess},
+			OK:      true,
+		}
 	}
 
-	return InfoMessage{Text: fmt.Sprintf("Pruned %d branches", activity.DeletedCount), Tone: InfoToneSuccess}, true
+	return InfoMessageResult{
+		Message: InfoMessage{Text: fmt.Sprintf("Pruned %d branches", activity.DeletedCount), Tone: InfoToneSuccess},
+		OK:      true,
+	}
 }
 
 func firstLineWithPrefixTrimmed(lines []string, prefix string) string {

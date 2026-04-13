@@ -249,83 +249,96 @@ func Pull(repoPath string, lineCallback func(string)) domain.CommandOutcome {
 
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
-		msg := fmt.Sprintf("Failed to get stderr pipe: %v", err)
-		if lineCallback != nil {
-			lineCallback(msg)
-		}
-		return domain.CommandOutcome{ExitCode: 1, FailureReason: msg}
+		return pullSetupFailure(lineCallback, "Failed to get stderr pipe", err)
 	}
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		msg := fmt.Sprintf("Failed to get stdout pipe: %v", err)
-		if lineCallback != nil {
-			lineCallback(msg)
-		}
-		return domain.CommandOutcome{ExitCode: 1, FailureReason: msg}
+		return pullSetupFailure(lineCallback, "Failed to get stdout pipe", err)
 	}
 
 	if err := cmd.Start(); err != nil {
-		msg := fmt.Sprintf("Failed to start command: %v", err)
-		if lineCallback != nil {
-			lineCallback(msg)
-		}
-		return domain.CommandOutcome{ExitCode: 1, FailureReason: msg}
+		return pullSetupFailure(lineCallback, "Failed to start command", err)
 	}
 
-	var linesMu sync.Mutex
-	lastLine := ""
-	firstErrorLine := ""
-	recordLine := func(line string) {
-		lineStr := strings.TrimSpace(line)
-		if lineStr == "" {
-			return
-		}
-		linesMu.Lock()
-		lastLine = lineStr
-		lower := strings.ToLower(lineStr)
-		if firstErrorLine == "" && (strings.Contains(lower, "error") || strings.Contains(lower, "fatal")) {
-			firstErrorLine = lineStr
-		}
-		linesMu.Unlock()
-		if lineCallback != nil {
-			lineCallback(lineStr)
-		}
-	}
+	output := &pullOutputTracker{}
+	recordLine := func(line string) { output.RecordAndEmit(line, lineCallback) }
 
 	stderrDone := make(chan struct{})
 	go func() {
 		defer close(stderrDone)
 		scanner := bufio.NewScanner(stderrPipe)
 		scanner.Split(splitOnCROrLF)
-
-		for scanner.Scan() {
-			recordLine(scanner.Text())
-		}
+		scanLines(scanner, recordLine)
 	}()
 
 	stdoutScanner := bufio.NewScanner(stdoutPipe)
-	for stdoutScanner.Scan() {
-		recordLine(stdoutScanner.Text())
-	}
+	scanLines(stdoutScanner, recordLine)
 
 	cmdErr := cmd.Wait()
 
 	<-stderrDone
 
 	if cmdErr != nil {
-		exitCode := 1
-		if exitErr, ok := cmdErr.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
+		return domain.CommandOutcome{
+			ExitCode:      commandExitCode(cmdErr),
+			FailureReason: output.FailureReason(cmdErr),
 		}
-		failureReason := ""
-		linesMu.Lock()
-		failureReason = textutil.FirstNonEmptyTrimmed(firstErrorLine, lastLine, cmdErr.Error())
-		linesMu.Unlock()
-		return domain.CommandOutcome{ExitCode: exitCode, FailureReason: failureReason}
 	}
 
 	return domain.CommandOutcome{}
+}
+
+type pullOutputTracker struct {
+	mu             sync.Mutex
+	lastLine       string
+	firstErrorLine string
+}
+
+func (t *pullOutputTracker) RecordAndEmit(raw string, lineCallback func(string)) {
+	line := strings.TrimSpace(raw)
+	if line == "" {
+		return
+	}
+
+	t.mu.Lock()
+	t.lastLine = line
+	lower := strings.ToLower(line)
+	if t.firstErrorLine == "" && (strings.Contains(lower, "error") || strings.Contains(lower, "fatal")) {
+		t.firstErrorLine = line
+	}
+	t.mu.Unlock()
+
+	if lineCallback != nil {
+		lineCallback(line)
+	}
+}
+
+func (t *pullOutputTracker) FailureReason(cmdErr error) string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return textutil.FirstNonEmptyTrimmed(t.firstErrorLine, t.lastLine, cmdErr.Error())
+}
+
+func pullSetupFailure(lineCallback func(string), context string, err error) domain.CommandOutcome {
+	msg := fmt.Sprintf("%s: %v", context, err)
+	if lineCallback != nil {
+		lineCallback(msg)
+	}
+	return domain.CommandOutcome{ExitCode: 1, FailureReason: msg}
+}
+
+func commandExitCode(err error) int {
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		return exitErr.ExitCode()
+	}
+	return 1
+}
+
+func scanLines(scanner *bufio.Scanner, onLine func(string)) {
+	for scanner.Scan() {
+		onLine(scanner.Text())
+	}
 }
 
 func splitOnCROrLF(data []byte, atEOF bool) (advance int, token []byte, err error) {
