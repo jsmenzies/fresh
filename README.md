@@ -32,13 +32,6 @@ Fresh uses [Nerd Fonts](https://www.nerdfonts.com/) to render icons. We specific
 brew install jsmenzies/tap/fresh
 ```
 
-### Scoop (Windows)
-
-```powershell
-scoop bucket add fresh https://github.com/jsmenzies/scoop-fresh
-scoop install fresh
-```
-
 ### Manual Installation
 
 1.  Download the latest release for your platform from the [Releases](https://github.com/jsmenzies/fresh/releases) page.
