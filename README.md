@@ -8,12 +8,11 @@ A CLI tool for interactively managing the status of multiple Git repositories. `
 
 ## Features
 
+- [x] **PR Check Status Notifications**: Get alerts when tracked pull requests become blocked, recover, or become merge-ready.
 - [X] **Git Repo Scanning**: Automatically finds git repositories in your projects folder.
 - [x] **Smart Status**: Instantly see local changes (+Added, ~Modified, -Deleted, ?Untracked) and remote status (Ahead, Behind, Diverged).
 - [x] **Safe Updates**: "Pull All" intelligently targets repositories that are behind, using `--rebase` to keep your branch history clean and avoiding unsafe merges.
 - [x] **Detailed Insights**: View last commit times and quick links to GitHub.
-- [ ] **No-Icons Mode**: Option to disable Nerd Font icons for standard terminal compatibility.
-- [ ] **Push Support**: Quickly push local commits to the remote repository.
 
 ## Font Recommendation
 
