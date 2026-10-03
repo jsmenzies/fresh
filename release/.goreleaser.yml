@@ -143,9 +143,11 @@ homebrew_casks:
     homepage: "https://github.com/jsmenzies/fresh"
     binaries:
       - fresh
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/fresh"]
-          end
+    # GoReleaser's install hook emits Homebrew's deprecated `postflight` stanza.
+    # Use structured steps until GoReleaser supports them directly.
+    custom_block: |
+      postflight_steps do
+        on_macos do
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "fresh"], chdir: "."
+        end
+      end
