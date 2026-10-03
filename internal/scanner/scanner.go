@@ -2,16 +2,13 @@ package scanner
 
 import (
 	"fresh/internal/git"
-	"io/fs"
+	"os"
 	"path/filepath"
-	"runtime"
-	"sync"
 )
 
 type Scanner struct {
 	scanDir string
 	ch      chan string
-	wg      sync.WaitGroup
 }
 
 func New(scanDir string) *Scanner {
@@ -28,42 +25,21 @@ func (s *Scanner) GetRepoChannel() <-chan string {
 func (s *Scanner) Scan() {
 	defer close(s.ch)
 
-	numWorkers := runtime.NumCPU()
-	paths := make(chan string)
-
-	for i := 0; i < numWorkers; i++ {
-		s.wg.Add(1)
-		go func() {
-			defer s.wg.Done()
-			for path := range paths {
-				if git.IsRepository(path) {
-					s.ch <- path
-				}
-			}
-		}()
+	entries, err := os.ReadDir(s.scanDir)
+	if err != nil {
+		return
 	}
 
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
-		defer close(paths)
-		err := filepath.WalkDir(s.scanDir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if !d.IsDir() {
-				return nil
-			}
-
-			if d.Name() == ".git" {
-				paths <- filepath.Dir(path)
-				return filepath.SkipDir
-			}
-			return nil
-		})
-		if err != nil {
-			// errors are ignored if the scan can not access certain directories,
+	paths := []string{s.scanDir}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			paths = append(paths, filepath.Join(s.scanDir, entry.Name()))
 		}
-	}()
-	s.wg.Wait()
+	}
+
+	for _, path := range paths {
+		if _, err := os.Stat(filepath.Join(path, ".git")); err == nil && git.IsRepository(path) {
+			s.ch <- path
+		}
+	}
 }
